@@ -1,11 +1,22 @@
 'use client';
 
-import { Container, Typography, Box, Link as MuiLink } from '@mui/material';
+import { 
+  Container, 
+  Typography, 
+  Box, 
+  Link as MuiLink, 
+  Breadcrumbs, 
+  Divider,
+  Chip
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState, use } from 'react';
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+import Footer from '@/components/Footer';
 
+// ข้อมูลบทความ (ในอนาคตอาจดึงจาก API หรือฐานข้อมูล)
 const blogPosts = [
   {
     id: 1,
@@ -14,6 +25,7 @@ const blogPosts = [
     image: '/images/blog/north.jpg',
     slug: 'ต้นไม้มงคลตามทิศเหนือ',
     date: '20 มีนาคม 2024',
+    category: 'ฮวงจุ้ย',
     content: `
       <p>ทิศเหนือเป็นทิศที่เกี่ยวข้องกับความก้าวหน้าในอาชีพการงานและชื่อเสียง ตามหลักฮวงจุ้ย การจัดวางต้นไม้มงคลในทิศนี้จะช่วยเสริมสร้างความก้าวหน้าในอาชีพการงาน</p>
       <p>ต้นไม้ที่เหมาะสำหรับทิศเหนือ ได้แก่:</p>
@@ -31,6 +43,7 @@ const blogPosts = [
     image: '/images/blog/east.jpg',
     slug: 'ต้นไม้เสริมดวงตามทิศตะวันออก',
     date: '19 มีนาคม 2024',
+    category: 'ฮวงจุ้ย',
     content: `
       <p>ทิศตะวันออกเป็นทิศที่เกี่ยวข้องกับสุขภาพและครอบครัว ตามหลักฮวงจุ้ย การจัดวางต้นไม้มงคลในทิศนี้จะช่วยเสริมสร้างสุขภาพที่ดีและความสัมพันธ์ในครอบครัว</p>
       <p>ต้นไม้ที่เหมาะสำหรับทิศตะวันออก ได้แก่:</p>
@@ -48,6 +61,7 @@ const blogPosts = [
     image: '/images/blog/south.jpg',
     slug: 'ต้นไม้เสริมโชคลาภทิศใต้',
     date: '18 มีนาคม 2024',
+    category: 'ฮวงจุ้ย',
     content: `
       <p>ทิศใต้เป็นทิศที่เกี่ยวข้องกับชื่อเสียงและความสำเร็จ ตามหลักฮวงจุ้ย การจัดวางต้นไม้มงคลในทิศนี้จะช่วยเสริมสร้างชื่อเสียงและความสำเร็จ</p>
       <p>ต้นไม้ที่เหมาะสำหรับทิศใต้ ได้แก่:</p>
@@ -65,6 +79,7 @@ const blogPosts = [
     image: '/images/blog/west.jpg',
     slug: 'ต้นไม้เสริมความรักทิศตะวันตก',
     date: '17 มีนาคม 2024',
+    category: 'ฮวงจุ้ย',
     content: `
       <p>ทิศตะวันตกเป็นทิศที่เกี่ยวข้องกับความรักและความสัมพันธ์ ตามหลักฮวงจุ้ย การจัดวางต้นไม้มงคลในทิศนี้จะช่วยเสริมสร้างความรักและความสัมพันธ์ที่ดี</p>
       <p>ต้นไม้ที่เหมาะสำหรับทิศตะวันตก ได้แก่:</p>
@@ -79,9 +94,10 @@ const blogPosts = [
     id: 5,
     title: '5 ต้นไม้มงคลที่ช่วยเสริมโชคลาภการเงิน',
     excerpt: 'แนะนำต้นไม้มงคลที่ช่วยเสริมโชคลาภการเงิน ตามความเชื่อโบราณ',
-    image: '/images/blog/money.jpg',
+    image: '/images/blog/money-tree.jpg',
     slug: '5-ต้นไม้มงคลที่ช่วยเสริมโชคลาภการเงิน',
-    date: '21 มีนาคม 2024',
+    date: '16 มีนาคม 2024',
+    category: 'ความเชื่อ',
     content: `
       <p>การปลูกต้นไม้มงคลในบ้านหรือที่ทำงาน นอกจากจะช่วยสร้างบรรยากาศที่ดีแล้ว ยังเชื่อกันว่าสามารถช่วยเสริมโชคลาภการเงินได้อีกด้วย ตามความเชื่อโบราณของไทย</p>
       
@@ -109,7 +125,8 @@ const blogPosts = [
     excerpt: 'แนะนำต้นไม้ที่ช่วยดูดซับพลังงานลบและวิธีการดูแลรักษา',
     image: '/images/blog/negative-energy.jpg',
     slug: 'ต้นไม้ดูดพลังงานลบและวิธีดูแลให้ถูกต้อง',
-    date: '22 มีนาคม 2024',
+    date: '15 มีนาคม 2024',
+    category: 'การดูแล',
     content: `
       <p>ต้นไม้บางชนิดมีความสามารถในการดูดซับพลังงานลบและช่วยปรับสมดุลพลังงานในบ้านได้ ตามหลักฮวงจุ้ยและความเชื่อโบราณ</p>
       
@@ -168,6 +185,7 @@ const blogPosts = [
     image: '/images/blog/work.jpg',
     slug: '5-ต้นไม้เสริมการทำงาน-เพิ่มประสิทธิภาพและความคิดสร้างสรรค์',
     date: '23 มีนาคม 2024',
+    category: 'ไลฟ์สไตล์',
     content: `
       <p>การจัดวางต้นไม้ในที่ทำงานไม่เพียงแต่ช่วยสร้างบรรยากาศที่ดี แต่ยังสามารถช่วยเพิ่มประสิทธิภาพการทำงานและความคิดสร้างสรรค์ได้อีกด้วย</p>
       
@@ -246,92 +264,201 @@ export default function BlogPost({ params }: { params: Promise<{ slug: string }>
 
   if (!post) {
     return (
-      <Container maxWidth="md" sx={{ py: 8, textAlign: 'center' }}>
-        <Typography variant="h5" color="text.secondary">
-          ไม่พบบทความที่คุณกำลังค้นหา
-        </Typography>
-      </Container>
+      <Box sx={{ 
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh'
+      }}>
+        <Box sx={{ flex: '1 0 auto' }}>
+          <Container maxWidth="md" sx={{ py: 8, textAlign: 'center' }}>
+            <Typography variant="h5" color="text.secondary">
+              ไม่พบบทความที่คุณต้องการ
+            </Typography>
+            <MuiLink 
+              component={Link} 
+              href="/blog" 
+              sx={{ 
+                display: 'inline-block', 
+                mt: 2,
+                textDecoration: 'none',
+                '&:hover': {
+                  textDecoration: 'underline'
+                }
+              }}
+            >
+              กลับไปยังหน้าบทความ
+            </MuiLink>
+          </Container>
+        </Box>
+        <Footer />
+      </Box>
     );
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 8 }}>
-      <Box sx={{ mb: 6 }}>
-        <MuiLink
-          component={Link}
-          href="/blog"
-          sx={{ 
-            color: theme.palette.text.secondary,
-            textDecoration: 'none',
-            '&:hover': {
-              color: theme.palette.primary.main
-            }
-          }}
-        >
-          ← กลับไปยังบทความทั้งหมด
-        </MuiLink>
+    <Box sx={{ 
+      display: 'flex',
+      flexDirection: 'column',
+      minHeight: '100vh',
+      bgcolor: 'background.default',
+      color: 'text.primary'
+    }}>
+      <Box sx={{ flex: '1 0 auto' }}>
+        <Container maxWidth={false} sx={{ 
+          py: 4, 
+          px: { xs: 2, sm: 3, lg: 4, xl: 5 }, 
+          maxWidth: { xs: '100%', sm: '100%', md: '1200px', xl: '1200px' }, 
+          mx: 'auto',
+        }}>
+          {/* Breadcrumbs */}
+          <Breadcrumbs separator="›" aria-label="breadcrumb" sx={{ mb: 3 }}>
+            <Box 
+              component={Link} 
+              href="/" 
+              sx={{ 
+                textDecoration: 'none', 
+                color: theme.palette.primary.main,
+                fontFamily: theme.typography.fontFamily,
+                '&:hover': {
+                  textDecoration: 'underline'
+                }
+              }}
+            >
+              หน้าหลัก
+            </Box>
+            <Box 
+              component={Link} 
+              href="/blog" 
+              sx={{ 
+                textDecoration: 'none', 
+                fontFamily: theme.typography.fontFamily,
+                color: theme.palette.primary.main,
+                '&:hover': {
+                  textDecoration: 'underline'
+                }
+              }}
+            >
+              บทความ
+            </Box>
+              
+            <Typography color="text.primary">
+                {post.title}
+              </Typography>
+          </Breadcrumbs>
+
+            {/* หมวดหมู่และวันที่ */}
+            <Box sx={{ mb: 6, display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Chip 
+                label={post.category} 
+                size="small" 
+                color="primary"
+                variant="outlined"
+              />
+              <Typography variant="caption" color="text.secondary">
+                {post.date}
+              </Typography>
+            </Box>
+
+            {/* หัวข้อบทความ */}
+            <Typography 
+              variant="h4" 
+              component="h4" 
+              sx={{ 
+                mb: 4,
+                fontWeight: 500,
+                letterSpacing: -0.5,
+                lineHeight: 1.2
+              }}
+            >
+              {post.title}
+            </Typography>
+
+            {/* รูปภาพหลัก */}
+            <Box 
+              sx={{ 
+                position: 'relative', 
+                width: '100%', 
+                height: { xs: 300, sm: 400, md: 500 },
+                mb: 6,
+                overflow: 'hidden',
+                borderRadius: 1,
+              }}
+            >
+              <Image
+                src={post.image}
+                alt={post.title}
+                fill
+                priority
+                style={{ 
+                  objectFit: 'cover'
+                }}
+              />
+            </Box>
+
+            {/* เนื้อหาบทความ */}
+            <Box 
+              sx={{ 
+                '& p': { 
+                  fontSize: '1.05rem',
+                  lineHeight: 1.8,
+                  mb: 3,
+                  color: 'text.primary',
+                  maxWidth: { sm: '90%', md: '80%' },
+                },
+                '& h2': {
+                  fontSize: '1.5rem',
+                  fontWeight: 700,
+                  my: 4,
+                  color: 'text.primary'
+                },
+                '& h3': {
+                  fontSize: '1.25rem',
+                  fontWeight: 600,
+                  my: 3,
+                  color: 'text.primary'
+                },
+                '& ul, & ol': {
+                  pl: 4,
+                  mb: 4,
+                  '& li': {
+                    mb: 1.5,
+                    fontSize: '1.05rem',
+                    lineHeight: 1.6
+                  }
+                },
+                '& img': {
+                  maxWidth: '100%',
+                  height: 'auto',
+                  borderRadius: 1,
+                  my: 4
+                }
+              }}
+              dangerouslySetInnerHTML={{ __html: post.content }}
+            />
+
+            <Divider sx={{ my: 8 }} />
+
+            {/* ลิงก์กลับไปยังหน้าบทความทั้งหมด */}
+            <Box sx={{ textAlign: 'center', mb: 4 }}>
+              <MuiLink 
+                component={Link} 
+                href="/blog" 
+                sx={{ 
+                  display: 'inline-block',
+                  fontSize: '1rem',
+                  color: theme.palette.primary.main,
+                  textDecoration: 'none',
+                  '&:hover': {
+                    textDecoration: 'underline'
+                  }
+                }}
+              >
+                ← กลับไปยังบทความทั้งหมด
+              </MuiLink>
+            </Box>
+          </Container>
+        </Box>
+        <Footer />
       </Box>
-
-      <Typography 
-        variant="h1" 
-        component="h1" 
-        sx={{ 
-          fontSize: { xs: '2rem', md: '2.5rem' },
-          fontWeight: 500,
-          mb: 4,
-          color: theme.palette.text.primary
-        }}
-      >
-        {post.title}
-      </Typography>
-
-      <Typography 
-        variant="subtitle2" 
-        color="text.secondary" 
-        sx={{ mb: 6 }}
-      >
-        {post.date}
-      </Typography>
-
-      <Box 
-        sx={{ 
-          position: 'relative', 
-          width: '100%', 
-          height: { xs: 240, md: 400 },
-          mb: 6
-        }}
-      >
-        <Image
-          src={post.image}
-          alt={post.title}
-          fill
-          style={{ 
-            objectFit: 'cover'
-          }}
-        />
-      </Box>
-
-      <Box 
-        sx={{ 
-          '& p': {
-            mb: 4,
-            lineHeight: 1.8,
-            fontSize: '1.125rem',
-            color: theme.palette.text.primary
-          },
-          '& ul': {
-            pl: 3,
-            mb: 4
-          },
-          '& li': {
-            mb: 2,
-            lineHeight: 1.6,
-            fontSize: '1.125rem',
-            color: theme.palette.text.primary
-          }
-        }}
-        dangerouslySetInnerHTML={{ __html: post.content }}
-      />
-    </Container>
   );
 } 
