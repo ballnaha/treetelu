@@ -13,15 +13,25 @@ import { useTheme } from '@mui/material/styles';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import Footer from '@/components/Footer';
-import { BlogPost } from '@/data/blogPosts';
 
-interface BlogPostClientProps {
-  post: BlogPost | undefined;
-  decodedSlug: string;
+interface BlogPost {
+  id: number;
+  title: string;
+  excerpt: string;
+  image: string;
+  slug: string;
+  date: string;
+  category: string;
+  content: string;
 }
 
-export default function BlogPostClient({ post, decodedSlug }: BlogPostClientProps) {
+interface ClientBlogPostProps {
+  post: BlogPost | undefined;
+}
+
+export default function ClientBlogPost({ post }: ClientBlogPostProps) {
   const theme = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -111,7 +121,7 @@ export default function BlogPostClient({ post, decodedSlug }: BlogPostClientProp
             >
               บทความ
             </Box>
-              
+            
             <Typography color="text.primary">
                 {post.title}
               </Typography>
@@ -133,7 +143,7 @@ export default function BlogPostClient({ post, decodedSlug }: BlogPostClientProp
             {/* หัวข้อบทความ */}
             <Typography 
               variant="h4" 
-              component="h1" 
+              component="h4" 
               sx={{ 
                 mb: 4,
                 fontWeight: 500,
