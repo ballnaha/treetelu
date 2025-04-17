@@ -1227,7 +1227,7 @@ function MainContent({
             >
               <Box sx={{ position: 'relative', width: '100%', height: 180 }}>
                 <Image
-                  src="/images/cover-tree.webp"
+                  src="/images/blog/north.jpg"
                   alt="ไม้มงคล"
                   fill
                   style={{ objectFit: 'cover' }}
@@ -1261,6 +1261,7 @@ function MainContent({
                 <Button 
                 variant="text"
                   color="primary"
+                  href="/blog"
                   endIcon={<ArrowForwardIcon className="arrow-icon" sx={{ transition: 'transform 0.3s' }} />}
                   sx={{ 
                     fontWeight: 500,
@@ -1294,7 +1295,7 @@ function MainContent({
             >
               <Box sx={{ position: 'relative', width: '100%', height: 180 }}>
                   <Image
-                  src="/images/cover-tree.webp"
+                  src="/images/blog/money-tree.jpg"
                   alt="ไม้มงคล"
                   fill
                   style={{ objectFit: 'cover' }}
@@ -1328,6 +1329,7 @@ function MainContent({
                 <Button 
                   variant="text" 
                   color="primary"
+                  href="/blog/5-ต้นไม้มงคลที่ช่วยเสริมโชคลาภการเงิน"
                   endIcon={<ArrowForwardIcon className="arrow-icon" sx={{ transition: 'transform 0.3s' }} />}
                     sx={{ 
                     fontWeight: 500,
@@ -1361,7 +1363,7 @@ function MainContent({
             >
               <Box sx={{ position: 'relative', width: '100%', height: 180 }}>
                       <Image
-                  src="/images/cover-succulent.webp"
+                  src="/images/blog/negative-energy.jpg"
                   alt="ต้นไม้ดูดพลังงาน"
                   fill
                   style={{ objectFit: 'cover' }}
@@ -1395,6 +1397,7 @@ function MainContent({
                 <Button 
                   variant="text" 
                   color="primary"
+                  href="/blog/ต้นไม้ดูดพลังงานลบและวิธีดูแลให้ถูกต้อง"
                   endIcon={<ArrowForwardIcon className="arrow-icon" sx={{ transition: 'transform 0.3s' }} />}
                     sx={{ 
                     fontWeight: 500,
