@@ -1,0 +1,278 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id           Int       @id @default(autoincrement())
+  categoryName String?   @db.VarChar(255)
+  categoryDesc String?   @db.VarChar(255)
+  priority     Int?      @db.SmallInt
+  status       String?   @default("on") @db.VarChar(50)
+  bestseller   String?   @default("off") @db.VarChar(50)
+  createdAt    DateTime? @db.DateTime(0)
+  updatedAt    DateTime? @db.DateTime(0)
+
+  @@map("category")
+}
+
+model Product {
+  id              Int         @id @default(autoincrement())
+  sku             String?     @unique(map: "product_sku_unique") @db.VarChar(255)
+  productImg      String?     @db.VarChar(255)
+  productName     String?     @db.VarChar(255)
+  slug            String?     @db.VarChar(255)
+  productDesc     String?     @db.Text
+  salesPrice      Decimal?    @db.Decimal(10, 2)
+  originalPrice   Decimal?    @db.Decimal(10, 2)
+  discount        Int?
+  potSize         String?     @db.VarChar(100)
+  plantHeight     String?     @db.VarChar(100)
+  preparationTime String?     @db.VarChar(100)
+  stock           Int?
+  stockStatus     String?     @db.VarChar(255)
+  category        String?     @db.VarChar(255)
+  categoryId      Int?
+  productStatus   String?     @default("on") @db.VarChar(50)
+  createdAt       DateTime?   @db.DateTime(0)
+  updatedAt       DateTime?   @db.DateTime(0)
+  orderItems      OrderItem[]
+
+  @@index([slug], map: "product_slug_index")
+  @@map("product")
+}
+
+model statusmaster {
+  id        Int       @id @default(autoincrement())
+  code      String?   @db.VarChar(100)
+  name      String?   @db.VarChar(100)
+  desc      String?   @db.VarChar(100)
+  type      String?   @db.VarChar(100)
+  createdAt DateTime? @db.DateTime(0)
+  updatedAt DateTime? @db.DateTime(0)
+}
+
+model users {
+  id                    BigInt                @id @default(autoincrement()) @db.UnsignedBigInt
+  name                  String                @db.VarChar(255)
+  email                 String                @unique(map: "users_email_unique") @db.VarChar(255)
+  isAdmin               users_isAdmin?        @default(false)
+  role                  Int?
+  emailVerifiedAt       DateTime?             @db.Timestamp(0)
+  password              String                @db.VarChar(255)
+  rememberToken         String?               @db.VarChar(100)
+  createdAt             DateTime?             @db.Timestamp(0)
+  updatedAt             DateTime?             @db.Timestamp(0)
+  orders                Order[]
+  verifiedConfirmations PaymentConfirmation[]
+  verifiedPayments      PaymentInfo[]
+}
+
+
+model productimage {
+  id        Int       @id @default(autoincrement())
+  productId Int?
+  imageName String?   @db.VarChar(255)
+  imageDesc String?   @db.VarChar(255)
+  createdAt DateTime? @db.DateTime(0)
+  updatedAt DateTime? @db.DateTime(0)
+}
+
+model thaiamphures {
+  id                Int            @id
+  nameTh            String         @db.VarChar(150)
+  nameEn            String         @db.VarChar(150)
+  provinceId        Int
+  createdAt         DateTime?      @db.DateTime(0)
+  updatedAt         DateTime?      @db.DateTime(0)
+  deletedAt         DateTime?      @db.DateTime(0)
+  shippingAddresses ShippingInfo[]
+}
+
+model thaigeographies {
+  id   Int    @id
+  name String @db.VarChar(255)
+}
+
+model thaiprovinces {
+  id                Int            @id
+  nameTh            String         @db.VarChar(150)
+  nameEn            String         @db.VarChar(150)
+  geographyId       Int
+  createdAt         DateTime?      @db.DateTime(0)
+  updatedAt         DateTime?      @db.DateTime(0)
+  deletedAt         DateTime?      @db.DateTime(0)
+  shippingAddresses ShippingInfo[]
+}
+
+model thaitambons {
+  id                Int            @id
+  zipCode           Int
+  nameTh            String         @db.VarChar(150)
+  nameEn            String         @db.VarChar(150)
+  amphureId         Int
+  createdAt         DateTime?      @db.DateTime(0)
+  updatedAt         DateTime?      @db.DateTime(0)
+  deletedAt         DateTime?      @db.DateTime(0)
+  shippingAddresses ShippingInfo[]
+}
+
+model Order {
+  id            Int           @id @default(autoincrement())
+  orderNumber   String        @unique @db.VarChar(50)
+  userId        BigInt?       @db.UnsignedBigInt
+  status        OrderStatus   @default(PENDING)
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  shippingCost  Decimal       @db.Decimal(10, 2)
+  discount      Decimal       @default(0.00) @db.Decimal(10, 2)
+  finalAmount   Decimal       @db.Decimal(10, 2)
+  paymentMethod PaymentMethod @default(BANK_TRANSFER)
+  paymentStatus PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now()) @db.DateTime(0)
+  updatedAt     DateTime      @updatedAt @db.DateTime(0)
+  customerInfo  CustomerInfo?
+  orderItems    OrderItem[]
+  user          users?        @relation(fields: [userId], references: [id])
+  paymentInfo   PaymentInfo?
+  shippingInfo  ShippingInfo?
+
+  @@index([userId], map: "orders_userId_fkey")
+  @@map("orders")
+}
+
+model OrderItem {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  productId   Int
+  productName String   @db.VarChar(255)
+  quantity    Int
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  totalPrice  Decimal  @db.Decimal(10, 2)
+  productImg  String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @db.DateTime(0)
+  updatedAt   DateTime @updatedAt @db.DateTime(0)
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id])
+
+  @@index([orderId], map: "order_items_orderId_fkey")
+  @@index([productId], map: "order_items_productId_fkey")
+  @@map("order_items")
+}
+
+model CustomerInfo {
+  id        Int      @id @default(autoincrement())
+  orderId   Int      @unique
+  firstName String   @db.VarChar(100)
+  lastName  String   @db.VarChar(100)
+  email     String   @db.VarChar(255)
+  phone     String   @db.VarChar(20)
+  note      String?  @db.Text
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  updatedAt DateTime @updatedAt @db.DateTime(0)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("customer_info")
+}
+
+model ShippingInfo {
+  id               Int           @id @default(autoincrement())
+  orderId          Int           @unique
+  receiverName     String        @db.VarChar(100)
+  receiverLastname String        @db.VarChar(100)
+  receiverPhone    String        @db.VarChar(20)
+  addressLine      String        @db.VarChar(255)
+  addressLine2     String?       @db.VarChar(255)
+  provinceId       Int
+  provinceName     String        @db.VarChar(100)
+  amphureId        Int
+  amphureName      String        @db.VarChar(100)
+  tambonId         Int
+  tambonName       String        @db.VarChar(100)
+  zipCode          String        @db.VarChar(10)
+  deliveryDate     DateTime?     @db.Date
+  deliveryTime     String?       @db.VarChar(50)
+  cardMessage      String?       @db.Text
+  additionalNote   String?       @db.Text
+  createdAt        DateTime      @default(now()) @db.DateTime(0)
+  updatedAt        DateTime      @updatedAt @db.DateTime(0)
+  amphure          thaiamphures  @relation(fields: [amphureId], references: [id])
+  order            Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  province         thaiprovinces @relation(fields: [provinceId], references: [id])
+  tambon           thaitambons   @relation(fields: [tambonId], references: [id])
+
+  @@index([amphureId], map: "shipping_info_amphureId_fkey")
+  @@index([provinceId], map: "shipping_info_provinceId_fkey")
+  @@index([tambonId], map: "shipping_info_tambonId_fkey")
+  @@map("shipping_info")
+}
+
+model PaymentInfo {
+  id            Int           @id @default(autoincrement())
+  orderId       Int           @unique
+  paymentMethod PaymentMethod @default(BANK_TRANSFER)
+  paymentDate   DateTime?     @db.DateTime(0)
+  transactionId String?       @db.VarChar(100)
+  amount        Decimal       @db.Decimal(10, 2)
+  bankName      String?       @db.VarChar(100)
+  slipUrl       String?       @db.VarChar(255)
+  status        PaymentStatus @default(PENDING)
+  verifiedBy    BigInt?       @db.UnsignedBigInt
+  verifiedAt    DateTime?     @db.DateTime(0)
+  createdAt     DateTime      @default(now()) @db.DateTime(0)
+  updatedAt     DateTime      @updatedAt @db.DateTime(0)
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  admin         users?        @relation(fields: [verifiedBy], references: [id])
+
+  @@index([verifiedBy], map: "payment_info_verifiedBy_fkey")
+  @@map("payment_info")
+}
+
+model PaymentConfirmation {
+  id          String    @id @default(uuid()) @db.VarChar(36)
+  orderNumber String    @db.VarChar(50)
+  amount      Decimal   @db.Decimal(10, 2)
+  bankName    String?   @db.VarChar(100)
+  slipUrl     String    @db.VarChar(255)
+  status      String    @default("PENDING") @db.VarChar(20)
+  notes       String?   @db.Text
+  verifiedBy  BigInt?   @db.UnsignedBigInt
+  verifiedAt  DateTime? @db.DateTime(0)
+  createdAt   DateTime  @default(now()) @db.DateTime(0)
+  updatedAt   DateTime  @updatedAt @db.DateTime(0)
+  admin       users?    @relation(fields: [verifiedBy], references: [id])
+
+  @@index([orderNumber])
+  @@index([verifiedBy], map: "payment_confirmations_verifiedBy_fkey")
+  @@map("payment_confirmations")
+}
+
+enum users_isAdmin {
+  true
+  false
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CREDIT_CARD
+  PROMPTPAY
+  COD
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
