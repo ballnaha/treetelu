@@ -1,18 +1,16 @@
-import type { Metadata } from "next";
-import { generateMetadata } from "./metadata";
+'use client';
 
-export { generateMetadata };
+import { ReactNode } from "react";
 
-export default async function BlogPostLayout({
+interface BlogPostLayoutProps {
+  children: ReactNode;
+  params: { slug: string };
+}
+
+export default function BlogPostLayout({
   children,
   params,
-}: {
-  children: React.ReactNode;
-  params: { slug: string } | Promise<{ slug: string }>;
-}) {
-  // รอให้ params resolve ก่อนถ้าเป็น Promise
-  const resolvedParams = await Promise.resolve(params);
-  
+}: BlogPostLayoutProps) {
   return (
     <>
       {children}
