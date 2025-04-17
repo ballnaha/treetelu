@@ -275,7 +275,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-export default function BlogPost({ params }: { params: { slug: string } }) {
+export default async function BlogPost({ params }: { params: { slug: string } }) {
   const decodedSlug = decodeURIComponent(params.slug);
   const post = blogPosts.find(p => p.slug === decodedSlug);
   
