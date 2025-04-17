@@ -247,16 +247,23 @@ const blogPosts = [
   }
 ];
 
-export default function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
+export default function BlogPost({ params }: { params: any }) {
   const theme = useTheme();
   const [mounted, setMounted] = useState(false);
-  const resolvedParams = use(params);
+  
+  // ใช้ React.use() เพื่อรับค่า params ตามที่ Next.js แนะนำ
+  const resolvedParams = use(params) as { slug: string };
   const decodedSlug = decodeURIComponent(resolvedParams.slug);
-  const post = blogPosts.find(p => p.slug === decodedSlug);
+  const [post, setPost] = useState<any>(null);
 
   useEffect(() => {
+    // ค้นหาบทความจาก slug
+    const currentPost = blogPosts.find(p => p.slug === decodedSlug);
+    if (currentPost) {
+      setPost(currentPost);
+    }
     setMounted(true);
-  }, []);
+  }, [decodedSlug]);
 
   if (!mounted) {
     return null;
