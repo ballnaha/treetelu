@@ -8,8 +8,11 @@ export default async function BlogPostLayout({
   params,
 }: {
   children: React.ReactNode;
-  params: { slug: string };
+  params: { slug: string } | Promise<{ slug: string }>;
 }) {
+  // รอให้ params resolve ก่อนถ้าเป็น Promise
+  const resolvedParams = await Promise.resolve(params);
+  
   return (
     <>
       {children}
