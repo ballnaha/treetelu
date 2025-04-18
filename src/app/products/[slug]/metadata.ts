@@ -1,14 +1,20 @@
+/**
+ * Metadata for product detail page
+ */
+
 import type { Metadata } from 'next/types';
 
-export async function generateMetadata({ 
-  params 
-}: { 
-  params: { slug: string } 
+export async function generateMetadata(props: {
+  params: { slug: string };
+  searchParams: Record<string, string | string[] | undefined>;
 }): Promise<Metadata> {
+  const { params } = props;
+  const { slug } = params;
+  
   // ดึงข้อมูลสินค้าจาก API
   let product;
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/products/${params.slug}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/products/${slug}`, {
       next: { revalidate: 60 } // revalidate ทุก 60 วินาที
     });
     product = await res.json();
@@ -26,7 +32,7 @@ export async function generateMetadata({
     openGraph: {
       title,
       description,
-      url: `https://treetelu.com/products/${params.slug}`,
+      url: `https://treetelu.com/products/${slug}`,
       siteName: 'Treetelu ต้นไม้ในกระถาง',
       images: [
         {
