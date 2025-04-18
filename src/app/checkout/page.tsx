@@ -566,7 +566,7 @@ export default function Checkout() {
       }
 
       // บันทึกเลขที่คำสั่งซื้อสำหรับแสดงในหน้ายืนยัน
-      setOrderNumber(result.data.orderNumber);
+      setOrderNumber(result.order.orderNumber);
       setIsProcessing(false);
       setOrderComplete(true);
       setActiveStep(3);
@@ -574,7 +574,7 @@ export default function Checkout() {
 
       // ตอนสร้างคำสั่งซื้อเสร็จ
       localStorage.setItem('orderSession', JSON.stringify({
-        orderNumber: result.data.orderNumber,
+        orderNumber: result.order.orderNumber,
         timestamp: new Date().getTime(), 
         email: customerInfo.email
       }));

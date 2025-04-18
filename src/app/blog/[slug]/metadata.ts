@@ -254,15 +254,15 @@ export async function generateMetadata({
     }
     
     // สร้าง metadata จากข้อมูลบทความที่พบ
-    return {
+  return {
       title: `${post.title} - Treetelu ต้นไม้ในกระถาง ของชำร่วย ต้นไม้ของขวัญ`,
       description: post.excerpt,
       keywords: `ต้นไม้มงคล, ต้นไม้เสริมดวง, ต้นไม้ฮวงจุ้ย, ไม้ฟอกอากาศ, การดูแลต้นไม้, ${post.category}, ${post.title}`,
-      openGraph: {
+    openGraph: {
         title: `${post.title} - Treetelu`,
         description: post.excerpt,
-        type: "article",
-        locale: "th_TH",
+      type: "article",
+      locale: "th_TH",
         url: `https://treetelu.com/blog/${slug}`,
         siteName: "Treetelu",
         images: [

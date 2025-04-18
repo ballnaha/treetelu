@@ -6,6 +6,7 @@ import { getBangkokDateTime } from '@/utils/dateUtils';
 import sgMail from '@sendgrid/mail';
 import { format, addHours } from 'date-fns';
 import thLocale from 'date-fns/locale/th';
+import { sendDiscordNotification, createOrderNotificationEmbed } from '@/utils/discordUtils';
 
 // ตั้งค่า SendGrid API Key
 sgMail.setApiKey(process.env.SENDGRID_API_KEY as string);
@@ -81,7 +82,9 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
   try {
     // คำนวณราคารวมทั้งหมด
     const subtotal = Number(orderData.items.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * Number(item.quantity)), 0));
-    const shippingCost = Number(orderData.shippingCost || 0);
+    
+    // คำนวณค่าจัดส่ง: ฟรีค่าจัดส่งเมื่อซื้อสินค้ามากกว่าหรือเท่ากับ 1,500 บาท
+    const shippingCost = subtotal >= 1500 ? 0 : 100;
     const totalAmount = subtotal + shippingCost;
 
     // แปลงวันที่จัดส่งเป็น UTC+7
@@ -141,7 +144,7 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
               </tr>
               <tr>
                 <td style="padding: 10px 0;">ค่าจัดส่ง</td>
-                <td style="text-align: right; padding: 10px 0;">฿${shippingCost.toLocaleString()}</td>
+                <td style="text-align: right; padding: 10px 0;">${shippingCost === 0 ? 'ฟรี' : `฿${shippingCost.toLocaleString()}`}</td>
               </tr>
               <tr style="border-top: 2px solid #24B493; font-weight: bold;">
                 <td style="padding: 10px 0;">รวมทั้งสิ้น</td>
@@ -201,9 +204,21 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
     };
 
     await sgMail.send(msg);
+    
+    // ส่งแจ้งเตือนไปยัง Discord
+    try {
+      const discordEmbed = createOrderNotificationEmbed(orderData);
+      await sendDiscordNotification(discordEmbed);
+      console.log('Discord notification sent successfully');
+    } catch (discordError) {
+      // หากการส่งแจ้งเตือน Discord ล้มเหลว ไม่ให้มีผลกับการส่งอีเมล
+      console.error('Error sending Discord notification:', discordError);
+    }
+    
+    return { success: true };
   } catch (error) {
     console.error('Error sending order confirmation email:', error);
-    // ไม่ต้อง throw error เพื่อไม่ให้ส่งผลต่อการสร้างคำสั่งซื้อ
+    throw error;
   }
 };
 
@@ -230,21 +245,24 @@ export async function POST(request: NextRequest) {
       try {
         const result = await createOrder(validatedData);
 
-        // ส่งอีเมลยืนยันการสั่งซื้อ
+        // ส่งอีเมลยืนยันการสั่งซื้อและแจ้งเตือน Discord
         await sendOrderConfirmationEmail({
           ...validatedData,
           orderNumber: result.order.orderNumber,
-          totalAmount: result.order.totalAmount,
-          shippingCost: result.order.shippingCost
+          id: result.order.id,
+          createdAt: result.order.createdAt,
         });
 
+        // ต้องเรียก revalidate เพื่อให้ข้อมูลผ่านการ regenerate
+        revalidatePath('/orders');
+        
+        // คืนค่าผลลัพธ์
         return NextResponse.json({
           success: true,
-          message: "สร้างคำสั่งซื้อสำเร็จ",
-          data: {
-            orderId: result.order.id,
-            orderNumber: result.order.orderNumber,
-          }
+          order: {
+            ...result.order,
+            items: validatedData.items,
+          },
         }, { status: 201 });
       } catch (orderError: any) {
         console.error("Order creation error:", orderError);

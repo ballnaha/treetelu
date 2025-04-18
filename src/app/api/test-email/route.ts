@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import sgMail from '@sendgrid/mail';
+import { sendDiscordNotification } from '@/utils/discordUtils';
 
 // ตั้งค่า SendGrid API Key
 sgMail.setApiKey(process.env.SENDGRID_API_KEY as string);
@@ -12,7 +13,7 @@ const VERIFIED_EMAILS = [
 
 export async function POST(request: Request) {
   try {
-    const { email } = await request.json();
+    const { email, testDiscord = true } = await request.json();
 
     if (!email) {
       return NextResponse.json(
@@ -74,17 +75,68 @@ export async function POST(request: Request) {
       `,
     };
 
+    const results = {
+      email: false,
+      discord: false
+    };
+
     // ส่งอีเมล
-    await sgMail.send(msg);
+    try {
+      await sgMail.send(msg);
+      results.email = true;
+    } catch (emailError) {
+      console.error('Error sending test email:', emailError);
+      results.email = false;
+    }
+
+    // ส่งแจ้งเตือนไปยัง Discord
+    if (testDiscord) {
+      try {
+        // ทดสอบส่งข้อความธรรมดา
+        await sendDiscordNotification('🧪 **ทดสอบการส่งแจ้งเตือน** - นี่เป็นข้อความทดสอบจากระบบ TreeTelu');
+        
+        // ทดสอบส่ง embed
+        await sendDiscordNotification({
+          embeds: [
+            {
+              title: '🧪 ทดสอบการส่งแจ้งเตือน',
+              description: 'นี่เป็นข้อความทดสอบจากระบบ TreeTelu',
+              color: 0x24B493, // สีเขียวของ TreeTelu
+              fields: [
+                {
+                  name: '📝 ข้อมูลทดสอบ',
+                  value: 'ทดสอบการส่งข้อความแจ้งเตือนไปยัง Discord',
+                  inline: false
+                },
+                {
+                  name: '⏰ เวลา',
+                  value: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
+                  inline: true
+                }
+              ],
+              timestamp: new Date().toISOString(),
+              footer: {
+                text: 'TreeTelu Test System'
+              }
+            }
+          ]
+        });
+        results.discord = true;
+      } catch (discordError) {
+        console.error('Error sending Discord notification:', discordError);
+        results.discord = false;
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'ส่งอีเมลสำเร็จ'
+      results,
+      message: `การทดสอบเสร็จสิ้น: อีเมล ${results.email ? 'สำเร็จ' : 'ล้มเหลว'}, Discord ${testDiscord ? (results.discord ? 'สำเร็จ' : 'ล้มเหลว') : 'ไม่ได้ทดสอบ'}`
     });
   } catch (error) {
-    console.error('Error sending test email:', error);
+    console.error('Error in test endpoint:', error);
     return NextResponse.json(
-      { error: 'เกิดข้อผิดพลาดในการส่งอีเมล' },
+      { error: 'เกิดข้อผิดพลาดในการทดสอบ' },
       { status: 500 }
     );
   }
