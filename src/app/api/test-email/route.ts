@@ -7,7 +7,7 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY as string);
 // รายการอีเมลที่ยืนยันแล้ว (ตัวอย่าง)
 const VERIFIED_EMAILS = [
   // เพิ่มอีเมลที่คุณยืนยันแล้วในนี้
-  'l3onsaiii1@gmail.com'
+  'treetelunoreply@gmail.com'
 ];
 
 export async function POST(request: Request) {
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     // สร้าง email template
     const msg = {
       to: email,
-      from: 'l3onsaiii1@gmail.com', // ต้องเป็นอีเมลที่ยืนยันใน SendGrid
+      from: 'treetelunoreply@gmail.com', // ต้องเป็นอีเมลที่ยืนยันใน SendGrid
       subject: 'ทดสอบการส่งอีเมลจาก Tree True',
       text: 'นี่คืออีเมลทดสอบ',
       html: `

@@ -91,7 +91,7 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
 
     const msg = {
       to: orderData.customerInfo.email,
-      from: 'l3onsaiii1@gmail.com',
+      from: 'treetelunoreply@gmail.com',
       subject: `ยืนยันคำสั่งซื้อ #${orderData.orderNumber}`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
