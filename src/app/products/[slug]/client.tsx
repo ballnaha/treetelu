@@ -112,6 +112,16 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
         }
         
         const data = await res.json();
+        
+        // แปลงชื่อและคำอธิบายสินค้าให้อยู่ในรูปแบบที่อ่านได้
+        if (data.productName) {
+          data.productName = decodeURIComponent(data.productName);
+        }
+        
+        if (data.productDesc) {
+          data.productDesc = decodeURIComponent(data.productDesc);
+        }
+        
         setProduct(data);
         
         // ดึงข้อมูลรูปภาพสินค้าจาก API ที่ได้มา

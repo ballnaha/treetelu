@@ -107,7 +107,7 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
                   if (item.productImg.startsWith('http')) {
                     imageUrl = item.productImg;
                   } else {
-                    imageUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${item.productImg}`;
+                    imageUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/images/product/${item.productImg}`;
                   }
                 }
                 
@@ -124,9 +124,9 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
                         onerror="this.src='https://via.placeholder.com/80'"
                       />
                       <div>
-                        <div style="font-weight: bold;">${item.productName}</div>
-                        <div style="color: #666; font-size: 0.9em;">จำนวน: ${item.quantity} ชิ้น</div>
-                        <div style="color: #666; font-size: 0.9em;">ราคาต่อชิ้น: ฿${Number(item.unitPrice).toLocaleString()}</div>
+                        <div style="font-weight: bold; padding-left: 10px;">${item.productName}</div>
+                        <div style="color: #666; font-size: 0.9em; padding-left: 10px;">จำนวน: ${item.quantity} ชิ้น</div>
+                        <div style="color: #666; font-size: 0.9em; padding-left: 10px;">ราคาต่อชิ้น: ฿${Number(item.unitPrice).toLocaleString()}</div>
                       </div>
                     </div>
                   </td>

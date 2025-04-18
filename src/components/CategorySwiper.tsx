@@ -291,8 +291,11 @@ export default function CategorySwiper({
           pagination={false}
           autoplay={false}
           breakpoints={{
+            320: {
+              slidesPerView: 2.3,
+            },
             640: {
-              slidesPerView: 3.2,
+              slidesPerView: 3.3,
             },
             768: {
               slidesPerView: 4.3,

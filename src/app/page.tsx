@@ -377,6 +377,8 @@ function MainContent({
 }) {
   const [activeCategory, setActiveCategory] = useState('all');
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // เพิ่ม state เพื่อควบคุมการแสดงผลหลังจาก hydration สมบูรณ์
@@ -420,6 +422,30 @@ function MainContent({
     setCurrentSlide((prev) => (prev === 0 ? sliderItems.length - 1 : prev - 1));
   };
   
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+  
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+  
+  const handleTouchEnd = () => {
+    if (touchStart - touchEnd > 75) {
+      // สไลด์ไปทางซ้าย (ดูรูปถัดไป)
+      goToNextSlide();
+    }
+    
+    if (touchStart - touchEnd < -75) {
+      // สไลด์ไปทางขวา (ดูรูปก่อนหน้า)
+      goToPrevSlide();
+    }
+    
+    // รีเซ็ตค่า
+    setTouchStart(0);
+    setTouchEnd(0);
+  };
+  
   // หากยังไม่ได้ mount ให้แสดง skeleton หรือไม่แสดงอะไร
   // ป้องกัน hydration error ที่เกิดจากการ render ในส่วนที่มี DOM ซับซ้อน
   if (!isMounted) {
@@ -438,6 +464,9 @@ function MainContent({
         <HeroSection>
           <Container maxWidth={false} disableGutters>
             <Box 
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
               sx={{ 
                 position: 'relative',
                 width: '100%',
@@ -1717,6 +1746,44 @@ function ClientSideHome({ products: initialProducts, categories: initialCategori
 }
 
 export default function Home() {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
+  
+  const goToNextSlide = () => {
+    // ไม่ได้ใช้งานจริงเนื่องจากเป็นฟังก์ชันใน ClientSideHome
+    console.log('Next slide');
+  };
+  
+  const goToPrevSlide = () => {
+    // ไม่ได้ใช้งานจริงเนื่องจากเป็นฟังก์ชันใน ClientSideHome
+    console.log('Previous slide');
+  };
+  
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+  
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+  
+  const handleTouchEnd = () => {
+    if (touchStart - touchEnd > 75) {
+      // สไลด์ไปทางซ้าย (ดูรูปถัดไป)
+      goToNextSlide();
+    }
+    
+    if (touchStart - touchEnd < -75) {
+      // สไลด์ไปทางขวา (ดูรูปก่อนหน้า)
+      goToPrevSlide();
+    }
+    
+    // รีเซ็ตค่า
+    setTouchStart(0);
+    setTouchEnd(0);
+  };
+
   return (
     <ClientSideHome />
   );

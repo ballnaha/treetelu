@@ -22,8 +22,11 @@ export async function generateMetadata(props: any): Promise<Metadata> {
   }
 
   // กำหนด metadata เริ่มต้น (fallback) กรณีไม่มีข้อมูลสินค้า
-  const title = product?.productName + ` | Treetelu ต้นไม้ในกระถาง` || 'สินค้า | Treetelu ต้นไม้ในกระถาง';
-  const description = product?.productDesc || 'รายละเอียดสินค้าต้นไม้มงคล ไม้อวบน้ำ และของชำร่วยที่มีคุณภาพ';
+  const productName = product?.productName ? decodeURIComponent(product.productName) : '';
+  const productDesc = product?.productDesc ? decodeURIComponent(product.productDesc) : '';
+  
+  const title = productName ? `${productName} | Treetelu ต้นไม้ในกระถาง` : 'สินค้า | Treetelu ต้นไม้ในกระถาง';
+  const description = productDesc || 'รายละเอียดสินค้าต้นไม้มงคล ไม้อวบน้ำ และของชำร่วยที่มีคุณภาพ';
   
   return {
     title,
