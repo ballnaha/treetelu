@@ -17,16 +17,53 @@ export async function generateMetadata(props: any): Promise<Metadata> {
       next: { revalidate: 60 } // revalidate ทุก 60 วินาที
     });
     product = await res.json();
+    
+    // พิมพ์ค่าเพื่อดูข้อมูล
+    console.log('Product data for SEO:', {
+      productName: product?.productName,
+      slug: slug,
+      status: res.status
+    });
   } catch (error) {
     console.error('Error fetching product data for metadata:', error);
   }
 
   // กำหนด metadata เริ่มต้น (fallback) กรณีไม่มีข้อมูลสินค้า
-  const productName = product?.productName ? decodeURIComponent(product.productName) : '';
-  const productDesc = product?.productDesc ? decodeURIComponent(product.productDesc) : '';
+  let displayName = '';
   
-  const title = productName ? `${productName} | Treetelu ต้นไม้ในกระถาง` : 'สินค้า | Treetelu ต้นไม้ในกระถาง';
-  const description = productDesc || 'รายละเอียดสินค้าต้นไม้มงคล ไม้อวบน้ำ และของชำร่วยที่มีคุณภาพ';
+  // ตรวจสอบว่ามีชื่อสินค้าหรือไม่และอยู่ในรูปแบบที่สามารถ decode ได้
+  try {
+    if (product?.productName) {
+      displayName = decodeURIComponent(product.productName);
+    } else if (product?.name) {
+      displayName = decodeURIComponent(product.name);
+    }
+  } catch (e) {
+    // กรณีเกิด error ในการ decode URI ให้ใช้ค่าเดิม
+    displayName = product?.productName || product?.name || '';
+    console.error('Error decoding product name:', e);
+  }
+  
+  let displayDesc = '';
+  
+  // ตรวจสอบคำอธิบายสินค้า
+  try {
+    if (product?.productDesc) {
+      displayDesc = decodeURIComponent(product.productDesc);
+    } else if (product?.description) {
+      displayDesc = decodeURIComponent(product.description);
+    }
+  } catch (e) {
+    // กรณีเกิด error ในการ decode URI ให้ใช้ค่าเดิม
+    displayDesc = product?.productDesc || product?.description || '';
+    console.error('Error decoding product description:', e);
+  }
+  
+  const title = displayName 
+    ? `${displayName} | Treetelu ต้นไม้ในกระถาง` 
+    : 'สินค้า | Treetelu ต้นไม้ในกระถาง';
+    
+  const description = displayDesc || 'รายละเอียดสินค้าต้นไม้มงคล ไม้อวบน้ำ และของชำร่วยที่มีคุณภาพ';
   
   return {
     title,
@@ -43,7 +80,7 @@ export async function generateMetadata(props: any): Promise<Metadata> {
             : 'https://treetelu.com/images/og-image.jpg',
           width: 1200,
           height: 630,
-          alt: product?.productName || 'Treetelu ต้นไม้ในกระถาง - สินค้าต้นไม้มงคล',
+          alt: displayName || 'Treetelu ต้นไม้ในกระถาง - สินค้าต้นไม้มงคล',
         },
       ],
       locale: 'th_TH',
