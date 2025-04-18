@@ -15,8 +15,8 @@ export default async function Page(props: any) {
   const slug = params?.slug;
 
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <ProductDetailClient slug={slug} />
-    </Suspense>
+    
+    <ProductDetailClient slug={slug} />
+    
   );
 }

@@ -767,7 +767,7 @@ function MainContent({
                   ต้นไม้ที่นำโชคและสร้างบรรยากาศที่ดีให้กับบ้านของคุณ
                     </Typography>
                 <Chip 
-                  label={`ดูสินค้า ${products.filter(p => p.category === 'tree').length} รายการ`} 
+                  label={`ดูสินค้า `} 
                       size="small" 
                       sx={{ 
                     alignSelf: 'flex-start', 
@@ -777,6 +777,7 @@ function MainContent({
                     '& .MuiChip-label': { px: 1.5 }
                   }} 
                 />
+
               </CardContent>
               </Card>
 
@@ -869,7 +870,7 @@ function MainContent({
                   ไม้ที่เลี้ยงง่าย ทนแล้ง เหมาะสำหรับผู้เริ่มต้น
                     </Typography>
                 <Chip 
-                  label={`ดูสินค้า ${products.filter(p => p.category === 'succulent').length} รายการ`} 
+                  label={`ดูสินค้า`}
                       size="small" 
                       sx={{ 
                     alignSelf: 'flex-start', 
@@ -971,7 +972,7 @@ function MainContent({
                   ช่อดอกไม้สดคัดพิเศษ สำหรับทุกโอกาสพิเศษ
                     </Typography>
                 <Chip 
-                  label={`ดูสินค้า ${products.filter(p => p.category === 'bouquet').length} รายการ`} 
+                  label={`ดูสินค้า`}   
                       size="small" 
                       sx={{ 
                     alignSelf: 'flex-start', 
@@ -1073,7 +1074,7 @@ function MainContent({
                   ของชำร่วยต้นไม้สำหรับทุกโอกาส
                     </Typography>
                 <Chip 
-                  label={`ดูสินค้า ${products.filter(p => p.category === 'souvenir').length} รายการ`} 
+                  label={`ดูสินค้า`} 
                       size="small" 
                       sx={{ 
                     alignSelf: 'flex-start', 

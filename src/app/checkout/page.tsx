@@ -488,8 +488,8 @@ export default function Checkout() {
         shippingInfo: {},
         items: cartItems.map(item => ({
           productId: parseInt(item.id),
-          productName: item.name,
-          productImg: item.image,
+          productName: item.productName || item.name || '',
+          productImg: item.productImg || item.image || '',
           quantity: item.quantity,
           unitPrice: parseFloat(String(item.salesPrice || '0')),
         })),
@@ -557,7 +557,7 @@ export default function Checkout() {
         if (result.errors && Array.isArray(result.errors)) {
           // กรณี Zod validation errors
           const errorMessage = result.errors.map((err: any) => 
-            `${err.path.join('.')}: ${err.message}`
+            `${Array.isArray(err.path) ? err.path.join('.') : err.path}: ${err.message}`
           ).join('\n');
           throw new Error(`${result.message}\n${errorMessage}`);
         } else {
@@ -1362,16 +1362,6 @@ export default function Checkout() {
             </Box>
           </OrderSummaryContainer>
           
-          <Box sx={{ textAlign: 'center', mt: 2 }}>
-            <Button 
-              component={Link} 
-              href="/products" 
-              startIcon={<ArrowBackIcon />} 
-              size="small"
-            >
-              เลือกสินค้าเพิ่มเติม
-            </Button>
-          </Box>
         </Box>
       </Box>
     </Container>
