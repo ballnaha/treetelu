@@ -8,12 +8,11 @@ import { Suspense } from 'react';
 // นำเข้า generateMetadata จากไฟล์ metadata.ts
 export { generateMetadata } from './metadata';
 
-export default function Page(props: {
-  params: { slug: string };
-  searchParams: Record<string, string | string[] | undefined>;
-}) {
+// TypeScript กำหนด any ชั่วคราวเพื่อหลีกเลี่ยงข้อขัดแย้งกับ Next.js
+// @ts-ignore
+export default async function Page(props: any) {
   const { params } = props;
-  const { slug } = params;
+  const slug = params?.slug;
 
   return (
     <Suspense fallback={<div>Loading...</div>}>

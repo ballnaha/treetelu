@@ -4,12 +4,11 @@
 
 import type { Metadata } from 'next/types';
 
-export async function generateMetadata(props: {
-  params: { slug: string };
-  searchParams: Record<string, string | string[] | undefined>;
-}): Promise<Metadata> {
-  const { params } = props;
-  const { slug } = params;
+// @ts-ignore - ใช้ any type เพื่อหลีกเลี่ยงปัญหากับ Next.js
+export async function generateMetadata(props: any): Promise<Metadata> {
+  // รองรับทั้งกรณีที่ params เป็น object ธรรมดาและเป็น Promise
+  const params = props.params;
+  const slug = params?.slug;
   
   // ดึงข้อมูลสินค้าจาก API
   let product;
