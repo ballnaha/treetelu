@@ -177,9 +177,6 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
               <strong>เบอร์โทรศัพท์:</strong> ${orderData.shippingInfo.receiverPhone}
             </p>
             <p style="margin: 5px 0; color: #34495e;">
-              <strong>อีเมล:</strong> ${orderData.customerInfo && orderData.customerInfo.email ? orderData.customerInfo.email : 'ไม่ระบุ'}
-            </p>
-            <p style="margin: 5px 0; color: #34495e;">
               <strong>ที่อยู่:</strong> ${orderData.shippingInfo.addressLine}
             </p>
             <p style="margin: 5px 0; color: #34495e;">
