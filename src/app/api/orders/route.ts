@@ -80,6 +80,10 @@ const orderSchema = z.object({
 // แทนที่ส่วนของการส่งอีเมลด้วย SendGrid
 const sendOrderConfirmationEmail = async (orderData: any) => {
   try {
+    // Debug: ตรวจสอบข้อมูล customerInfo และ email
+    console.log('Debug - orderData.customerInfo:', JSON.stringify(orderData.customerInfo, null, 2));
+    console.log('Debug - Email value:', orderData.customerInfo.email);
+    
     // คำนวณราคารวมทั้งหมด
     const subtotal = Number(orderData.items.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * Number(item.quantity)), 0));
     
@@ -173,7 +177,7 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
               <strong>เบอร์โทรศัพท์:</strong> ${orderData.shippingInfo.receiverPhone}
             </p>
             <p style="margin: 5px 0; color: #34495e;">
-              <strong>อีเมล:</strong> ${orderData.customerInfo.email}
+              <strong>อีเมล:</strong> ${orderData.customerInfo && orderData.customerInfo.email ? orderData.customerInfo.email : 'ไม่ระบุ'}
             </p>
             <p style="margin: 5px 0; color: #34495e;">
               <strong>ที่อยู่:</strong> ${orderData.shippingInfo.addressLine}
@@ -260,6 +264,13 @@ export async function POST(request: NextRequest) {
       // ส่งต่อข้อมูลไปยังฟังก์ชันสร้างคำสั่งซื้อ
       try {
         const result = await createOrder(validatedData);
+
+        // Debug log: ตรวจสอบข้อมูลที่ส่งไปยัง sendOrderConfirmationEmail
+        console.log('Sending to email service:', {
+          orderNumber: result.order.orderNumber,
+          customerEmail: validatedData.customerInfo?.email,
+          hasCustomerInfo: !!validatedData.customerInfo
+        });
 
         // ส่งอีเมลยืนยันการสั่งซื้อและแจ้งเตือน Discord
         await sendOrderConfirmationEmail({
