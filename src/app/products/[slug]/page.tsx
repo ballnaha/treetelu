@@ -1,15 +1,24 @@
-import { Suspense } from 'react';
 import ProductDetailClient from './client';
+import { Suspense } from 'react';
+import { Metadata } from 'next';
 
-type Props = {
-  params: { slug: string }
-};
+interface PageParams {
+  slug: string;
+}
+
+interface PageProps {
+  params: PageParams;
+}
 
 // นำเข้า generateMetadata จากไฟล์ metadata.ts
 export { generateMetadata } from './metadata';
 
-export default function ProductDetailPage({ params }: Props) {
-  const slug = params.slug;
+export default function ProductDetailPage({ params }: PageProps) {
+  const { slug } = params;
 
-  return <ProductDetailClient slug={slug} />;
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ProductDetailClient slug={slug} />
+    </Suspense>
+  );
 }

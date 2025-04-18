@@ -1,19 +1,20 @@
 import type { Metadata } from 'next/types';
 
-type Props = {
-  params: Promise<{ slug: string }> | { slug: string }
-};
+interface PageParams {
+  slug: string;
+}
+
+interface Props {
+  params: PageParams;
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  // ใช้ await เพื่อรอให้ params ถูก resolve
-  const resolvedParams = await params;
-  const slug = resolvedParams.slug;
+  const { slug } = params;
   
   // ดึงข้อมูลสินค้าจาก API
   let product;
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/products/${slug}`, {
-      // ป้องกันการ cache ในการพัฒนา
       next: { revalidate: 60 } // revalidate ทุก 60 วินาที
     });
     product = await res.json();
