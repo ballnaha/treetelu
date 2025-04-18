@@ -1,13 +1,10 @@
 import type { Metadata } from 'next/types';
 
-interface ProductDetailPageProps {
-  params: {
-    slug: string;
-  };
-  searchParams: { [key: string]: string | string[] | undefined };
-}
-
-export async function generateMetadata({ params }: ProductDetailPageProps): Promise<Metadata> {
+export async function generateMetadata({ 
+  params 
+}: { 
+  params: { slug: string } 
+}): Promise<Metadata> {
   // ดึงข้อมูลสินค้าจาก API
   let product;
   try {

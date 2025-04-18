@@ -192,7 +192,7 @@ const RelatedProducts = ({ productId }: RelatedProductsProps) => {
             <Link key={product.id} href={`/products/${product.slug}`} style={{ textDecoration: 'none' }}>
               <ProductCard>
                 <ProductImageContainer>
-                  {product.hasDiscount && (
+                  {product.hasDiscount && product.discountPercent > 0 && (
                     <DiscountBadge>-{product.discountPercent}%</DiscountBadge>
                   )}
                   <ProductImage
@@ -210,7 +210,7 @@ const RelatedProducts = ({ productId }: RelatedProductsProps) => {
                     SKU: {product.sku}
                   </ProductSku>
                   <PriceWrapper>
-                    {product.hasDiscount && product.originalPrice !== product.salesPrice && (
+                    {product.hasDiscount && product.discountPercent > 0 && product.originalPrice !== product.salesPrice && (
                       <OriginalPrice>
                         ฿{product.originalPrice.toLocaleString()}
                       </OriginalPrice>
