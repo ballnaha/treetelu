@@ -168,9 +168,7 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
             <p style="margin: 5px 0; color: #34495e;">
               <strong>ผู้รับ:</strong> ${orderData.shippingInfo.receiverName} ${orderData.shippingInfo.receiverLastname}
             </p>
-            <p style="margin: 5px 0; color: #34495e;">
-              <strong>email:</strong> ${orderData.customerInfo.email}
-            </p>
+           
             <p style="margin: 5px 0; color: #34495e;">
               <strong>เบอร์โทรศัพท์:</strong> ${orderData.shippingInfo.receiverPhone}
             </p>
