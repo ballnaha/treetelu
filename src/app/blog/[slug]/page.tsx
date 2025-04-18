@@ -237,7 +237,7 @@ export default function BlogPost({ params }: { params: any }) {
             </Box>
           </Container>
         </Box>
-        <Footer />
+        
       </Box>
   );
 } 

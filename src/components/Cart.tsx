@@ -78,6 +78,28 @@ const CompactButtonGroup = styled(ButtonGroup)(({ theme }) => ({
   }
 }));
 
+// ฟังก์ชันสำหรับสร้าง URL ของรูปภาพ
+const getImageUrl = (imageName: string | undefined): string => {
+  // ถ้าไม่มีชื่อรูปภาพหรือชื่อไฟล์ undefined หรือ null
+  if (!imageName || imageName === 'undefined' || imageName === 'null') {
+    return '/images/product/og-image.jpg'; // รูป placeholder
+  }
+  
+  // ตรวจสอบว่ารูปภาพมี path เต็มหรือเปล่า
+  if (imageName.startsWith('http') || imageName.startsWith('/')) {
+    return imageName;
+  }
+  
+  return `/images/product/${imageName}`;
+};
+
+// ฟังก์ชัน handle error รูปภาพ
+const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+  const target = e.target as HTMLImageElement;
+  target.onerror = null; // ป้องกันการเกิด loop
+  target.src = '/images/product/og-image.jpg'; // รูป placeholder
+};
+
 export default function Cart({ cartItems, onUpdateQuantity, onRemoveItem, onClose, isOpen }: CartProps) {
   const subtotal = cartItems.reduce((sum, item) => sum + (parseFloat(String(item.salesPrice || item.price || 0)) * item.quantity), 0);
 
@@ -130,11 +152,12 @@ export default function Cart({ cartItems, onUpdateQuantity, onRemoveItem, onClos
                   >
                     <CartItemImage>
                       <Image
-                        src={item.image || '/images/product/placeholder.jpg'}
+                        src={getImageUrl(item.productImg || item.image)}
                         alt={item.productName || item.name || 'Product'}
                         fill
                         sizes="80px"
                         style={{ objectFit: 'cover' }}
+                        onError={handleImageError}
                       />
                     </CartItemImage>
                     

@@ -55,6 +55,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [cartItems, isLoaded]);
 
   const addToCart = (product: Product & { quantity?: number }) => {
+    // ฟังก์ชันสำหรับสร้าง URL ของรูปภาพ
+    const getImageUrl = (imageName: string | undefined) => {
+      // ถ้าไม่มีชื่อรูปภาพหรือชื่อไฟล์ undefined หรือ null
+      if (!imageName || imageName === 'undefined' || imageName === 'null') {
+        return '/images/product/gift.jpg'; // รูป placeholder
+      }
+      
+      // ตรวจสอบว่ารูปภาพมี path เต็มหรือเปล่า
+      if (imageName.startsWith('http') || imageName.startsWith('/')) {
+        return imageName;
+      }
+      
+      return `/images/product/${imageName}`;
+    };
+
     setCartItems(prevItems => {
       const existingItem = prevItems.find(item => item.id === product.id);
       const quantityToAdd = product.quantity || 1;
@@ -66,11 +81,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
             : item
         );
       } else {
+        // สร้าง URL รูปภาพสินค้า
+        const productImageUrl = getImageUrl(product.productImg || product.image);
+        
         return [...prevItems, { 
           ...product, 
           quantity: quantityToAdd,
-          image: product.image || '/images/product/placeholder.jpg',
-          productImg: product.productImg || product.image || '/images/product/placeholder.jpg'
+          image: productImageUrl // ใช้ URL ที่สร้างขึ้น
         }];
       }
     });

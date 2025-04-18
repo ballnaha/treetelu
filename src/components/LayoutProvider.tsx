@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import Cart from '@/components/Cart';
 import CartButton from '@/components/CartButton';
+import Footer from '@/components/Footer';
 import {
   Container,
   Box,
@@ -226,8 +227,12 @@ export default function LayoutProvider({ children }: { children: ReactNode }) {
       )}
       
       {/* เนื้อหาหลัก */}
-      <Box sx={{ pt: { xs: 7, sm: 8 }, minHeight: '100vh' }}>
-        {children}
+      <Box sx={{ pt: { xs: 7, sm: 8 }, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ flex: 1 }}>
+          {children}
+        </Box>
+        {/* Footer */}
+        <Footer />
       </Box>
     </>
   );

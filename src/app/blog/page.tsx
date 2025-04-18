@@ -285,7 +285,7 @@ export default function BlogPage() {
           ))}
         </Box>
       </Container>
-      <Footer />
+      
     </Box>
   );
 }
