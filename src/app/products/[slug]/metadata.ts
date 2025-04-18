@@ -71,13 +71,13 @@ export async function generateMetadata(props: any): Promise<Metadata> {
     openGraph: {
       title,
       description,
-      url: `https://treetelu.com/products/${slug}`,
+      url: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/products/${slug}`,
       siteName: 'Treetelu ต้นไม้ในกระถาง',
       images: [
         {
           url: product?.productImg 
-            ? `https://treetelu.com/images/product/${product.productImg}`
-            : 'https://treetelu.com/images/og-image.jpg',
+            ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/images/product/${product.productImg}`
+            : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/images/og-image.jpg`,
           width: 1200,
           height: 630,
           alt: displayName || 'Treetelu ต้นไม้ในกระถาง - สินค้าต้นไม้มงคล',
