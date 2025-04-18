@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 // นำเข้าข้อมูลบทความ
-const blogPosts = [
+export const blogPosts = [
   {
     id: 1,
     title: 'ต้นไม้มงคลตามทิศเหนือ',
