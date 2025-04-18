@@ -174,6 +174,18 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
             <p style="margin: 5px 0; color: #34495e;">
               <strong>ที่อยู่:</strong> ${orderData.shippingInfo.addressLine}
             </p>
+            <p style="margin: 5px 0; color: #34495e;">
+              <strong>ตำบล/แขวง:</strong> ${orderData.shippingInfo.tambonName || '-'}
+            </p>
+            <p style="margin: 5px 0; color: #34495e;">
+              <strong>อำเภอ/เขต:</strong> ${orderData.shippingInfo.amphureName || '-'}
+            </p>
+            <p style="margin: 5px 0; color: #34495e;">
+              <strong>จังหวัด:</strong> ${orderData.shippingInfo.provinceName || '-'}
+            </p>
+            <p style="margin: 5px 0; color: #34495e;">
+              <strong>รหัสไปรษณีย์:</strong> ${orderData.shippingInfo.zipCode || '-'}
+            </p>
             ${deliveryDate ? `
               <p style="margin: 5px 0; color: #34495e;">
                 <strong>วันที่จัดส่ง:</strong> ${format(deliveryDate, 'dd MMMM yyyy', { locale: thLocale })}
