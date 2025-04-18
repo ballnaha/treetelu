@@ -371,7 +371,7 @@ const ProductsContent = () => {
       {/* ตัวแสดงการโหลด */}
       {loading && (
         <Box sx={{ py: 8 }}>
-          <LoadingAnimation text="กำลังโหลดข้อมูลสินค้า" size="medium" fullHeight={false} />
+          <LoadingAnimation text="" size="medium" fullHeight={false} />
         </Box>
       )}
       

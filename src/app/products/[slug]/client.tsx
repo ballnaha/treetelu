@@ -193,7 +193,7 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
   if (loading) {
     return (
       <Box sx={{ py: 4 }}>
-        <LoadingAnimation text="กำลังโหลดข้อมูลสินค้า" size="medium" />
+        <LoadingAnimation text="" size="medium" />
       </Box>
     );
   }
