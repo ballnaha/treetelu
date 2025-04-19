@@ -7,7 +7,7 @@ import type { Metadata } from 'next/types';
 // @ts-ignore - ใช้ any type เพื่อหลีกเลี่ยงปัญหากับ Next.js
 export async function generateMetadata(props: any): Promise<Metadata> {
   // รองรับทั้งกรณีที่ params เป็น object ธรรมดาและเป็น Promise
-  const params = props.params;
+  const params = await Promise.resolve(props.params);
   const slug = params?.slug;
   
   // ดึงข้อมูลสินค้าจาก API
