@@ -3,13 +3,13 @@ import { createOrder } from '@/utils/orderUtils';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { getBangkokDateTime } from '@/utils/dateUtils';
-import sgMail from '@sendgrid/mail';
+import { Resend } from 'resend';
 import { format, addHours } from 'date-fns';
 import thLocale from 'date-fns/locale/th';
 import { sendDiscordNotification, createOrderNotificationEmbed } from '@/utils/discordUtils';
 
-// ตั้งค่า SendGrid API Key
-sgMail.setApiKey(process.env.SENDGRID_API_KEY as string);
+// ตั้งค่า Resend API Key
+const resend = new Resend(process.env.RESEND_API_KEY as string);
 
 // สร้าง schema สำหรับตรวจสอบข้อมูลคำสั่งซื้อ
 const orderSchema = z.object({
@@ -77,7 +77,7 @@ const orderSchema = z.object({
   userId: z.number().optional(),
 });
 
-// แทนที่ส่วนของการส่งอีเมลด้วย SendGrid
+// แทนที่ส่วนของการส่งอีเมลด้วย Resend
 const sendOrderConfirmationEmail = async (orderData: any) => {
   try {
     // Debug: ตรวจสอบข้อมูล customerInfo และ email
@@ -96,11 +96,7 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
       ? addHours(new Date(orderData.shippingInfo.deliveryDate), 7)
       : null;
 
-    const msg = {
-      to: orderData.customerInfo.email,
-      from: 'treetelunoreply@gmail.com',
-      subject: `ยืนยันคำสั่งซื้อ #${orderData.orderNumber}`,
-      html: `
+    const emailContent = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #24B493;">ขอบคุณสำหรับคำสั่งซื้อ</h1>
           
@@ -179,18 +175,25 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
             <p style="margin: 5px 0; color: #34495e;">
               <strong>ที่อยู่:</strong> ${orderData.shippingInfo.addressLine}
             </p>
+            
+            ${orderData.shippingInfo.tambonName !== 'จัดส่งให้ผู้รับโดยตรง' || orderData.shippingInfo.amphureName !== 'จัดส่งให้ผู้รับโดยตรง' || orderData.shippingInfo.provinceName !== 'จัดส่งให้ผู้รับโดยตรง' ? `
             <p style="margin: 5px 0; color: #34495e;">
               <strong>ตำบล/แขวง:</strong> ${orderData.shippingInfo.tambonName || '-'}
             </p>
+           
             <p style="margin: 5px 0; color: #34495e;">
               <strong>อำเภอ/เขต:</strong> ${orderData.shippingInfo.amphureName || '-'}
             </p>
+           
             <p style="margin: 5px 0; color: #34495e;">
               <strong>จังหวัด:</strong> ${orderData.shippingInfo.provinceName || '-'}
             </p>
+            
             <p style="margin: 5px 0; color: #34495e;">
               <strong>รหัสไปรษณีย์:</strong> ${orderData.shippingInfo.zipCode || '-'}
             </p>
+            ` : ''}
+
             ${deliveryDate ? `
               <p style="margin: 5px 0; color: #34495e;">
                 <strong>วันที่จัดส่ง:</strong> ${format(deliveryDate, 'dd MMMM yyyy', { locale: thLocale })}
@@ -217,10 +220,16 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
             หากมีคำถามกรุณาติดต่อ Line: @095xrokt
           </p>
         </div>
-      `,
-    };
+      `;
 
-    await sgMail.send(msg);
+    // ส่งอีเมลยืนยันการสั่งซื้อด้วย Resend
+    await resend.emails.send({
+      from: 'Treetelu ต้นไม้ในกระถาง <onboarding@resend.dev>',
+      to: orderData.customerInfo.email,
+      subject: `ยืนยันคำสั่งซื้อ #${orderData.orderNumber}`,
+      html: emailContent
+    });
+    console.log('Order confirmation email sent successfully with Resend');
     
     // ส่งแจ้งเตือนไปยัง Discord
     try {
