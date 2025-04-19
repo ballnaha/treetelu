@@ -628,7 +628,7 @@ function PaymentConfirmationClient() {
           </Stack>
         </Container>
       </Box>
-      <Footer />
+      
     </Box>
   );
 }
