@@ -285,7 +285,7 @@ export default function CategorySwiper({
         
         <Swiper
           modules={[Navigation, Pagination, Autoplay]}
-          spaceBetween={20}
+          spaceBetween={15}
           slidesPerView={2}
           navigation={false}
           pagination={false}

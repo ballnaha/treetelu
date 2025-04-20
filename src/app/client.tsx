@@ -1157,7 +1157,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
           }}>
             <Box sx={{ display: "flex", flexWrap: "wrap", mx: -2 }}>
               {products.slice(0, 12).map((product) => (
-                <Box key={product.id} sx={{ width: { xs: "50%", sm: "50%", lg: "25%" }, p: 2 }}>
+                <Box key={product.id} sx={{ width: { xs: "50%", sm: "50%", lg: "25%" }, p: 1 }}>
                   <ProductCard 
                     product={product}
                   />
