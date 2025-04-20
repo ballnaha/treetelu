@@ -5,7 +5,6 @@ import { ReactNode, useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import ClientProvider from "../components/ClientProvider";
-import { metadata } from "./metadata";
 import {
   Container,
   Box,

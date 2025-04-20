@@ -375,7 +375,7 @@ function PaymentConfirmationClient() {
             </StyledCard>
           </Container>
         </Box>
-        <Footer />
+        
       </Box>
     );
   }

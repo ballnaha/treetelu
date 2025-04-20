@@ -8,6 +8,7 @@ import path from 'path';
 import fs from 'fs';
 import { getBangkokDateTime } from '@/utils/dateUtils';
 import { Decimal } from '@prisma/client/runtime/library';
+import { sendDiscordNotification, createPaymentNotificationEmbed } from '@/utils/discordUtils';
 
 // ฟังก์ชันสำหรับอัพโหลดไฟล์ไปยัง storage และ resize ภาพ
 async function uploadFileToStorage(file: Buffer, filename: string): Promise<string> {
@@ -94,6 +95,12 @@ export async function POST(request: NextRequest) {
     // อัพโหลดไฟล์ไปยัง storage และ resize รูปภาพ
     const slipUrl = await uploadFileToStorage(buffer, slipFile.name);
     
+    // สร้าง absolute URL สำหรับส่งไปยัง Discord
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://treetelu.com';
+    const absoluteSlipUrl = slipUrl.startsWith('http') ? slipUrl : `${baseUrl}${slipUrl}`;
+    
+    console.log('Absolute slip URL for Discord:', absoluteSlipUrl);
+    
     // ตรวจสอบว่ามีคำสั่งซื้อจริง (optional)
     try {
       const order = await prisma.order.findFirst({
@@ -126,6 +133,40 @@ export async function POST(request: NextRequest) {
         updatedAt: bangkokNow,
       },
     });
+    
+    // ส่งแจ้งเตือนไปยัง Discord พร้อมรูปสลิป
+    try {
+      // ข้อมูลเกี่ยวกับ path
+      console.log('Current working directory:', process.cwd());
+      console.log('Slip URL from database:', slipUrl);
+      console.log('Full image path:', path.join(process.cwd(), 'public', slipUrl));
+      
+      // ตรวจสอบว่าไฟล์มีอยู่จริงหรือไม่
+      try {
+        const fullImagePath = path.join(process.cwd(), 'public', slipUrl);
+        const fileExists = fs.existsSync(fullImagePath);
+        console.log('Image file exists:', fileExists);
+      } catch (fileCheckError) {
+        console.error('Error checking file existence:', fileCheckError);
+      }
+      
+      // สร้าง payload สำหรับส่งไป Discord
+      const discordPayload = createPaymentNotificationEmbed({
+        orderNumber: validatedData.orderNumber,
+        amount: validatedData.amount,
+        bankName: validatedData.bankName || 'ธนาคารไทยพาณิชย์',
+        slipUrl: absoluteSlipUrl // ใช้ absolute URL
+      });
+      
+      console.log('Sending Discord notification with payload:', JSON.stringify(discordPayload, null, 2));
+      
+      // ส่งแจ้งเตือนไปยัง Discord
+      await sendDiscordNotification(discordPayload);
+      console.log('Discord payment notification sent successfully');
+    } catch (discordError) {
+      // หากการส่งแจ้งเตือน Discord ล้มเหลว ไม่ให้มีผลต่อการบันทึกข้อมูล
+      console.error('Error sending Discord payment notification:', discordError);
+    }
     
     // รีวาลิเดท path เพื่ออัพเดท UI
     revalidatePath('/payment-confirmation');

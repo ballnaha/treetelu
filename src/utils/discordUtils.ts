@@ -117,4 +117,53 @@ function getPaymentMethodThai(paymentMethod: string): string {
     default: 
       return paymentMethod;
   }
+}
+
+/**
+ * สร้าง embed สำหรับแจ้งเตือนการชำระเงิน
+ * @param paymentData ข้อมูลการชำระเงิน
+ * @returns Discord embed object
+ */
+export function createPaymentNotificationEmbed(paymentData: any) {
+  console.log('Creating payment notification embed with data:', JSON.stringify(paymentData, null, 2));
+  
+  // กำหนด base URL ที่สามารถเข้าถึงได้จากภายนอก
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  
+  // สร้าง URL เต็มของรูปภาพสลิป
+  let slipImageUrl = '';
+  
+  // ตรวจสอบว่า URL เริ่มต้นด้วย http หรือไม่
+  if (paymentData.slipUrl.startsWith('http')) {
+    slipImageUrl = paymentData.slipUrl;
+  } else {
+    // ทำ URL ให้เป็น absolute URL โดยเชื่อมต่อกับ baseUrl
+    slipImageUrl = `${baseUrl}${paymentData.slipUrl}`;
+  }
+  
+  console.log('Discord payment notification image URL:', slipImageUrl);
+  
+  // สร้าง embed
+  return {
+    embeds: [
+      {
+        title: `💸 แจ้งชำระเงินใหม่`,
+        color: 0x4CC9AD, // สีเขียวอ่อนของ TreeTelu
+        fields: [
+          {
+            name: '📝 ข้อมูลการชำระเงิน',
+            value: `**หมายเลขคำสั่งซื้อ:** ${paymentData.orderNumber}\n**จำนวนเงิน:** ${Number(paymentData.amount).toLocaleString()} บาท\n**ธนาคาร:** ${paymentData.bankName || 'ธนาคารไทยพาณิชย์'}`,
+            inline: false
+          }
+        ],
+        image: {
+          url: slipImageUrl
+        },
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: 'TreeTelu Payment System'
+        }
+      }
+    ]
+  };
 } 
