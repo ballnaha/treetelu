@@ -28,6 +28,7 @@ import DesignServicesIcon from '@mui/icons-material/DesignServices';
 import InfoIcon from '@mui/icons-material/Info';
 import ContactSupportIcon from '@mui/icons-material/ContactSupport';
 import dynamic from "next/dynamic";
+import CookieConsent from '@/components/CookieConsent';
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const prompt = Prompt({ 
@@ -75,6 +76,7 @@ export default function RootLayout({
         <ClientOnly>
           <ClientProvider>
             {children}
+            <CookieConsent />
           </ClientProvider>
         </ClientOnly>
       </body>
