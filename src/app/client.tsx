@@ -395,13 +395,15 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
         image: "/images/banner-3.png",
         title: "ให้ดอกไม้พูดแทนใจ...",
         subtitle: "ทุกความรู้สึกมีค่าเสมอ",
-        description: "ส่งต่อความรัก…ในทุกช่วงเวลา ด้วยช่อดอกไม้จากเรา"
+        description: "ส่งต่อความรัก…ในทุกช่วงเวลา ด้วยช่อดอกไม้จากเรา",
+        href: "/products?category=bouquet"
       },
       {
         image: "/images/banner-4.png",
         title: "เริ่มต้นรักต้นไม้",
         subtitle: "เริ่มจากไม้อวบน้ำ",
-        description: "ไม่ต้องมีเวลาดูแลมาก...ก็มีพื้นที่สีเขียวได้"
+        description: "ไม่ต้องมีเวลาดูแลมาก...ก็มีพื้นที่สีเขียวได้",
+        href: "/products?category=succulent"
       }
     ];
     
@@ -590,7 +592,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                             <Button 
                               variant="outlined" 
                               size="small" 
-                              href="#services"
+                              href={item.href}
                               endIcon={<ArrowForwardIcon sx={{ fontSize: 18 }} className="arrow-icon" />}
                               sx={{ 
                                 color: 'white', 
