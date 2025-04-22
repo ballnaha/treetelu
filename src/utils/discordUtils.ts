@@ -127,9 +127,8 @@ function getPaymentMethodThai(paymentMethod: string): string {
 export function createPaymentNotificationEmbed(paymentData: any) {
   console.log('Creating payment notification embed with data:', JSON.stringify(paymentData, null, 2));
   
-  // กำหนด base URL ที่สามารถเข้าถึงได้จากภายนอก - ต้องเป็น URL ที่เข้าถึงได้จากภายนอก (public URL)
-  // สำหรับ production ควรใช้ NEXT_PUBLIC_SITE_URL แทน NEXT_PUBLIC_API_URL
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  // กำหนด base URL ที่สามารถเข้าถึงได้จากภายนอก
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   
   // สร้าง URL เต็มของรูปภาพสลิป
   let slipImageUrl = '';
@@ -150,11 +149,6 @@ export function createPaymentNotificationEmbed(paymentData: any) {
     }
     
     console.log('Discord payment notification image URL:', slipImageUrl);
-    
-    // ตรวจสอบว่า URL เป็น localhost หรือไม่
-    if (slipImageUrl.includes('localhost') || slipImageUrl.includes('127.0.0.1')) {
-      console.warn('Warning: Using localhost URL for Discord image. Discord cannot access localhost URLs.');
-    }
   } else {
     console.warn('No slip image URL provided in payment data');
   }

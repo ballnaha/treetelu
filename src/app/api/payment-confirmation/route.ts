@@ -31,15 +31,6 @@ async function uploadFileToStorage(file: Buffer, filename: string): Promise<stri
       .jpeg({ quality: 80 }) // บีบอัดเป็น JPEG คุณภาพ 80%
       .toFile(filePath);
     
-    // ตั้งค่า permissions ให้ไฟล์เพื่อให้เข้าถึงได้จาก web server
-    try {
-      // 0644 = อ่านและเขียนสำหรับเจ้าของ, อ่านสำหรับกลุ่มและผู้อื่น
-      fs.chmodSync(filePath, 0o644);
-    } catch (permError) {
-      console.warn('Could not set file permissions:', permError);
-      // ไม่ throw error เพราะอาจจะไม่จำเป็นในบางระบบปฏิบัติการ
-    }
-    
     // สร้าง URL สำหรับเรียกใช้ไฟล์
     const fileUrl = `/uploads/payment-slips/${uniqueFilename}`;
     
@@ -105,7 +96,7 @@ export async function POST(request: NextRequest) {
     const slipUrl = await uploadFileToStorage(buffer, slipFile.name);
     
     // สร้าง absolute URL สำหรับส่งไปยัง Discord
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_API_URL || 'https://treetelu.com';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://treetelu.com';
     const absoluteSlipUrl = slipUrl.startsWith('http') ? slipUrl : `${baseUrl}${slipUrl}`;
     
     console.log('Absolute slip URL for Discord:', absoluteSlipUrl);
