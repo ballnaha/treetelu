@@ -98,7 +98,10 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
 
     const emailContent = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #24B493;">ขอบคุณสำหรับคำสั่งซื้อ</h1>
+          <div style="text-align: center; margin-bottom: 20px;">
+            <img src="${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/images/logo.webp" alt="Treetelu Logo" style="max-width: 150px; height: auto;"/>
+          </div>
+          <h1 style="color: #24B493; font-size: 24px;">ขอบคุณสำหรับคำสั่งซื้อ</h1>
           
           <div style="margin: 20px 0;">
             <h2>รายการสินค้า</h2>
