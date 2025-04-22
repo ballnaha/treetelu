@@ -73,7 +73,7 @@ const menuItems = [
   { text: 'สินค้า', href: '/products', icon: <CategoryOutlinedIcon /> },
   { text: 'บทความ', href: '/blog', icon: <ArticleIcon /> },
   { text: 'แจ้งชำระเงิน', href: '/payment-confirmation', icon: <PaymentIcon /> },
-  { text: 'ติดต่อเรา', href: '#contact', icon: <ContactSupportIcon /> }
+  { text: 'ติดต่อเรา', href: '/contact', icon: <ContactSupportIcon /> }
 ];
 
 export default function LayoutProvider({ children }: { children: ReactNode }) {
