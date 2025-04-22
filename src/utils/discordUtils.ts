@@ -173,7 +173,10 @@ export function createPaymentNotificationEmbed(paymentData: any) {
   // เพิ่ม image URL เฉพาะเมื่อมี slipImageUrl
   if (slipImageUrl) {
     // @ts-ignore
-    embed.image = { url: slipImageUrl };
+     embed.image = { url: slipImageUrl };
+
+     // ทดสอบรูปภาพ mockup
+    //embed.image = { url: 'https://www.google.com/images/branding/googlelogo/2x/googlelogo_light_color_272x92dp.png' };
   }
   
   // สร้าง embed

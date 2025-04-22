@@ -71,6 +71,10 @@ export default function RootLayout({
     <html lang="th" suppressHydrationWarning>
       <head>
         <meta name="emotion-insertion-point" content="" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/images/favicon.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/images/favicon.png" />
+        <link rel="manifest" href="/site.webmanifest" />
       </head>
       <body className={`${inter.variable} ${prompt.variable} font-sans`} suppressHydrationWarning>
         <ClientOnly>
