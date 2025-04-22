@@ -22,6 +22,7 @@ import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import RelatedProducts from '@/components/RelatedProducts';
 import { useTheme } from '@mui/material/styles';
 import LoadingAnimation from '@/components/LoadingAnimation';
+import Head from 'next/head';
 
 // Custom styled components
 const ProductImageWrapper = styled(Box)(({ theme }) => ({
@@ -105,21 +106,42 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
     async function fetchProductDetail() {
       try {
         setLoading(true);
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/products/${slug}`);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const res = await fetch(`${apiUrl}/api/products/${slug}`, {
+          headers: {
+            'Cache-Control': 'no-store',
+          },
+          next: { revalidate: 60 } // Revalidate data every 60 seconds
+        });
         
         if (!res.ok) {
-          throw new Error('ไม่พบข้อมูลสินค้า');
+          const errorStatus = res.status;
+          if (errorStatus === 404) {
+            throw new Error('ไม่พบข้อมูลสินค้า');
+          } else {
+            throw new Error(`เกิดข้อผิดพลาดในการโหลดข้อมูล (${errorStatus})`);
+          }
         }
         
         const data = await res.json();
         
         // แปลงชื่อและคำอธิบายสินค้าให้อยู่ในรูปแบบที่อ่านได้
         if (data.productName) {
-          data.productName = decodeURIComponent(data.productName);
+          try {
+            data.productName = decodeURIComponent(data.productName);
+          } catch (decodeError) {
+            console.warn('Failed to decode product name:', decodeError);
+            // ใช้ข้อมูลเดิมถ้า decode ไม่ได้
+          }
         }
         
         if (data.productDesc) {
-          data.productDesc = decodeURIComponent(data.productDesc);
+          try {
+            data.productDesc = decodeURIComponent(data.productDesc);
+          } catch (decodeError) {
+            console.warn('Failed to decode product description:', decodeError);
+            // ใช้ข้อมูลเดิมถ้า decode ไม่ได้
+          }
         }
         
         setProduct(data);
@@ -133,9 +155,10 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
         }
         
         // เพิ่มรูปเพิ่มเติมจาก images array (ถ้ามี)
-        if (data.images && data.images.length > 0) {
+        if (data.images && Array.isArray(data.images) && data.images.length > 0) {
           // กรองรูปที่ไม่ซ้ำกับรูปหลักออกไป
           const additionalImages = data.images
+            .filter((img: any) => img && img.imageName) // ตรวจสอบว่ามีข้อมูลรูปภาพจริง
             .map((img: any) => img.imageName)
             .filter((imgName: string) => imgName !== data.productImg);
           
@@ -148,7 +171,7 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
         }
       } catch (err) {
         console.error('Error fetching product:', err);
-        setError('ไม่สามารถโหลดข้อมูลสินค้าได้ โปรดลองอีกครั้งในภายหลัง');
+        setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลสินค้าได้ โปรดลองอีกครั้งในภายหลัง');
       } finally {
         setLoading(false);
       }
@@ -250,8 +273,8 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
   // สร้าง URL ของรูปภาพ
   const getImageUrl = (imageName: string | undefined, isThumbnail: boolean = false) => {
     // ถ้าไม่มีชื่อรูปภาพ ให้ใช้รูป placeholder
-    if (!imageName) {
-      return '/images/product/og-image.jpg.jpg'; // รูป placeholder จากที่มีในโฟลเดอร์
+    if (!imageName || imageName === 'undefined' || imageName === 'null') {
+      return '/images/product/og-image.jpg'; // รูป placeholder จากที่มีในโฟลเดอร์
     }
     
     // ตรวจสอบว่ารูปภาพมี path เต็มหรือเปล่า
@@ -261,13 +284,7 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
 
     // ตรวจสอบว่ามีรูป thumbnail หรือไม่
     if (isThumbnail) {
-      
-      try {
-        return `/images/product/${imageName}`;
-      } catch (error) {
-        // ถ้าไม่มีให้ใช้รูปปกติ
-        return `/images/product/${imageName}`; 
-      }
+      return `/images/product/${imageName}`;
     }
     
     return `/images/product/${imageName}`;
@@ -277,11 +294,52 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
   const handleThumbnailError = (e: React.SyntheticEvent<HTMLImageElement, Event>, img: string) => {
     const target = e.target as HTMLImageElement;
     target.onerror = null; // ป้องกันการเกิด loop
-    target.src = getImageUrl(img, false); // ลองโหลดจากโฟลเดอร์หลัก
+    target.src = '/images/product/og-image.jpg'; // ใช้รูป placeholder เมื่อโหลดไม่สำเร็จ
+  };
+  
+  // ฟังก์ชันจัดการเมื่อรูปหลักโหลดไม่สำเร็จ
+  const handleMainImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const target = e.target as HTMLImageElement;
+    target.onerror = null; // ป้องกันการเกิด loop
+    target.src = '/images/product/og-image.jpg'; // ใช้รูป placeholder เมื่อโหลดไม่สำเร็จ
+  };
+
+  // สร้าง Structured Data สำหรับ SEO
+  const generateStructuredData = () => {
+    if (!product) return null;
+    
+    const structuredData = {
+      '@context': 'https://schema.org/',
+      '@type': 'Product',
+      name: product.productName,
+      image: product.productImg ? getImageUrl(product.productImg) : '',
+      description: product.productDesc,
+      sku: product.sku,
+      offers: {
+        '@type': 'Offer',
+        url: `${typeof window !== 'undefined' ? window.location.href : ''}`,
+        priceCurrency: 'THB',
+        price: product.salesPrice || product.originalPrice,
+        availability: product.stockStatus === 'พร้อมส่ง' ? 'https://schema.org/InStock' : 'https://schema.org/PreOrder',
+      }
+    };
+    
+    return JSON.stringify(structuredData);
   };
 
   return (
     <>
+      {product && (
+        <Head>
+          <title>{product.productName} | Tree Telu</title>
+          <meta name="description" content={product.productDesc?.substring(0, 160) || 'รายละเอียดสินค้าจาก Tree Telu'} />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: generateStructuredData() || '' }}
+          />
+        </Head>
+      )}
+      
       <Cart 
         cartItems={cartItems}
         onUpdateQuantity={updateQuantity}
@@ -308,13 +366,13 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
       </Snackbar>
 
         <Container maxWidth={false} sx={{ 
-          py: 4, 
+          py: { xs: 2, sm: 3, md: 4 }, 
           px: { xs: 2, sm: 3, lg: 4, xl: 5 }, 
           maxWidth: { xs: '100%', sm: '100%', md: '1200px', xl: '1200px' }, 
           mx: 'auto',
         }}>
           {/* Breadcrumbs */}
-          <Breadcrumbs separator="›" aria-label="breadcrumb" sx={{ mb: 3 }}>
+          <Breadcrumbs separator="›" aria-label="breadcrumb" sx={{ mb: { xs: 2, sm: 3 }, display: { xs: 'none', sm: 'flex' } }}>
             <Box 
               component={Link} 
               href="/" 
@@ -349,7 +407,7 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
             </Typography>
           </Breadcrumbs>
 
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 3, md: 4 } }}>
           {/* รูปภาพสินค้า */}
           <Box sx={{ flex: { xs: '0 0 100%', md: '0 0 50%' }, width: '100%' }}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -361,6 +419,9 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
                   fill
                   style={{ objectFit: 'contain' }}
                   priority
+                  onError={handleMainImageError}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  quality={85}
                 />
                 {hasDiscount && (
                   <Chip 
@@ -382,10 +443,10 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
               {productImages.length > 1 && (
                 <Box sx={{ 
                   display: 'flex', 
-                  gap: 2, 
+                  gap: { xs: 1.5, sm: 2 }, 
                   flexWrap: 'wrap',
                   justifyContent: 'center',
-                  mt: 2
+                  mt: { xs: 1.5, sm: 2 }
                 }}>
                   {productImages.map((img, index) => (
                     <ThumbImage 
@@ -395,10 +456,12 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
                     >
                       <Image
                         src={getImageUrl(img, true)}
-                        alt={`Thumbnail ${index + 1}`}
+                        alt={`${product.productName || 'Product'} - รูปที่ ${index + 1}`}
                         fill
                         style={{ objectFit: 'cover' }}
                         onError={(e) => handleThumbnailError(e, img)}
+                        sizes="(max-width: 768px) 60px, 80px"
+                        loading="eager"
                       />
                     </ThumbImage>
                   ))}
