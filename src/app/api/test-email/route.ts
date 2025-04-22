@@ -3,7 +3,7 @@ import sgMail from '@sendgrid/mail';
 import { sendDiscordNotification } from '@/utils/discordUtils';
 
 // ตั้งค่า SendGrid API Key
-sgMail.setApiKey(process.env.SENDGRID_API_KEY as string);
+//sgMail.setApiKey(process.env.SENDGRID_API_KEY as string);
 
 // รายการอีเมลที่ยืนยันแล้ว (ตัวอย่าง)
 const VERIFIED_EMAILS = [
