@@ -331,8 +331,8 @@ export default function CategorySwiper({
                       sizes="(max-width: 768px) 50vw, 25vw"
                       style={{ objectFit: 'cover' }}
                       onError={handleImageError}
-                      priority={false}
-                      loading="lazy"
+                      unoptimized={true}
+                      loading="eager"
                     />
                   </ProductImageWrapper>
                   <ProductInfoWrapper>
