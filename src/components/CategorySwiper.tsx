@@ -148,8 +148,10 @@ const ProductPrice = styled(Typography)(({ theme }) => ({
 
 // เพิ่มฟังก์ชันสำหรับแก้ไข URL รูปภาพให้ถูกต้อง
 const getValidImageUrl = (url: string | undefined): string => {
-  // ถ้าไม่มี URL ให้ใช้รูปภาพตัวอย่าง
-  if (!url) return '/images/product/default-tree.webp';
+  // ถ้าไม่มี URL หรือเป็น undefined หรือ null ให้ใช้รูปภาพตัวอย่าง
+  if (!url || url === 'undefined' || url === 'null') {
+    return '/images/og-image.jpg';
+  }
   
   // ถ้า URL เป็น URL แบบเต็ม (https:// หรือ http://) ให้ใช้เลย
   if (url.startsWith('http://') || url.startsWith('https://')) {
@@ -168,6 +170,13 @@ const getValidImageUrl = (url: string | undefined): string => {
   
   // ถ้าเป็นชื่อไฟล์เฉยๆ (เช่น "11_67a1b21ddf933.png") ให้นำไปไว้ใน /images/product
   return `/images/product/${url}`;
+};
+
+// ฟังก์ชันสำหรับจัดการเมื่อรูปภาพโหลดไม่สำเร็จ
+const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+  const target = e.target as HTMLImageElement;
+  target.onerror = null; // ป้องกันการเกิด loop
+  target.src = '/images/og-image.jpg'; // ใช้รูป default เมื่อโหลดไม่สำเร็จ
 };
 
 // เพิ่ม ViewAllLink สำหรับลิงก์ "ดูทั้งหมด"
@@ -220,7 +229,7 @@ export default function CategorySwiper({
               const type = typeMatch ? typeMatch[0].trim() : '';
               
               // แก้ไข URL รูปภาพให้ถูกต้อง
-              const imageUrl = getValidImageUrl(product.productImg);
+              const imageUrl = product.productImg ? getValidImageUrl(product.productImg) : '/images/product/default-tree.webp';
               
               return {
                 id: product.id,
@@ -321,7 +330,9 @@ export default function CategorySwiper({
                       fill
                       sizes="(max-width: 768px) 50vw, 25vw"
                       style={{ objectFit: 'cover' }}
-                      unoptimized={!product.imageUrl?.startsWith('/')}
+                      onError={handleImageError}
+                      priority={false}
+                      loading="lazy"
                     />
                   </ProductImageWrapper>
                   <ProductInfoWrapper>
