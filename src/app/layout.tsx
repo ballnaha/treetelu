@@ -72,6 +72,7 @@ export default function RootLayout({
       <head>
         <meta name="emotion-insertion-point" content="" />
         <link rel="icon" href="/images/favicon.png" type="image/png" />
+        <link rel="shortcut icon" href="/images/favicon.png" type="image/png" />
         <link rel="apple-touch-icon" href="/images/favicon.png" />
         <link rel="manifest" href="/site.webmanifest" />
       </head>

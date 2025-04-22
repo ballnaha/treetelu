@@ -4,16 +4,22 @@ export const metadata: Metadata = {
   title: "Treetelu - ต้นไม้ในกระถาง ของชำร่วย ต้นไม้ของขวัญ ตะกร้าผลไม้ของขวัญ ไม้ฟอกอากาศ ไม้อวบน้ำ สำหรับสายมู",
   description: "ทรีเตลู ต้นไม้ในกระถาง ของชำร่วย ต้นไม้ของขวัญ ตะกร้าผลไม้ของขวัญ ไม้ฟอกอากาศ ไม้อวบน้ำ สำหรับสายมู สำหรับทุกโอกาส ส่งต่อความรัก…ในทุกช่วงเวลา ด้วยช่อดอกไม้และต้นไม้จากเรา",
   keywords: "ต้นไม้, ต้นไม้มงคล, ไม้อวบน้ำ, ไม้ฟอกอากาศ, ของชำร่วย, ช่อดอกไม้, ของขวัญ, สายมู, ฮวงจุ้ย",
+  // Server-side favicon handling
   icons: {
     icon: [
-      { url: '/favicon.ico' },
-      { url: '/images/favicon.png', type: 'image/png' },
+      // This will be served from the app directory (favicon.ico)
+      { rel: 'icon', url: '/favicon.ico' },
+      // This will be served from the app directory (icon.png)
+      { rel: 'icon', url: '/icon.png' },
+      { rel: 'icon', url: '/favicon.png', type: 'image/png' },
+      // This will be served from the public directory
+      { rel: 'icon', url: '/images/favicon.png', type: 'image/png' },
     ],
     apple: [
-      { url: '/images/favicon.png', sizes: '180x180', type: 'image/png' },
+      { rel: 'apple-touch-icon', url: '/images/favicon.png' },
     ],
     shortcut: [
-      { url: '/images/favicon.png' },
+      { rel: 'shortcut icon', url: '/images/favicon.png' },
     ],
   },
   manifest: '/site.webmanifest',

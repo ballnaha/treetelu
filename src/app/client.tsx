@@ -1216,7 +1216,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
               left: 0,
               width: '100%',
               height: '100%',
-              backgroundImage: 'url(/images/pattern-leaf.png)',
+              backgroundImage: '',
               backgroundRepeat: 'repeat',
               opacity: 0.05,
               zIndex: 0
