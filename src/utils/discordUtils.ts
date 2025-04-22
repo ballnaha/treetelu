@@ -133,37 +133,51 @@ export function createPaymentNotificationEmbed(paymentData: any) {
   // สร้าง URL เต็มของรูปภาพสลิป
   let slipImageUrl = '';
   
-  // ตรวจสอบว่า URL เริ่มต้นด้วย http หรือไม่
-  if (paymentData.slipUrl.startsWith('http')) {
-    slipImageUrl = paymentData.slipUrl;
+  // ตรวจสอบว่ามี slipUrl หรือไม่
+  if (paymentData.slipUrl) {
+    // ตรวจสอบว่า URL เริ่มต้นด้วย http หรือไม่
+    if (paymentData.slipUrl.startsWith('http')) {
+      slipImageUrl = paymentData.slipUrl;
+    } else {
+      // ทำ URL ให้เป็น absolute URL โดยเชื่อมต่อกับ baseUrl
+      // ตรวจสอบว่า slipUrl เริ่มต้นด้วย / หรือไม่
+      const slipPath = paymentData.slipUrl.startsWith('/') 
+        ? paymentData.slipUrl 
+        : `/${paymentData.slipUrl}`;
+      
+      slipImageUrl = `${baseUrl}${slipPath}`;
+    }
+    
+    console.log('Discord payment notification image URL:', slipImageUrl);
   } else {
-    // ทำ URL ให้เป็น absolute URL โดยเชื่อมต่อกับ baseUrl
-    slipImageUrl = `${baseUrl}${paymentData.slipUrl}`;
+    console.warn('No slip image URL provided in payment data');
   }
   
-  console.log('Discord payment notification image URL:', slipImageUrl);
+  // สร้าง embed object
+  const embed = {
+    title: `💸 แจ้งชำระเงินใหม่`,
+    color: 0x4CC9AD, // สีเขียวอ่อนของ TreeTelu
+    fields: [
+      {
+        name: '📝 ข้อมูลการชำระเงิน',
+        value: `**หมายเลขคำสั่งซื้อ:** ${paymentData.orderNumber}\n**จำนวนเงิน:** ${Number(paymentData.amount).toLocaleString()} บาท\n**ธนาคาร:** ${paymentData.bankName || 'ธนาคารไทยพาณิชย์'}`,
+        inline: false
+      }
+    ],
+    timestamp: new Date().toISOString(),
+    footer: {
+      text: 'TreeTelu Payment System'
+    }
+  };
+  
+  // เพิ่ม image URL เฉพาะเมื่อมี slipImageUrl
+  if (slipImageUrl) {
+    // @ts-ignore
+    embed.image = { url: slipImageUrl };
+  }
   
   // สร้าง embed
   return {
-    embeds: [
-      {
-        title: `💸 แจ้งชำระเงินใหม่`,
-        color: 0x4CC9AD, // สีเขียวอ่อนของ TreeTelu
-        fields: [
-          {
-            name: '📝 ข้อมูลการชำระเงิน',
-            value: `**หมายเลขคำสั่งซื้อ:** ${paymentData.orderNumber}\n**จำนวนเงิน:** ${Number(paymentData.amount).toLocaleString()} บาท\n**ธนาคาร:** ${paymentData.bankName || 'ธนาคารไทยพาณิชย์'}`,
-            inline: false
-          }
-        ],
-        image: {
-          url: slipImageUrl
-        },
-        timestamp: new Date().toISOString(),
-        footer: {
-          text: 'TreeTelu Payment System'
-        }
-      }
-    ]
+    embeds: [embed]
   };
 } 
