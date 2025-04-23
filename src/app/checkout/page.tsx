@@ -670,8 +670,189 @@ export default function Checkout() {
       <PageTitle variant="h5">ชำระเงิน</PageTitle>
       
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, mt: 4, gap: 4 }}>
+        {/* สรุปคำสั่งซื้อ (แสดงก่อนบนมือถือ) */}
+        <Box sx={{ width: { xs: '100%', md: '40%' }, order: { xs: 1, md: 2 }, mb: { xs: 4, md: 0 }, display: { xs: 'block', md: 'none' } }}>
+          <OrderSummaryContainer>
+            <Typography variant="h6" gutterBottom>
+              สรุปคำสั่งซื้อ
+            </Typography>
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              จำนวนสินค้าทั้งหมด {getTotalItems()} ชิ้น
+            </Typography>
+            
+            <Box sx={{ mb: 2 }}>
+              {cartItems.map((item) => (
+                <Paper 
+                  key={item.id} 
+                  variant="outlined"
+                  sx={{ 
+                    mb: 2, 
+                    p: 2, 
+                    display: 'flex',
+                    flexDirection: 'column',
+                    borderRadius: 1,
+                    borderColor: 'divider',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                  }}
+                >
+                  <Box sx={{ display: 'flex', gap: 3 }}>
+                    <ProductImageWrapper sx={{ width: 90, height: 90 }}>
+                      <Link 
+                        href={`/products/${item.slug || item.id}`}
+                        style={{ 
+                          display: 'block', 
+                          width: '100%', 
+                          height: '100%', 
+                          position: 'relative' 
+                        }}
+                      >
+                        <Image
+                          src={item.image || '/images/product-placeholder.png'}
+                          alt={item.name || 'สินค้า'}
+                          fill
+                          style={{ objectFit: 'cover' }}
+                        />
+                      </Link>
+                    </ProductImageWrapper>
+                    
+                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      <Typography variant="subtitle2" fontWeight={500} gutterBottom>
+                        {item.name}
+                      </Typography>
+                      
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        ฿{parseFloat(String(item.salesPrice || '0')).toLocaleString()} × {item.quantity}
+                      </Typography>
+
+                      <Typography variant="body2" fontWeight={600} color="primary.main">
+                        ฿{(parseFloat(String(item.salesPrice || '0')) * item.quantity).toLocaleString()}
+                      </Typography>
+                      
+                      <Box sx={{ display: 'flex', alignItems: 'center', mt: 2, justifyContent: 'space-between', width: '100%' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handleUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                            disabled={item.quantity <= 1}
+                            sx={{ 
+                              p: 0.5, 
+                              width: 32, 
+                              height: 32,
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              borderRadius: '50%'
+                            }}
+                          >
+                            <RemoveIcon fontSize="small" sx={{ fontSize: 16 }} />
+                          </IconButton>
+                          
+                          <Box 
+                            sx={{ 
+                              width: '48px', 
+                              height: '32px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              borderRadius: '4px',
+                              mx: 1
+                            }}
+                          >
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {item.quantity}
+                            </Typography>
+                          </Box>
+                          
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                            sx={{ 
+                              p: 0.5, 
+                              width: 32, 
+                              height: 32,
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              borderRadius: '50%'
+                            }}
+                          >
+                            <AddIcon fontSize="small" sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Box>
+                        
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleRemoveItem(item.id)}
+                          sx={{ 
+                            color: 'error.main', 
+                            p: 0.5,
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            bgcolor: 'rgba(211, 47, 47, 0.08)',
+                            '&:hover': {
+                              bgcolor: 'rgba(211, 47, 47, 0.15)'
+                            },
+                            ml: 'auto'
+                          }}
+                          aria-label="ลบสินค้า"
+                        >
+                          <DeleteOutlineIcon fontSize="small" sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Box>
+                    </Box>
+                    
+                    
+                  </Box>
+                </Paper>
+              ))}
+            </Box>
+            
+            <Divider sx={{ my: 2 }} />
+            
+            <Box sx={{ mt: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="body1">ยอดรวม</Typography>
+                <Typography variant="body1">฿{prices.subtotal.toLocaleString()}</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="body1">ค่าจัดส่ง</Typography>
+                <Typography variant="body1">
+                  {prices.shippingCost < 1 ? 'ฟรี' : `฿${prices.shippingCost.toLocaleString()}`}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 2, borderTop: '1px solid rgba(0, 0, 0, 0.12)' }}>
+                <Typography variant="subtitle1" fontWeight={600}>
+                  รวมทั้งสิ้น
+                </Typography>
+                <Typography variant="h6" fontWeight={600} color="primary.main">
+                  ฿{prices.totalPrice.toLocaleString()}
+                </Typography>
+              </Box>
+              
+              {prices.shippingCost < 1 ? (
+                <Alert severity="success" sx={{ mt: 2 }} icon={false}>
+                  <Typography variant="body2" fontWeight={500}>
+                    ✓ คุณได้รับสิทธิ์จัดส่งฟรี!
+                  </Typography>
+                </Alert>
+              ) : (
+                <Alert severity="info" sx={{ mt: 2 }} icon={false}>
+                  <Typography variant="body2">
+                    สั่งซื้อเพิ่มอีก ฿{(1500 - prices.subtotal).toLocaleString()} เพื่อรับสิทธิ์จัดส่งฟรี
+                  </Typography>
+                  <Typography variant="caption" display="block" mt={0.5}>
+                    (ซื้อครบ 1,500 บาท รับสิทธิ์จัดส่งฟรี)
+                  </Typography>
+                </Alert>
+              )}
+            </Box>
+          </OrderSummaryContainer>
+        </Box>
+
         {/* ขั้นตอนการชำระเงิน */}
-        <Box sx={{ width: { xs: '100%', md: '60%' } }}>
+        <Box sx={{ width: { xs: '100%', md: '60%' }, order: { xs: 2, md: 1 } }}>
           <Stepper activeStep={activeStep} orientation="vertical">
             {steps.map((step, index) => (
               <Step key={step.label}>
@@ -1161,8 +1342,8 @@ export default function Checkout() {
           </Stepper>
         </Box>
         
-        {/* สรุปคำสั่งซื้อ */}
-        <Box sx={{ width: { xs: '100%', md: '40%' } }}>
+        {/* สรุปคำสั่งซื้อ (แสดงบนจอใหญ่) */}
+        <Box sx={{ width: { xs: '100%', md: '40%' }, order: { xs: 1, md: 2 }, display: { xs: 'none', md: 'block' } }}>
           <OrderSummaryContainer>
             <Typography variant="h6" gutterBottom>
               สรุปคำสั่งซื้อ
@@ -1215,7 +1396,7 @@ export default function Checkout() {
                                     // ใช้รูปภาพ placeholder เมื่อไม่มีรูปภาพที่ระบุ
                                     : '/images/product/placeholder.jpg'
                           }
-                          alt={item.productName || 'สินค้า'}
+                          alt={item.productName || item.name || 'สินค้า'}
                           fill
                           sizes="90px"
                           style={{ objectFit: 'cover' }}
@@ -1306,7 +1487,18 @@ export default function Checkout() {
                       <IconButton 
                         size="small" 
                         onClick={() => handleRemoveItem(item.id)}
-                        sx={{ ml: 1, color: 'error.main', p: 0.5 }}
+                        sx={{ 
+                          ml: 1, 
+                          color: 'error.main', 
+                          p: 0.5,
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          bgcolor: 'rgba(211, 47, 47, 0.08)',
+                          '&:hover': {
+                            bgcolor: 'rgba(211, 47, 47, 0.15)'
+                          }
+                        }}
                         aria-label="ลบสินค้า"
                       >
                         <DeleteOutlineIcon fontSize="small" sx={{ fontSize: 18 }} />

@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Container, Breadcrumbs, CircularProgress, Snackbar, Alert, IconButton, Tooltip } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Product } from '@/types/product';
@@ -92,6 +94,7 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [quantity, setQuantity] = useState(1);
   const { addToCart, cartItems, updateQuantity, removeItem, isCartOpen, closeCart, openCart } = useCart();
   const theme = useTheme();
 
@@ -182,10 +185,21 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
 
   const handleAddToCart = () => {
     if (product) {
-      addToCart(product);
+      // เพิ่มสินค้าลงตะกร้าตามจำนวนที่เลือก
+      for (let i = 0; i < quantity; i++) {
+        addToCart(product);
+      }
       // แทนที่จะเปิด Cart ให้แสดง Snackbar แทน
-      setSnackbarMessage(`เพิ่ม "${product.productName}" ในตะกร้าเรียบร้อยแล้ว`);
+      setSnackbarMessage(`เพิ่ม "${product.productName}" จำนวน ${quantity} ชิ้นในตะกร้าเรียบร้อยแล้ว`);
       setSnackbarOpen(true);
+    }
+  };
+
+  // จัดการการเปลี่ยนแปลงจำนวนสินค้า
+  const handleQuantityChange = (newQuantity: number) => {
+    // ตรวจสอบว่าจำนวนไม่น้อยกว่า 1
+    if (newQuantity >= 1) {
+      setQuantity(newQuantity);
     }
   };
 
@@ -542,6 +556,65 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
             
             <Divider sx={{ my: 3 }} />
             
+            {/* ตัวเลือกจำนวนสินค้า */}
+            <Box sx={{ mt: 3, mb: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                จำนวน
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <IconButton 
+                  size="small" 
+                  onClick={() => handleQuantityChange(Math.max(1, quantity - 1))}
+                  disabled={quantity <= 1}
+                  sx={{ 
+                    p: 0.5, 
+                    width: 36, 
+                    height: 36,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: '50%',
+                    mr: 1
+                  }}
+                >
+                  <RemoveIcon fontSize="small" />
+                </IconButton>
+                
+                <Box 
+                  sx={{ 
+                    minWidth: '60px', 
+                    height: '36px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: '4px',
+                    mx: 1
+                  }}
+                >
+                  <Typography variant="body1" fontWeight={500}>
+                    {quantity}
+                  </Typography>
+                </Box>
+                
+                <IconButton 
+                  size="small" 
+                  onClick={() => handleQuantityChange(quantity + 1)}
+                  sx={{ 
+                    p: 0.5, 
+                    width: 36, 
+                    height: 36,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: '50%',
+                    ml: 1
+                  }}
+                >
+                  <AddIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            </Box>
+            
             {/* รายละเอียดเพิ่มเติม */}
             <InfoCard>
               <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600 }}>
@@ -623,8 +696,10 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
               </Box>
             </Box>
             
+            
+            
             {/* ปุ่มเพิ่มสินค้าในตะกร้า */}
-            <Box sx={{ display: 'flex', gap: 2, mt: 4 }}>
+            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
               <ActionButton 
                 variant="contained" 
                 color="primary" 

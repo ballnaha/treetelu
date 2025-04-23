@@ -310,7 +310,7 @@ export default function CategorySwiper({
               slidesPerView: 3.3,
             },
             1024: {
-              slidesPerView: 4.5,
+              slidesPerView: 5.2,
             },
           }}
           style={{ 
