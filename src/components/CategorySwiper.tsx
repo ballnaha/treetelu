@@ -301,13 +301,13 @@ export default function CategorySwiper({
           autoplay={false}
           breakpoints={{
             320: {
-              slidesPerView: 2.3,
+              slidesPerView: 1.5,
             },
             640: {
-              slidesPerView: 3.3,
+              slidesPerView: 2.3,
             },
             768: {
-              slidesPerView: 4.3,
+              slidesPerView: 3.3,
             },
             1024: {
               slidesPerView: 4.5,

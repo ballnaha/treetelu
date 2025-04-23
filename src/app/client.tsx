@@ -754,11 +754,201 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
           title="หมวดหมู่สินค้า"
           description="OUR COLLECTIONS"
         >
-          <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3 }, mx: 'auto' }}>
+          {/* แสดงไอคอนสำหรับมือถือ */}
+          <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3 }, mx: 'auto', display: { xs: 'block', sm: 'none' } }}>
+            <Box sx={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: 2
+            }}>
+              {/* ไม้มงคล Icon */}
+              <Box
+                component={Link}
+                href="/products?category=tree&sortBy=newest"
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  p: 2,
+                  textDecoration: 'none',
+                  borderRadius: 2,
+                  aspectRatio: '1/1',
+                  backgroundColor: '#F8F9FA',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    transform: 'translateY(-3px)',
+                    backgroundColor: '#F0F7F4'
+                  }
+                }}
+              >
+                <Box 
+                  sx={{ 
+                    width: 56, 
+                    height: 56, 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    mb: 1.5,
+                    color: '#1D9679'
+                  }}
+                >
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 22V19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M12 15V13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M12 3.5C9.5 3.5 7.5 5.5 7.5 8C7.5 10.5 9.5 12.5 12 12.5C14.5 12.5 16.5 10.5 16.5 8C16.5 5.5 14.5 3.5 12 3.5Z" stroke="currentColor" strokeWidth="1.5"/>
+                    <path d="M8 13.5C6 14.5 4.5 16.5 4.5 19H19.5C19.5 16.5 18 14.5 16 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    <path d="M14 7C14 7 13 8.2 12 8.2C11 8.2 10 7 10 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                </Box>
+                <Typography variant="body2" color="text.primary" fontWeight={500} align="center">
+                  ไม้มงคล
+                </Typography>
+              </Box>
+              
+              {/* ไม้อวบน้ำ Icon */}
+              <Box
+                component={Link}
+                href="/products?category=succulent&sortBy=newest"
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  p: 2,
+                  textDecoration: 'none',
+                  borderRadius: 2,
+                  aspectRatio: '1/1',
+                  backgroundColor: '#F8F9FA',
+                  transition: 'transform 0.2s ease',
+                  '&:hover': {
+                    transform: 'translateY(-3px)'
+                  }
+                }}
+              >
+                <Box 
+                  sx={{ 
+                    width: 56, 
+                    height: 56, 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    mb: 1.5,
+                    color: '#1D9679'
+                  }}
+                >
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 22C12 22 20 18 20 12C20 6 16 4 12 4C8 4 4 6 4 12C4 18 12 22 12 22Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M12 16C14.2091 16 16 14.2091 16 12C16 9.79086 14.2091 8 12 8C9.79086 8 8 9.79086 8 12C8 14.2091 9.79086 16 12 16Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M12 22V16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M10 7C10 7 11 5.5 12 5.5C13 5.5 14 7 14 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                </Box>
+                <Typography variant="body2" color="text.primary" fontWeight={500} align="center">
+                  ไม้อวบน้ำ
+                </Typography>
+              </Box>
+              
+              {/* ช่อดอกไม้ Icon */}
+              <Box
+                component={Link}
+                href="/products?category=bouquet&sortBy=newest"
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  p: 2,
+                  textDecoration: 'none',
+                  borderRadius: 2,
+                  aspectRatio: '1/1',
+                  backgroundColor: '#F8F9FA',
+                  transition: 'transform 0.2s ease',
+                  '&:hover': {
+                    transform: 'translateY(-3px)'
+                  }
+                }}
+              >
+                <Box 
+                  sx={{ 
+                    width: 56, 
+                    height: 56, 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    mb: 1.5,
+                    color: '#1D9679'
+                  }}
+                >
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 22V16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M15.5 9C15.5 6.5 14 4.5 12 4.5C10 4.5 8.5 6.5 8.5 9C8.5 11.5 10 13.5 12 13.5C14 13.5 15.5 11.5 15.5 9Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M8.5 9C8.5 6.5 7 4.5 5 4.5C3 4.5 1.5 6.5 1.5 9C1.5 11.5 3 13.5 5 13.5C7 13.5 8.5 11.5 8.5 9Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M15.5 9C15.5 6.5 17 4.5 19 4.5C21 4.5 22.5 6.5 22.5 9C22.5 11.5 21 13.5 19 13.5C17 13.5 15.5 11.5 15.5 9Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M5 13.5C5 15 8 16 12 16C16 16 19 15 19 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </Box>
+                <Typography variant="body2" color="text.primary" fontWeight={500} align="center">
+                  ช่อดอกไม้
+                </Typography>
+              </Box>
+              
+              {/* ของชำร่วย Icon */}
+              <Box
+                component={Link}
+                href="/products?category=souvenir&sortBy=newest"
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  p: 2,
+                  textDecoration: 'none',
+                  borderRadius: 2,
+                  aspectRatio: '1/1',
+                  backgroundColor: '#F8F9FA',
+                  transition: 'transform 0.2s ease',
+                  '&:hover': {
+                    transform: 'translateY(-3px)'
+                  }
+                }}
+              >
+                <Box 
+                  sx={{ 
+                    width: 56, 
+                    height: 56, 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    mb: 1.5,
+                    color: '#1D9679'
+                  }}
+                >
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 12H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M8 12H4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M12 20V16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M12 8V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M16 12C16 14.2091 14.2091 16 12 16C9.79086 16 8 14.2091 8 12C8 9.79086 9.79086 8 12 8C14.2091 8 16 9.79086 16 12Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M15 9L17 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M9 15L7 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M15 15L17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M9 9L7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </Box>
+                <Typography variant="body2" color="text.primary" fontWeight={500} align="center">
+                  ของชำร่วย
+                </Typography>
+              </Box>
+            </Box>
+          </Container>
+          
+          {/* แสดงการ์ดสำหรับแท็บเล็ตและจอใหญ่ */}
+          <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3 }, mx: 'auto', display: { xs: 'none', sm: 'block' } }}>
             <Box sx={{ 
               display: 'grid', 
               gridTemplateColumns: { 
-                xs: '1fr', 
                 sm: 'repeat(2, 1fr)',
                 md: 'repeat(2, 1fr)',
                 lg: 'repeat(4, 1fr)' 
