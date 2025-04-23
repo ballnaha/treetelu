@@ -108,7 +108,7 @@ export default function UserMenu() {
           mr: 1
         }}
       >
-        สวัสดี, {user.name}
+        สวัสดี, {user.name.length > 10 ? `${user.name.substring(0, 10)}...` : user.name}
       </Typography>
       
       <IconButton
@@ -142,21 +142,26 @@ export default function UserMenu() {
         <MenuItem onClick={() => {router.push('/new-menu'); handleClose();}}>เมนูใหม่</MenuItem>
         
         {/* เมนูพิเศษสำหรับผู้ดูแลระบบ - แสดงตลอดเวลาสำหรับการทดสอบ */}
+        {user.isAdmin && (
+          <>
         <Divider />
-        <MenuItem 
-          onClick={() => {router.push('/admin/products'); handleClose();}}
-          sx={{ color: 'primary.main' }}
-        >
-          <InventoryIcon fontSize="small" sx={{ mr: 1 }} />
-          จัดการสินค้า
-        </MenuItem>
-        <MenuItem 
-          onClick={() => {router.push('/admin/orders'); handleClose();}}
-          sx={{ color: 'primary.main' }}
-        >
-          <ShoppingBagIcon fontSize="small" sx={{ mr: 1 }} />
-          ตรวจสอบการสั่งซื้อ
-        </MenuItem>
+
+            <MenuItem 
+              onClick={() => {router.push('/admin/products'); handleClose();}}
+              sx={{ color: 'primary.main' }}
+            >
+              <InventoryIcon fontSize="small" sx={{ mr: 1 }} />
+              จัดการสินค้า
+            </MenuItem>
+            <MenuItem 
+              onClick={() => {router.push('/admin/orders'); handleClose();}}
+              sx={{ color: 'primary.main' }}
+            >
+              <ShoppingBagIcon fontSize="small" sx={{ mr: 1 }} />
+              ตรวจสอบการสั่งซื้อ
+            </MenuItem>
+          </>
+        )}
         
         <Divider />
         <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
