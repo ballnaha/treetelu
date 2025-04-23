@@ -56,23 +56,6 @@ model statusmaster {
   updatedAt DateTime? @db.DateTime(0)
 }
 
-model users {
-  id                    BigInt                @id @default(autoincrement()) @db.UnsignedBigInt
-  name                  String                @db.VarChar(255)
-  email                 String                @unique(map: "users_email_unique") @db.VarChar(255)
-  isAdmin               users_isAdmin?        @default(false)
-  role                  Int?
-  emailVerifiedAt       DateTime?             @db.Timestamp(0)
-  password              String                @db.VarChar(255)
-  rememberToken         String?               @db.VarChar(100)
-  createdAt             DateTime?             @db.Timestamp(0)
-  updatedAt             DateTime?             @db.Timestamp(0)
-  orders                Order[]
-  verifiedConfirmations PaymentConfirmation[]
-  verifiedPayments      PaymentInfo[]
-}
-
-
 model productimage {
   id        Int       @id @default(autoincrement())
   productId Int?
@@ -136,9 +119,9 @@ model Order {
   updatedAt     DateTime      @updatedAt @db.DateTime(0)
   customerInfo  CustomerInfo?
   orderItems    OrderItem[]
-  user          users?        @relation(fields: [userId], references: [id])
   paymentInfo   PaymentInfo?
   shippingInfo  ShippingInfo?
+  user          users?        @relation(fields: [userId], references: [id])
 
   @@index([userId], map: "orders_userId_fkey")
   @@map("orders")
@@ -225,7 +208,7 @@ model PaymentInfo {
   createdAt     DateTime      @default(now()) @db.DateTime(0)
   updatedAt     DateTime      @updatedAt @db.DateTime(0)
   order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  admin         users?        @relation(fields: [verifiedBy], references: [id])
+  admin         users?        @relation("verifiedBy", fields: [verifiedBy], references: [id])
 
   @@index([verifiedBy], map: "payment_info_verifiedBy_fkey")
   @@map("payment_info")
@@ -243,16 +226,11 @@ model PaymentConfirmation {
   verifiedAt  DateTime? @db.DateTime(0)
   createdAt   DateTime  @default(now()) @db.DateTime(0)
   updatedAt   DateTime  @updatedAt @db.DateTime(0)
-  admin       users?    @relation(fields: [verifiedBy], references: [id])
+  admin       users?    @relation("verifiedBy", fields: [verifiedBy], references: [id])
 
   @@index([orderNumber])
   @@index([verifiedBy], map: "payment_confirmations_verifiedBy_fkey")
   @@map("payment_confirmations")
-}
-
-enum users_isAdmin {
-  true
-  false
 }
 
 enum OrderStatus {
@@ -275,4 +253,27 @@ enum PaymentStatus {
   PENDING
   CONFIRMED
   REJECTED
+}
+
+enum users_isAdmin {
+  true
+  false
+}
+
+model users {
+  id                    BigInt                @id @default(autoincrement()) @db.UnsignedBigInt
+  firstName             String                @db.VarChar(255)
+  lastName              String                @db.VarChar(255)
+  email                 String                @unique(map: "users_email_unique") @db.VarChar(255)
+  isAdmin               users_isAdmin         @default(false)
+  emailVerifiedAt       DateTime?             @db.Timestamp(0)
+  password              String                @db.VarChar(255)
+  rememberToken         String?               @db.VarChar(100)
+  createdAt             DateTime              @default(now()) @db.Timestamp(0)
+  updatedAt             DateTime              @updatedAt @db.Timestamp(0)
+  orders                Order[]
+  verifiedConfirmations PaymentConfirmation[] @relation("verifiedBy")
+  verifiedPayments      PaymentInfo[]         @relation("verifiedBy")
+
+  @@map("users")
 }

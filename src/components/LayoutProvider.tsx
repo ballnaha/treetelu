@@ -8,6 +8,7 @@ import { useCart } from '@/context/CartContext';
 import Cart from '@/components/Cart';
 import CartButton from '@/components/CartButton';
 import Footer from '@/components/Footer';
+import UserMenu from '@/components/UserMenu';
 import {
   Container,
   Box,
@@ -22,7 +23,9 @@ import {
   useScrollTrigger,
   Drawer,
   styled,
-  useTheme
+  useTheme,
+  Menu,
+  MenuItem
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
@@ -33,6 +36,8 @@ import InfoIcon from '@mui/icons-material/Info';
 import ContactSupportIcon from '@mui/icons-material/ContactSupport';
 import PaymentIcon from '@mui/icons-material/Payment';
 import ArticleIcon from '@mui/icons-material/Article';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import { useRouter } from 'next/navigation';
 
 // สร้าง styled component สำหรับ navigation
 const StyledNavButton = styled(Button)(({ theme }) => ({
@@ -73,13 +78,14 @@ const menuItems = [
   { text: 'สินค้า', href: '/products', icon: <CategoryOutlinedIcon /> },
   { text: 'บทความ', href: '/blog', icon: <ArticleIcon /> },
   { text: 'แจ้งชำระเงิน', href: '/payment-confirmation', icon: <PaymentIcon /> },
-  { text: 'ติดต่อเรา', href: '/contact', icon: <ContactSupportIcon /> }
+  { text: 'ติดต่อเรา', href: '/contact', icon: <ContactSupportIcon /> },
 ];
 
 export default function LayoutProvider({ children }: { children: ReactNode }) {
   const theme = useTheme();
   const pathname = usePathname();
-  const { cartItems, updateQuantity, removeItem, isCartOpen, closeCart } = useCart();
+  const { cartItems, updateQuantity, removeItem, isCartOpen, closeCart, getTotalItems, openCart } = useCart();
+  const router = useRouter();
   
   // สำหรับเมนูมือถือ
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -155,6 +161,71 @@ export default function LayoutProvider({ children }: { children: ReactNode }) {
     disableHysteresis: true
   });
 
+  // เพิ่มปุ่มไอคอนบน navbar
+  const [accountMenuAnchorEl, setAccountMenuAnchorEl] = useState<null | HTMLElement>(null);
+
+  const handleAccountMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAccountMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleAccountMenuClose = () => {
+    setAccountMenuAnchorEl(null);
+  };
+
+  // เก็บข้อมูลผู้ใช้งาน
+  const [user, setUser] = useState<{ name: string; isLoggedIn: boolean } | null>(null);
+  
+  // ดึงข้อมูลผู้ใช้งานจาก localStorage เมื่อ component ถูกโหลด
+  useEffect(() => {
+    // ฟังก์ชันสำหรับดึงข้อมูลผู้ใช้
+    const getUserData = () => {
+      if (typeof window !== 'undefined') {
+        try {
+          const userData = localStorage.getItem('user');
+          console.log('Raw user data:', userData); // Log เพื่อ debug
+          if (userData) {
+            const parsedUser = JSON.parse(userData);
+            console.log('Parsed user data:', parsedUser); // Log เพื่อ debug
+            setUser(parsedUser);
+          } else {
+            setUser(null);
+          }
+        } catch (error) {
+          console.error('Error loading user data:', error);
+          setUser(null);
+        }
+      }
+    }
+    
+    // เรียกใช้ฟังก์ชันเมื่อโหลดคอมโพเนนต์
+    getUserData();
+    
+    // ตรวจจับการเปลี่ยนแปลงของ localStorage
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'user') {
+        console.log('User data changed in localStorage');
+        getUserData();
+      }
+    };
+    
+    // ลงทะเบียน event listener
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Custom event สำหรับตรวจจับการเปลี่ยนแปลง login state
+    const handleLoginStateChange = () => {
+      console.log('Login state change detected');
+      getUserData();
+    };
+    
+    window.addEventListener('loginStateChange', handleLoginStateChange);
+    
+    // ลบ event listener เมื่อ unmount
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('loginStateChange', handleLoginStateChange);
+    };
+  }, []);
+
   return (
     <>
       {isMounted && (
@@ -223,6 +294,9 @@ export default function LayoutProvider({ children }: { children: ReactNode }) {
               </Stack>
             </Box>
           </Drawer>
+           
+          {/* เพิ่มเมนู logout */}
+          <UserMenu />
         </>
       )}
       
@@ -253,6 +327,7 @@ function HeaderContent({
   isMenuActive: (href: string) => boolean;
 }) {
   const { getTotalItems, openCart: contextOpenCart } = useCart();
+  const router = useRouter();
   
   // ฟังก์ชันเปิดตะกร้าสินค้า
   const openCart = () => {
@@ -332,10 +407,15 @@ function HeaderContent({
                   </IconButton>
                 )}
                 
+                {/* เมนูผู้ใช้ (เอามาจาก UserMenu) */}
+                <UserMenu />
+                
+                {/* ปุ่มตะกร้า */}
                 <CartButton 
                   itemCount={getTotalItems()} 
                   onClick={openCart}
                   sx={{
+                    ml: 2,
                     color: 'text.primary',
                     '&:hover': {
                       color: 'primary.main',

@@ -29,6 +29,7 @@ import InfoIcon from '@mui/icons-material/Info';
 import ContactSupportIcon from '@mui/icons-material/ContactSupport';
 import dynamic from "next/dynamic";
 import CookieConsent from '@/components/CookieConsent';
+import UserMenu from '@/components/UserMenu';
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const prompt = Prompt({ 
@@ -288,16 +289,19 @@ function HeaderLayout({ isDesktop, toggleMobileMenu, isMounted }: {
                     </IconButton>
                   )}
                   
-                  <CartButton 
-                    itemCount={getTotalItems()} 
-                    onClick={openCart}
-                    sx={{
-                      color: 'text.primary',
-                      '&:hover': {
-                        color: 'primary.main',
-                      }
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <UserMenu />
+                    <CartButton 
+                      itemCount={getTotalItems()} 
+                      onClick={openCart}
+                      sx={{
+                        color: 'text.primary',
+                        '&:hover': {
+                          color: 'primary.main',
+                        }
+                      }}
+                    />
+                  </Box>
                 </Box>
               </Box>
             </Container>

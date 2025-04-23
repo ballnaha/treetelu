@@ -2,6 +2,7 @@
 
 import { ReactNode, useState, useEffect } from 'react';
 import { CartProvider } from "@/context/CartContext";
+import { AuthProvider } from "@/context/AuthContext";
 import dynamic from 'next/dynamic';
 import { ThemeProvider } from '@mui/material/styles';
 import { CacheProvider } from '@emotion/react';
@@ -63,25 +64,27 @@ export default function ClientProvider({ children }: ClientProviderProps) {
       <ThemeProvider theme={theme}>
         {/* ห่อหุ้ม CssBaseline ไว้ในส่วนที่รันเฉพาะ client */}
         {isClient && <DynamicCssBaseline />}
-        <CartProvider>
-          {isClient ? (
-            <LayoutProviderClient>
-              {children}
-            </LayoutProviderClient>
-          ) : (
-            // ใช้ suppressHydrationWarning={true} และสร้าง wrapper ธรรมดาที่ไม่ใช้ Material UI
-            <div 
-              suppressHydrationWarning={true}
-              style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                minHeight: '100vh' 
-              }}
-            >
-              {children}
-            </div>
-          )}
-        </CartProvider>
+        <AuthProvider>
+          <CartProvider>
+            {isClient ? (
+              <LayoutProviderClient>
+                {children}
+              </LayoutProviderClient>
+            ) : (
+              // ใช้ suppressHydrationWarning={true} และสร้าง wrapper ธรรมดาที่ไม่ใช้ Material UI
+              <div 
+                suppressHydrationWarning={true}
+                style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  minHeight: '100vh' 
+                }}
+              >
+                {children}
+              </div>
+            )}
+          </CartProvider>
+        </AuthProvider>
       </ThemeProvider>
     </CacheProvider>
   );
