@@ -407,13 +407,20 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
       }
     ];
     
-    // ตั้งค่า auto slide
+    // ตั้งค่า auto slide เฉพาะบนอุปกรณ์ที่ไม่ใช่มือถือ
     useEffect(() => {
-      const interval = setInterval(() => {
-        setCurrentSlide((prev) => (prev + 1) % sliderItems.length);
-      }, 10000);
+      // ตรวจสอบว่าเป็นอุปกรณ์มือถือหรือไม่
+      const isMobileDevice = window.innerWidth < 600; // breakpoint สำหรับมือถือ
       
-      return () => clearInterval(interval);
+      // ตั้งค่า auto slide เฉพาะเมื่อไม่ใช่อุปกรณ์มือถือ
+      if (!isMobileDevice) {
+        const interval = setInterval(() => {
+          setCurrentSlide((prev) => (prev + 1) % sliderItems.length);
+        }, 10000);
+        
+        return () => clearInterval(interval);
+      }
+      // ไม่ต้องตั้งค่า interval สำหรับมือถือ เพราะต้องการให้เปลี่ยนรูปด้วยการ swipe เท่านั้น
     }, [sliderItems.length]);
     
     // ฟังก์ชันควบคุม slider
@@ -627,8 +634,16 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                   </Fade>
                 ))}
                 
-                {/* ปุ่มควบคุม slider */}
-                <Box sx={{ position: 'absolute', bottom: { xs: 15, md: 30 }, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 10 }}>
+                {/* ปุ่มควบคุม slider - แสดงเฉพาะบนอุปกรณ์ที่ไม่ใช่มือถือ */}
+                <Box sx={{ 
+                  position: 'absolute', 
+                  bottom: { xs: 15, md: 30 }, 
+                  left: 0, 
+                  right: 0, 
+                  display: { xs: 'none', sm: 'flex' }, // ซ่อนบนมือถือ แสดงบนแท็บเล็ตขึ้นไป
+                  justifyContent: 'center', 
+                  zIndex: 10 
+                }}>
                   {sliderItems.map((_, index) => (
                     <Box
                       key={index}
@@ -640,6 +655,32 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                         mx: { xs: 0.5, md: 1 },
                         bgcolor: currentSlide === index ? 'primary.main' : 'rgba(255,255,255,0.5)',
                         cursor: 'pointer',
+                        transition: 'all 0.3s ease'
+                      }}
+                    />
+                  ))}
+                </Box>
+                
+                {/* ตัวบอกตำแหน่งปัจจุบันสำหรับมือถือ - แสดงเฉพาะบนมือถือ */}
+                <Box sx={{ 
+                  position: 'absolute', 
+                  bottom: 15, 
+                  left: 0, 
+                  right: 0, 
+                  display: { xs: 'flex', sm: 'none' }, // แสดงเฉพาะบนมือถือ
+                  justifyContent: 'center', 
+                  zIndex: 10 
+                }}>
+                  {sliderItems.map((_, index) => (
+                    <Box
+                      key={index}
+                      // ไม่มี onClick เพื่อให้เปลี่ยนรูปด้วยการ swipe เท่านั้นบนมือถือ
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        mx: 0.5,
+                        bgcolor: currentSlide === index ? 'primary.main' : 'rgba(255,255,255,0.5)',
                         transition: 'all 0.3s ease'
                       }}
                     />
