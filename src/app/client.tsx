@@ -596,11 +596,25 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                             }}
                           >
                             
+
                             <Button 
                               variant="outlined" 
                               size="small" 
                               href={item.href}
                               endIcon={<ArrowForwardIcon sx={{ fontSize: 18 }} className="arrow-icon" />}
+                              // ป้องกันการ propagate ของ touch event ไปยัง parent
+                              onTouchStart={(e) => {
+                                // หยุดการ propagate ของ event ไปยัง parent
+                                e.stopPropagation();
+                              }}
+                              onTouchMove={(e) => {
+                                // หยุดการ propagate ของ event ไปยัง parent
+                                e.stopPropagation();
+                              }}
+                              onTouchEnd={(e) => {
+                                // หยุดการ propagate ของ event ไปยัง parent
+                                e.stopPropagation();
+                              }}
                               sx={{ 
                                 color: 'white', 
                                 bgcolor: 'rgba(0, 0, 0, 0.1)',
