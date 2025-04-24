@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, users_isAdmin, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
           lastName: lastName,
           email: email,
           password: hashedPassword,
-          isAdmin: users_isAdmin.false // ให้เป็น false เพื่อความปลอดภัย
+          isAdmin: 'false' // ให้เป็น false เพื่อความปลอดภัย
         }
       });
       
