@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
 import Link from 'next/link';
 import { 
@@ -125,6 +126,7 @@ const TabPanel = (props: { children: React.ReactNode; value: number; index: numb
 
 export default function Checkout() {
   const { cartItems, removeItem, clearCart, getTotalPrice, getTotalItems, updateQuantity } = useCart();
+  const { user } = useAuth(); // ดึงข้อมูลผู้ใช้จาก AuthContext
   const router = useRouter();
   const [activeStep, setActiveStep] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
@@ -426,6 +428,8 @@ export default function Checkout() {
   };
 
   const handlePlaceOrder = async () => {
+    // Debug log for user object
+    console.log('User object in checkout:', user);
     if (isProcessing) return;
     
     setShowAlert(false);
@@ -494,7 +498,17 @@ export default function Checkout() {
           unitPrice: parseFloat(String(item.salesPrice || '0')),
         })),
         paymentMethod: paymentMethod.toUpperCase() as 'BANK_TRANSFER' | 'CREDIT_CARD' | 'PROMPTPAY' | 'COD',
+        // เพิ่ม userId ถ้าผู้ใช้ล็อกอินอยู่
+        userId: user && user.isLoggedIn === true && user.id ? Number(user.id) : undefined,
       };
+      
+      // Debug log for order data with userId
+      console.log('Order data with userId:', {
+        userId: orderData.userId,
+        userLoggedIn: user?.isLoggedIn,
+        userId_raw: user?.id,
+        userId_converted: user?.id ? Number(user.id) : undefined
+      });
       
       // ถ้าเป็นการจัดส่งให้ตัวเอง
       if (shippingTab === 0) {

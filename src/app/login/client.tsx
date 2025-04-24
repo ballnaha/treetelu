@@ -181,9 +181,10 @@ export default function LoginClient() {
         
         // ใช้ AuthContext แทนการใช้ localStorage โดยตรง
         const userData = {
+          id: data.user.id,
           name: data.user.name,
           isLoggedIn: true,
-          isAdmin: data.user.isAdmin === 'true'
+          isAdmin: data.user.isAdmin // API ส่ง boolean มาแล้ว ไม่ต้องแปลงอีก
         };
         
         console.log('User data for context:', userData);

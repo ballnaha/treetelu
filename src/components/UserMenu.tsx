@@ -26,6 +26,7 @@ const StyledButton = styled(Button)(({ theme }) => ({
   },
 }));
 
+
 export default function UserMenu() {
   const router = useRouter();
   const { user, logout, isLoading } = useAuth();
@@ -44,6 +45,7 @@ export default function UserMenu() {
     setAnchorEl(null);
   };
 
+  
   const handleLogout = async () => {
     try {
       // ปิดเมนูก่อนที่จะล็อกเอาท์
@@ -142,25 +144,26 @@ export default function UserMenu() {
         <MenuItem onClick={() => {router.push('/new-menu'); handleClose();}}>เมนูใหม่</MenuItem>
         
         {/* เมนูพิเศษสำหรับผู้ดูแลระบบ - แสดงตลอดเวลาสำหรับการทดสอบ */}
+        {user.isAdmin && <Divider />}
+        
         {user.isAdmin && (
-          <>
-        <Divider />
-
-            <MenuItem 
-              onClick={() => {router.push('/admin/products'); handleClose();}}
-              sx={{ color: 'primary.main' }}
-            >
-              <InventoryIcon fontSize="small" sx={{ mr: 1 }} />
-              จัดการสินค้า
-            </MenuItem>
-            <MenuItem 
-              onClick={() => {router.push('/admin/orders'); handleClose();}}
-              sx={{ color: 'primary.main' }}
-            >
-              <ShoppingBagIcon fontSize="small" sx={{ mr: 1 }} />
-              ตรวจสอบการสั่งซื้อ
-            </MenuItem>
-          </>
+          <MenuItem 
+            onClick={() => {router.push('/admin/products'); handleClose();}}
+            sx={{ color: 'primary.main' }}
+          >
+            <InventoryIcon fontSize="small" sx={{ mr: 1 }} />
+            จัดการสินค้า
+          </MenuItem>
+        )}
+        
+        {user.isAdmin && (
+          <MenuItem 
+            onClick={() => {router.push('/admin/orders'); handleClose();}}
+            sx={{ color: 'primary.main' }}
+          >
+            <ShoppingBagIcon fontSize="small" sx={{ mr: 1 }} />
+            ตรวจสอบการสั่งซื้อ
+          </MenuItem>
         )}
         
         <Divider />

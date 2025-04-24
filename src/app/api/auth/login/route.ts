@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, users_isAdmin } from '@prisma/client';
+import { PrismaClient, users, users_isAdmin } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { sign } from 'jsonwebtoken';
+
+// Define a custom type that extends the Prisma user type with firstName and lastName
+type UserWithName = users & {
+  firstName: string;
+  lastName: string;
+};
 
 type SafeUser = {
   id: string;
   email: string;
-  name: string;
+  name: string; // Constructed from firstName and lastName
   isAdmin: users_isAdmin;
   createdAt: Date;
   updatedAt: Date;
@@ -27,7 +33,7 @@ if (process.env.NODE_ENV === 'production') {
   prisma = (global as any).prisma;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'next-tree-jwt-secret-2023';
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,11 +50,23 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Find user by email
+    // Find user by email with all needed fields
     const user = await prisma.users.findUnique({
-      where: { email }
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        password: true,
+        isAdmin: true,
+        createdAt: true,
+        updatedAt: true
+      }
     });
     
+    // Debug: Log isAdmin value from DB
+    console.log('user.isAdmin from DB:', user?.isAdmin);
     
     // Check if user exists
     if (!user) {
@@ -83,22 +101,25 @@ export async function POST(request: NextRequest) {
     const cookieExpires = new Date();
     cookieExpires.setDate(cookieExpires.getDate() + (rememberMe ? 30 : 1));
     
+    // Cast the user to our custom type that includes firstName and lastName
+    const userWithName = user as unknown as UserWithName;
+    
     // Create safe user object without sensitive data
     const safeUser: SafeUser = {
       id: user.id.toString(),
       email: user.email,
-      name: `${user.firstName} ${user.lastName}`,
+      name: `${userWithName.firstName} ${userWithName.lastName}`.trim(),
       isAdmin: user.isAdmin ?? 'false',
       createdAt: user.createdAt ?? new Date(),
       updatedAt: user.updatedAt ?? new Date()
     };
     
-    // Create response with user data
+    // Always send isAdmin as boolean
     const response = NextResponse.json({
       message: 'เข้าสู่ระบบสำเร็จ',
       user: {
         ...safeUser,
-        isAdmin: safeUser.isAdmin === 'true'
+        isAdmin: String(safeUser.isAdmin) === 'true'
       }
     });
     
@@ -122,6 +143,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await prisma.$disconnect();
+    // Prisma disconnect is not required in Next.js API routes, but kept for compatibility
+    // await prisma.$disconnect();
   }
 }

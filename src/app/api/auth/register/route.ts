@@ -64,11 +64,11 @@ export async function POST(request: NextRequest) {
       // Create new user with properly typed data
       const newUser = await prisma.users.create({
         data: {
-          firstName, 
-          lastName,
-          email,
+          firstName: firstName,
+          lastName: lastName,
+          email: email,
           password: hashedPassword,
-          isAdmin: users_isAdmin.false
+          isAdmin: users_isAdmin.true
         }
       });
       
@@ -79,7 +79,8 @@ export async function POST(request: NextRequest) {
       const userResponse = {
         ...newUser,
         id: newUser.id.toString(),
-        password: undefined
+        password: undefined,
+        isAdmin: newUser.isAdmin === 'false', // Convert enum to boolean for frontend
       };
       
       return NextResponse.json(

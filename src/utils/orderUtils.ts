@@ -95,6 +95,15 @@ export async function createOrder(orderData: OrderDataInput) {
   const { customerInfo, shippingInfo, items, paymentMethod, userId } = orderData;
   
   try {
+    // Debug log for userId
+    console.log('Received userId in createOrder:', userId, 'type:', typeof userId);
+    console.log('User ID details:', {
+      userId: userId,
+      hasUserId: userId !== undefined && userId !== null,
+      userIdType: typeof userId,
+      userIdToString: userId ? String(userId) : 'null/undefined'
+    });
+    
     // คำนวณยอดรวม
     const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
     
@@ -116,7 +125,9 @@ export async function createOrder(orderData: OrderDataInput) {
         isGiftShipping,
         customerEmail: customerInfo.email,
         shippingReceiver: shippingInfo.receiverName,
-        itemCount: items.length
+        itemCount: items.length,
+        userId: userId,
+        userIdType: typeof userId
       }, null, 2));
       
       // ข้อมูลชื่อจังหวัด อำเภอ และตำบล
@@ -185,9 +196,20 @@ export async function createOrder(orderData: OrderDataInput) {
       
       // เตรียมข้อมูลสำหรับสร้างคำสั่งซื้อ
       const bangkokNow = getBangkokDateTime();
+      // Debug log for userId conversion to BigInt
+      if (userId) {
+        console.log('Converting userId to BigInt:', userId, '→', BigInt(userId));
+        console.log('userId is defined and will be saved to database');
+      } else {
+        console.log('No userId provided, will be null in database');
+      }
+      
+      // Create order data with explicit userId handling
       const orderCreateData = {
         orderNumber,
-        userId: userId ? BigInt(userId) : undefined,
+        // Ensure userId is properly converted to number and explicitly set
+        // Using null instead of undefined for better Prisma compatibility
+        userId: userId && Number(userId) > 0 ? Number(userId) : null,
         totalAmount: new Prisma.Decimal(subtotal),
         shippingCost: new Prisma.Decimal(shippingCost),
         finalAmount: new Prisma.Decimal(subtotal + shippingCost),
@@ -229,7 +251,13 @@ export async function createOrder(orderData: OrderDataInput) {
           }
         },
         orderItems: {
-          create: items.map(item => ({
+          create: items.map((item: {
+            productId: number;
+            productName: string;
+            productImg?: string;
+            quantity: number;
+            unitPrice: number;
+          }) => ({
             productId: item.productId,
             productName: item.productName,
             productImg: item.productImg,
@@ -242,10 +270,18 @@ export async function createOrder(orderData: OrderDataInput) {
         }
       };
       
+      // Debug log for final orderCreateData with userId
+      console.log('Final orderCreateData with userId:', {
+        orderNumber: orderCreateData.orderNumber,
+        userId: orderCreateData.userId,
+        userId_type: typeof orderCreateData.userId,
+        userId_toString: orderCreateData.userId ? orderCreateData.userId.toString() : 'undefined'
+      });
+      
       // บันทึกข้อมูลคำสั่งซื้อแบบ Transaction เพื่อให้ข้อมูลสมบูรณ์
       const newOrder = await prisma.$transaction(async (tx) => {
         // สร้างคำสั่งซื้อโดยใช้ชื่อตารางตามที่ map ไว้ในไฟล์ schema
-        return await tx.order.create({
+        const result = await tx.order.create({
           data: orderCreateData,
           include: {
             customerInfo: true,
@@ -253,11 +289,38 @@ export async function createOrder(orderData: OrderDataInput) {
             orderItems: true
           }
         });
+        
+        // Debug log for created order with userId
+        console.log('Created order with userId:', {
+          order_id: result.id,
+          order_number: result.orderNumber,
+          userId_in_db: result.userId ? result.userId.toString() : 'null'
+        });
+        
+        return result;
       });
       
       console.log('Order created successfully:', newOrder.id, newOrder.orderNumber);
       
-      return { success: true, order: newOrder };
+      // Convert BigInt values to strings to avoid serialization issues
+      const serializedOrder = {
+        ...newOrder,
+        id: newOrder.id.toString(),
+        userId: newOrder.userId !== null ? newOrder.userId : null,
+        // Also handle BigInt values in related entities if needed
+        orderItems: newOrder.orderItems.map(item => ({
+          ...item,
+          id: item.id.toString(),
+          orderId: item.orderId.toString(),
+          productId: item.productId.toString()
+        })),
+      };
+      
+      return {
+        success: true,
+        message: 'สร้างคำสั่งซื้อสำเร็จ',
+        order: serializedOrder
+      };
     } catch (createError: any) {
       console.error('Database error while creating order:', createError);
       

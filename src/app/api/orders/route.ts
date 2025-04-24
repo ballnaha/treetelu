@@ -258,9 +258,15 @@ export async function POST(request: NextRequest) {
     
     console.log('Received order data:', JSON.stringify(body, null, 2));
 
+    // Debug log for userId in the request body
+    console.log('Request body userId:', body.userId, 'type:', typeof body.userId);
+
     // ตรวจสอบข้อมูลให้ถูกต้องตาม schema
     try {
       const validatedData = orderSchema.parse(body);
+      
+      // Debug log for userId after validation
+      console.log('Validated userId:', validatedData.userId, 'type:', typeof validatedData.userId);
       
       // แปลงวันที่จัดส่งเป็น UTC+7
       if (validatedData.shippingInfo.deliveryDate) {
@@ -293,12 +299,17 @@ export async function POST(request: NextRequest) {
         revalidatePath('/orders');
         
         // คืนค่าผลลัพธ์
+        // Convert BigInt values to strings to avoid serialization issues
+        const serializedOrder = {
+          ...result.order,
+          id: result.order.id.toString(),
+          userId: result.order.userId ? result.order.userId.toString() : null,
+          items: validatedData.items,
+        };
+        
         return NextResponse.json({
           success: true,
-          order: {
-            ...result.order,
-            items: validatedData.items,
-          },
+          order: serializedOrder,
         }, { status: 201 });
       } catch (orderError: any) {
         console.error("Order creation error:", orderError);

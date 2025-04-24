@@ -547,7 +547,8 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
                 sx={{ 
                   mt: 2,
                   color: 'text.secondary',
-                  lineHeight: 1.7
+                  lineHeight: 1.7,
+                  whiteSpace: 'pre-line' // This preserves line breaks from the input
                 }}
               >
                 {product.productDesc}

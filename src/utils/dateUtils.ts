@@ -70,4 +70,22 @@ export function formatDateTime(date: Date): string {
   const seconds = String(date.getSeconds()).padStart(2, '0');
   
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-} 
+}
+
+/**
+ * Format วันที่ในรูปแบบไทย เช่น 24 เมษายน 2568
+ * @param date Date object ที่ต้องการ format
+ * @returns string ในรูปแบบวันที่ไทย
+ */
+export function formatThaiDate(date: Date): string {
+  const thaiMonths = [
+    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+  ];
+  
+  const day = date.getDate();
+  const month = thaiMonths[date.getMonth()];
+  const year = date.getFullYear() + 543; // แปลงเป็นปี พ.ศ.
+  
+  return `${day} ${month} ${year}`;
+}
