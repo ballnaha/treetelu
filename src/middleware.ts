@@ -18,13 +18,14 @@ export function middleware(request: NextRequest) {
   // Get the pathname from the request URL
   const { pathname } = request.nextUrl;
   
-  // Check if user is logged in
+  // Get auth token from cookies
   const token = request.cookies.get('auth_token')?.value;
-  const isLoggedIn = !!token;
   
-  // If user is logged in and trying to access login page, redirect to home page
-  if (isLoggedIn && pathname === '/login') {
-    return NextResponse.redirect(new URL('/', request.url));
+  // For the login page, we'll allow access regardless of token status
+  // This prevents redirect loops and allows users to log in again if needed
+  if (pathname === '/login') {
+    // Continue to login page without redirecting
+    return NextResponse.next();
   }
   
   // Check if the requested path is an admin path
