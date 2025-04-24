@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { sign } from 'jsonwebtoken';
 
@@ -12,19 +13,6 @@ type SafeUser = {
   createdAt: Date;
   updatedAt: Date;
 };
-
-// Use a single PrismaClient instance
-let prisma: PrismaClient;
-
-if (process.env.NODE_ENV === 'production') {
-  prisma = new PrismaClient();
-} else {
-  // In development, use a global variable to avoid multiple instances during hot reloading
-  if (!(global as any).prisma) {
-    (global as any).prisma = new PrismaClient();
-  }
-  prisma = (global as any).prisma;
-}
 
 const JWT_SECRET = process.env.JWT_SECRET || 'next-tree-jwt-secret-2023';
 
