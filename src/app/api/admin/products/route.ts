@@ -84,7 +84,7 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
     });
     
     // Format dates and convert BigInt values to strings before sending to client
-    const formattedProducts = products.map(product => {
+    const formattedProducts = products.map((product: any) => {
       // Create a new object with formatted dates
       const formattedProduct = {
         ...product,
