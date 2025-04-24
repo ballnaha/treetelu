@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
       console.error('Database error during user creation:', dbError);
       
       // Handle unique constraint violation
-      if (dbError instanceof Prisma.PrismaClientKnownRequestError) {
+      if (dbError instanceof PrismaClientKnownRequestError) {
         if (dbError.code === 'P2002') {
           return NextResponse.json(
             { error: 'อีเมลนี้ถูกใช้งานแล้ว กรุณาใช้อีเมลอื่น' },
