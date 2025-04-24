@@ -309,7 +309,7 @@ export async function createOrder(orderData: OrderDataInput) {
         id: newOrder.id.toString(),
         userId: newOrder.userId !== null ? newOrder.userId : null,
         // Also handle BigInt values in related entities if needed
-        orderItems: newOrder.orderItems.map(item => ({
+        orderItems: newOrder.orderItems.map((item: any) => ({
           ...item,
           id: item.id.toString(),
           orderId: item.orderId.toString(),
