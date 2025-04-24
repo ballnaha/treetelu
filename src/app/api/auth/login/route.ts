@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, users, users_isAdmin } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { sign } from 'jsonwebtoken';
 
@@ -8,7 +8,7 @@ type SafeUser = {
   id: number;
   email: string;
   name: string; // Constructed from firstName and lastName
-  isAdmin: users_isAdmin;
+  isAdmin: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       id: user.id,
       email: user.email,
       name: `${user.firstName} ${user.lastName}`.trim(),
-      isAdmin: user.isAdmin,
+      isAdmin: user.isAdmin === 'true',
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       message: 'เข้าสู่ระบบสำเร็จ',
       user: {
         ...safeUser,
-        isAdmin: String(safeUser.isAdmin) === 'true'
+        isAdmin: safeUser.isAdmin
       }
     });
     
