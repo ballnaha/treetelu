@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, OrderStatus, PaymentStatus } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { withAdminAuth } from '@/middleware/adminAuth';
+
+// นำเข้า enum ที่ต้องการใช้งาน
+type OrderStatus = 'PENDING' | 'PROCESSING' | 'PAID' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+type PaymentStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED';
 
 const prisma = new PrismaClient();
 
@@ -170,14 +174,16 @@ export const PUT = withAdminAuth(async (req: NextRequest) => {
     }
     
     // Validate status values
-    if (status && !Object.values(OrderStatus).includes(status as OrderStatus)) {
+    const validOrderStatuses: OrderStatus[] = ['PENDING', 'PROCESSING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+    if (status && !validOrderStatuses.includes(status as OrderStatus)) {
       return NextResponse.json(
         { success: false, message: 'สถานะคำสั่งซื้อไม่ถูกต้อง' },
         { status: 400 }
       );
     }
     
-    if (paymentStatus && !Object.values(PaymentStatus).includes(paymentStatus as PaymentStatus)) {
+    const validPaymentStatuses: PaymentStatus[] = ['PENDING', 'CONFIRMED', 'REJECTED'];
+    if (paymentStatus && !validPaymentStatuses.includes(paymentStatus as PaymentStatus)) {
       return NextResponse.json(
         { success: false, message: 'สถานะการชำระเงินไม่ถูกต้อง' },
         { status: 400 }
