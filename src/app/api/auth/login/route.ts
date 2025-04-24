@@ -3,22 +3,15 @@ import { PrismaClient, users, users_isAdmin } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { sign } from 'jsonwebtoken';
 
-// Define a custom type that extends the Prisma user type with firstName and lastName
-type UserWithName = users & {
-  firstName: string;
-  lastName: string;
-};
-
+// Define SafeUser type for the response
 type SafeUser = {
-  id: string;
+  id: number;
   email: string;
   name: string; // Constructed from firstName and lastName
   isAdmin: users_isAdmin;
   createdAt: Date;
   updatedAt: Date;
 };
-
-
 
 // Use a single PrismaClient instance
 let prisma: PrismaClient;
@@ -50,19 +43,9 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Find user by email with all needed fields
+    // Find user by email
     const user = await prisma.users.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        password: true,
-        isAdmin: true,
-        createdAt: true,
-        updatedAt: true
-      }
+      where: { email }
     });
     
     // Debug: Log isAdmin value from DB
@@ -86,9 +69,9 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Create JWT token with BigInt ID converted to string
+    // Create JWT token with ID converted to string
     const tokenPayload = {
-      id: user.id.toString(),
+      id: user.id,
       email: user.email,
       isAdmin: user.isAdmin
     };
@@ -101,20 +84,17 @@ export async function POST(request: NextRequest) {
     const cookieExpires = new Date();
     cookieExpires.setDate(cookieExpires.getDate() + (rememberMe ? 30 : 1));
     
-    // Cast the user to our custom type that includes firstName and lastName
-    const userWithName = user as unknown as UserWithName;
-    
     // Create safe user object without sensitive data
     const safeUser: SafeUser = {
-      id: user.id.toString(),
+      id: user.id,
       email: user.email,
-      name: `${userWithName.firstName} ${userWithName.lastName}`.trim(),
-      isAdmin: user.isAdmin ?? 'false',
-      createdAt: user.createdAt ?? new Date(),
-      updatedAt: user.updatedAt ?? new Date()
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      isAdmin: user.isAdmin,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
     };
     
-    // Always send isAdmin as boolean
+    // Format the response
     const response = NextResponse.json({
       message: 'เข้าสู่ระบบสำเร็จ',
       user: {
@@ -142,8 +122,5 @@ export async function POST(request: NextRequest) {
       { error: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง' },
       { status: 500 }
     );
-  } finally {
-    // Prisma disconnect is not required in Next.js API routes, but kept for compatibility
-    // await prisma.$disconnect();
   }
 }

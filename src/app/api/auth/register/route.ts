@@ -68,19 +68,19 @@ export async function POST(request: NextRequest) {
           lastName: lastName,
           email: email,
           password: hashedPassword,
-          isAdmin: users_isAdmin.true
+          isAdmin: users_isAdmin.false // ให้เป็น false เพื่อความปลอดภัย
         }
       });
       
       console.log('User created successfully:', newUser.id);
       
       // Remove sensitive data from response
-      // Convert BigInt to string and remove password
       const userResponse = {
-        ...newUser,
-        id: newUser.id.toString(),
-        password: undefined,
-        isAdmin: newUser.isAdmin === 'false', // Convert enum to boolean for frontend
+        id: newUser.id,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: newUser.email,
+        isAdmin: String(newUser.isAdmin) === 'true'
       };
       
       return NextResponse.json(

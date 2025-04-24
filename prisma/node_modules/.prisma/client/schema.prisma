@@ -108,7 +108,7 @@ model thaitambons {
 model Order {
   id            Int           @id @default(autoincrement())
   orderNumber   String        @unique @db.VarChar(50)
-  userId        Int?          @db.Int
+  userId        Int?          @db.UnsignedInt
   status        OrderStatus   @default(PENDING)
   totalAmount   Decimal       @db.Decimal(10, 2)
   shippingCost  Decimal       @db.Decimal(10, 2)
@@ -120,7 +120,6 @@ model Order {
   updatedAt     DateTime      @updatedAt @db.DateTime(0)
   customerInfo  CustomerInfo?
   orderItems    OrderItem[]
-  user          users?        @relation(fields: [userId], references: [id])
   paymentInfo   PaymentInfo?
   shippingInfo  ShippingInfo?
 
@@ -204,12 +203,11 @@ model PaymentInfo {
   bankName      String?       @db.VarChar(100)
   slipUrl       String?       @db.VarChar(255)
   status        PaymentStatus @default(PENDING)
-  verifiedBy    Int?          @db.Int
+  verifiedBy    Int?          @db.UnsignedInt
   verifiedAt    DateTime?     @db.DateTime(0)
   createdAt     DateTime      @default(now()) @db.DateTime(0)
   updatedAt     DateTime      @updatedAt @db.DateTime(0)
   order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  admin         users?        @relation("verifiedBy", fields: [verifiedBy], references: [id])
 
   @@index([verifiedBy], map: "payment_info_verifiedBy_fkey")
   @@map("payment_info")
@@ -223,11 +221,10 @@ model PaymentConfirmation {
   slipUrl     String    @db.VarChar(255)
   status      String    @default("PENDING") @db.VarChar(20)
   notes       String?   @db.Text
-  verifiedBy  Int?      @db.Int
+  verifiedBy  Int?      @db.UnsignedInt
   verifiedAt  DateTime? @db.DateTime(0)
   createdAt   DateTime  @default(now()) @db.DateTime(0)
   updatedAt   DateTime  @updatedAt @db.DateTime(0)
-  admin       users?    @relation("verifiedBy", fields: [verifiedBy], references: [id])
 
   @@index([orderNumber])
   @@index([verifiedBy], map: "payment_confirmations_verifiedBy_fkey")
@@ -235,19 +232,16 @@ model PaymentConfirmation {
 }
 
 model users {
-  id                    Int                   @id @default(autoincrement()) @db.Int
-  firstName             String                @db.VarChar(255)
-  lastName              String                @db.VarChar(255)
-  email                 String                @unique(map: "users_email_unique") @db.VarChar(255)
-  isAdmin               users_isAdmin         @default(false)
-  emailVerifiedAt       DateTime?             @db.Timestamp(0)
-  password              String                @db.VarChar(255)
-  rememberToken         String?               @db.VarChar(100)
-  createdAt             DateTime              @default(now()) @db.Timestamp(0)
-  updatedAt             DateTime              @updatedAt @db.Timestamp(0)
-  orders                Order[]
-  verifiedConfirmations PaymentConfirmation[] @relation("verifiedBy")
-  verifiedPayments      PaymentInfo[]         @relation("verifiedBy")
+  id              Int           @id @default(autoincrement())
+  firstName       String        @db.VarChar(255)
+  lastName        String        @db.VarChar(255)
+  email           String        @unique(map: "users_email_unique") @db.VarChar(255)
+  isAdmin         users_isAdmin @default(false)
+  emailVerifiedAt DateTime?     @db.Timestamp(0)
+  password        String        @db.VarChar(255)
+  rememberToken   String?       @db.VarChar(100)
+  createdAt       DateTime      @default(now()) @db.Timestamp(0)
+  updatedAt       DateTime      @updatedAt @db.Timestamp(0)
 
   @@map("users")
 }
