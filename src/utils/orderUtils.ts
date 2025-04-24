@@ -280,7 +280,7 @@ export async function createOrder(orderData: OrderDataInput) {
       });
       
       // บันทึกข้อมูลคำสั่งซื้อแบบ Transaction เพื่อให้ข้อมูลสมบูรณ์
-      const newOrder = await prisma.$transaction(async (tx) => {
+      const newOrder = await prisma.$transaction(async (tx: Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">) => {
         // สร้างคำสั่งซื้อโดยใช้ชื่อตารางตามที่ map ไว้ในไฟล์ schema
         const result = await tx.order.create({
           data: orderCreateData,
