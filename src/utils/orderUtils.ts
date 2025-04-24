@@ -1,4 +1,5 @@
 import { PrismaClient, Prisma } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import prisma from '@/lib/prisma';
 import { getBangkokDateTime, convertToBangkokTime } from './dateUtils';
 
@@ -210,9 +211,9 @@ export async function createOrder(orderData: OrderDataInput) {
         // Ensure userId is properly converted to number and explicitly set
         // Using null instead of undefined for better Prisma compatibility
         userId: userId && Number(userId) > 0 ? Number(userId) : null,
-        totalAmount: new Prisma.Decimal(subtotal),
-        shippingCost: new Prisma.Decimal(shippingCost),
-        finalAmount: new Prisma.Decimal(subtotal + shippingCost),
+        totalAmount: new Decimal(subtotal),
+        shippingCost: new Decimal(shippingCost),
+        finalAmount: new Decimal(subtotal + shippingCost),
         paymentMethod: paymentMethod as any, // แปลงเป็น enum ของ Prisma
         createdAt: bangkokNow,
         updatedAt: bangkokNow,
@@ -262,8 +263,8 @@ export async function createOrder(orderData: OrderDataInput) {
             productName: item.productName,
             productImg: item.productImg,
             quantity: item.quantity,
-            unitPrice: new Prisma.Decimal(item.unitPrice),
-            totalPrice: new Prisma.Decimal(item.quantity * item.unitPrice),
+            unitPrice: new Decimal(item.unitPrice),
+            totalPrice: new Decimal(item.quantity * item.unitPrice),
             createdAt: bangkokNow,
             updatedAt: bangkokNow
           }))
