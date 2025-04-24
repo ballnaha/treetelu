@@ -106,7 +106,7 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
     });
     
     // Format dates and convert BigInt values to strings before sending to client
-    const formattedOrders = orders.map(order => {
+    const formattedOrders = orders.map((order: any) => {
       // Create a new object with formatted dates
       const formattedOrder = {
         ...order,
