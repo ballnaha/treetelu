@@ -3,16 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Product } from '../client';
 import { CircularProgress } from '@mui/material';
-
-interface ProductImage {
-  id?: number;
-  productId?: number;
-  imageName: string;
-  imageDesc?: string;
-  isNew?: boolean;
-  file?: File;
-  preview?: string;
-}
+import { addNoCacheParam } from '@/utils/imageUtils';
 import {
   Dialog,
   DialogTitle,
@@ -43,6 +34,16 @@ import WarningIcon from '@mui/icons-material/Warning';
 import UploadIcon from '@mui/icons-material/Upload';
 import ImageIcon from '@mui/icons-material/Image';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
+
+interface ProductImage {
+  id?: number;
+  productId?: number;
+  imageName: string;
+  imageDesc?: string;
+  isNew?: boolean;
+  file?: File;
+  preview?: string;
+}
 
 interface ProductDialogProps {
   open: boolean;
@@ -330,7 +331,8 @@ export default function ProductDialog({
   // Fetch product images
   const fetchProductImages = async (productId: string | number) => {
     try {
-      const response = await fetch(`/api/admin/products/images?productId=${productId}`, {
+      const timestamp = Date.now(); // เพิ่ม timestamp เพื่อป้องกันการแคช
+      const response = await fetch(`/api/admin/products/images?productId=${productId}&t=${timestamp}`, {
         credentials: 'include'
       });
       
@@ -338,7 +340,7 @@ export default function ProductDialog({
         const data = await response.json();
         const images = data.images.map((img: any) => ({
           ...img,
-          preview: `/images/product/${img.imageName}`
+          preview: addNoCacheParam(`/images/product/${img.imageName}`)
         }));
         setAdditionalImages(images);
       }
@@ -514,6 +516,11 @@ export default function ProductDialog({
             console.error('Error uploading additional image:', error);
           }
         }
+      }
+      
+      // Reload product images to get the latest data
+      if (savedProduct?.id) {
+        await fetchProductImages(savedProduct.id);
       }
       
       // Handle deleted images (images that were in the database but removed from the UI)
@@ -836,7 +843,7 @@ export default function ProductDialog({
                   {imagePreview ? (
                     <Box
                       component="img"
-                      src={imagePreview}
+                      src={addNoCacheParam(imagePreview)}
                       alt="Product preview"
                       sx={{ 
                         width: '100%', 
@@ -845,7 +852,7 @@ export default function ProductDialog({
                       }}
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
-                        target.src = 'https://via.placeholder.com/400x200?text=Image+Not+Found';
+                        target.src = '/images/no-image.png';
                       }}
                     />
                   ) : (
@@ -919,7 +926,7 @@ export default function ProductDialog({
                       >
                         <Box
                           component="img"
-                          src={image.preview}
+                          src={image.preview ? addNoCacheParam(image.preview) : '/images/no-image.png'}
                           alt={`Product image ${index + 1}`}
                           sx={{ 
                             width: '100%', 
@@ -929,7 +936,7 @@ export default function ProductDialog({
                           }}
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
-                            target.src = 'https://via.placeholder.com/100x100?text=Error';
+                            target.src = '/images/no-image.png';
                           }}
                         />
                         <Box
@@ -985,7 +992,7 @@ export default function ProductDialog({
                   >
                     <Box
                       component="img"
-                      src={additionalImages[selectedImageIndex].preview}
+                      src={additionalImages[selectedImageIndex].preview ? addNoCacheParam(additionalImages[selectedImageIndex].preview) : '/images/no-image.png'}
                       alt="Selected product image"
                       sx={{ 
                         width: '100%', 
@@ -994,7 +1001,7 @@ export default function ProductDialog({
                       }}
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
-                        target.src = 'https://via.placeholder.com/400x200?text=Image+Not+Found';
+                        target.src = '/images/no-image.png';
                       }}
                     />
                   </Box>

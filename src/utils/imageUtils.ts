@@ -80,7 +80,7 @@ export const getProductImagePath = (product: Product): string => {
  */
 export const addNoCacheParam = (path: string): string => {
   // ถ้า path เป็น URL ภายนอกหรือเป็น data URL ไม่ต้องเพิ่มพารามิเตอร์
-  if (!path || path.startsWith('data:') || path.includes('placeholder')) {
+  if (!path || path.startsWith('data:')) {
     return path;
   }
   

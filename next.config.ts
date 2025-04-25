@@ -24,7 +24,7 @@ const nextConfig = {
     maxInactiveAge: 5 * 1000, // 5 วินาที (ค่าเริ่มต้นคือ 25 วินาที)
     pagesBufferLength: 1, // จำนวนหน้าที่เก็บใน cache (ค่าเริ่มต้นคือ 5)
   },
-  // ป้องกันการ cache static files นานเกินไป
+  // เพื่อป้องกันการ cache static files นานเกินไป
   headers: async () => {
     return [
       {
@@ -50,6 +50,14 @@ const nextConfig = {
           {
             key: 'Expires',
             value: '0',
+          },
+          {
+            key: 'Surrogate-Control',
+            value: 'no-store',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
           }
         ],
       },
@@ -67,6 +75,14 @@ const nextConfig = {
           {
             key: 'Expires',
             value: '0',
+          },
+          {
+            key: 'Surrogate-Control',
+            value: 'no-store',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
           }
         ],
       }
