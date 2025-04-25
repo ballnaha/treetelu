@@ -73,7 +73,18 @@ export default function AdminLayout({
       return;
     }
     
-    if (!user?.isAdmin) {
+    // ตรวจสอบสถานะ admin โดยรองรับทั้งข้อมูลแบบ string และ boolean
+    let isUserAdmin = false;
+    
+    if (user.isAdmin !== undefined) {
+      if (typeof user.isAdmin === 'string') {
+        isUserAdmin = user.isAdmin === 'true';
+      } else {
+        isUserAdmin = Boolean(user.isAdmin);
+      }
+    }
+    
+    if (!isUserAdmin) {
       router.push('/login');
     } else {
       setLoading(false);
