@@ -28,7 +28,7 @@ const nextConfig = {
     pagesBufferLength: 1, // จำนวนหน้าที่เก็บใน cache (ค่าเริ่มต้นคือ 5)
   },
   // ป้องกัน webpack จากการ cache ไฟล์
-  webpack: (config, { dev, isServer }) => {
+  webpack: (config: any, { dev, isServer }: { dev: boolean; isServer: boolean }) => {
     // ปิดการ cache ในโหมด production
     if (!dev) {
       config.cache = false;
