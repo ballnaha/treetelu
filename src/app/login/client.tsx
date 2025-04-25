@@ -193,7 +193,7 @@ export default function LoginClient() {
         login(userData);
         
         // Redirect to home page after successful login
-        router.push('/');
+        await router.replace('/');
       } else {
         const data = await response.json();
         setError(data.error || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
