@@ -3,7 +3,7 @@ import { withAdminAuth } from '@/middleware/adminAuth';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 
 /**
  * POST handler for uploading product images (admin only)
@@ -46,8 +46,9 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
     const originalName = file.name;
     const ext = originalName.substring(originalName.lastIndexOf('.'));
     
-    // Generate unique filename
-    const filename = `${uuidv4()}${ext}`;
+    // Generate unique filename with timestamp to prevent caching
+    const timestamp = Date.now();
+    const filename = `${uuidv4()}_${timestamp}${ext}`;
     
     // Define the path to save the file
     const publicPath = join(process.cwd(), 'public', 'images', 'product');
@@ -56,16 +57,28 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
     // Write the file to disk
     await writeFile(filePath, buffer);
     
-    // Revalidate paths to refresh cache
-    revalidatePath('/images/product');
-    revalidatePath('/admin/products');
-    revalidatePath('/products');
+    // Revalidate everything related to images
+    revalidatePath('/images', 'layout');
+    revalidatePath('/images/product', 'layout'); 
+    revalidatePath('/admin/products', 'layout');
+    revalidatePath('/products', 'layout');
+    revalidatePath('/', 'layout');
     
-    // Return success response with the filename
+    // ใช้ revalidateTag เพิ่มเติมเพื่อ invalidate cache ทั้งหมดที่เกี่ยวข้องกับรูปภาพ
+    revalidateTag('products-images');
+    
+    // Return success response with the filename and timestamp to prevent caching
     return NextResponse.json({
       success: true,
       message: 'อัปโหลดรูปภาพเรียบร้อย',
-      filename: filename
+      filename: filename,
+      url: `/images/product/${filename}?t=${timestamp}` // เพิ่ม timestamp เพื่อป้องกันการแคช
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
     });
   } catch (error) {
     console.error('Error uploading image:', error);

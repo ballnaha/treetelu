@@ -8,28 +8,48 @@ const nextConfig = {
     'https://168.231.118.94'
   ],
   reactStrictMode: true,
-  experimental: {},
+  experimental: {
+    // เปิดใช้งานการทำงานแบบ serverActions เพื่อใช้ revalidatePath และ revalidateTag
+    serverActions: true,
+  },
   images: {
     //
     domains: ['localhost', '168.231.118.94'],
-    unoptimized: process.env.NODE_ENV === 'development',
+    unoptimized: true, // ไม่ทำการ optimize รูปภาพเพื่อป้องกันปัญหา cache
   },
   // เพิ่ม config สำหรับ static files
   staticPageGenerationTimeout: 1000,
   onDemandEntries: {
     // ลดเวลาในการเก็บ cache
-    maxInactiveAge: 15 * 1000, // 15 วินาที (ค่าเริ่มต้นคือ 25 วินาที)
-    pagesBufferLength: 2, // จำนวนหน้าที่เก็บใน cache (ค่าเริ่มต้นคือ 5)
+    maxInactiveAge: 5 * 1000, // 5 วินาที (ค่าเริ่มต้นคือ 25 วินาที)
+    pagesBufferLength: 1, // จำนวนหน้าที่เก็บใน cache (ค่าเริ่มต้นคือ 5)
   },
   // ป้องกันการ cache static files นานเกินไป
   headers: async () => {
     return [
       {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, must-revalidate',
+          }
+        ],
+      },
+      {
         source: '/images/:path*',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=60, must-revalidate',
+            value: 'no-store, no-cache, must-revalidate, max-age=0',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'Expires',
+            value: '0',
           }
         ],
       },
@@ -38,7 +58,15 @@ const nextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=60, must-revalidate',
+            value: 'no-store, no-cache, must-revalidate, max-age=0',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'Expires',
+            value: '0',
           }
         ],
       }

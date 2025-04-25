@@ -13,8 +13,9 @@ import { sendDiscordNotification, createPaymentNotificationEmbed } from '@/utils
 // ฟังก์ชันสำหรับอัพโหลดไฟล์ไปยัง storage และ resize ภาพ
 async function uploadFileToStorage(file: Buffer, filename: string): Promise<string> {
   try {
-    // สร้าง unique filename
-    const uniqueFilename = `${uuidv4()}-${filename}`;
+    // สร้าง unique filename ด้วย timestamp เพื่อป้องกันการแคช
+    const timestamp = Date.now();
+    const uniqueFilename = `${uuidv4()}_${timestamp}-${filename}`;
     
     // กำหนดโฟลเดอร์สำหรับเก็บไฟล์
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'payment-slips');
@@ -31,11 +32,15 @@ async function uploadFileToStorage(file: Buffer, filename: string): Promise<stri
       .jpeg({ quality: 80 }) // บีบอัดเป็น JPEG คุณภาพ 80%
       .toFile(filePath);
     
-    // สร้าง URL สำหรับเรียกใช้ไฟล์
-    const fileUrl = `/uploads/payment-slips/${uniqueFilename}`;
+    // สร้าง URL สำหรับเรียกใช้ไฟล์ พร้อม query parameter เพื่อป้องกันการแคช
+    const fileUrl = `/uploads/payment-slips/${uniqueFilename}?t=${timestamp}`;
     
     // Revalidate path สำหรับรูปที่อัพโหลดใหม่
-    revalidatePath('/uploads/payment-slips');
+    revalidatePath('/uploads', 'layout');
+    revalidatePath('/uploads/payment-slips', 'layout');
+    revalidatePath('/payment-confirmation', 'layout');
+    revalidatePath('/admin/payment-confirmations', 'layout');
+    revalidatePath('/', 'layout');
     
     console.log(`Resized and saved image to: ${filePath}`);
     return fileUrl;

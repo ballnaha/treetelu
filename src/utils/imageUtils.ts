@@ -70,7 +70,25 @@ export const getProductImagePath = (product: Product): string => {
     imagePath = "/images/no-image.png";
   }
   
-  return imagePath;
+  return addNoCacheParam(imagePath);
+};
+
+/**
+ * เพิ่ม timestamp ใน URL เพื่อป้องกันการแคชรูปภาพ
+ * @param path path ของรูปภาพ
+ * @returns path ที่มีพารามิเตอร์ timestamp เพื่อป้องกันการแคช
+ */
+export const addNoCacheParam = (path: string): string => {
+  // ถ้า path เป็น URL ภายนอกหรือเป็น data URL ไม่ต้องเพิ่มพารามิเตอร์
+  if (!path || path.startsWith('data:') || path.includes('placeholder')) {
+    return path;
+  }
+  
+  // เพิ่ม timestamp เพื่อป้องกันการแคช
+  const timestamp = Date.now();
+  // ตรวจสอบว่ามี query parameter อยู่แล้วหรือไม่
+  const separator = path.includes('?') ? '&' : '?';
+  return `${path}${separator}t=${timestamp}`;
 };
 
 /**
@@ -101,5 +119,17 @@ export const formatProductData = (product: any): Product => {
     rating: product.rating || 4.5,
     id: product.id || product.sku || String(Math.random()).slice(2, 10),
     slug
+  };
+};
+
+/**
+ * สร้าง image onError handler สำหรับแก้ไขกรณีที่โหลดรูปไม่สำเร็จ
+ * @param setImageSrc ฟังก์ชันสำหรับตั้งค่า src ของรูป
+ * @returns ฟังก์ชัน handler สำหรับ onError event
+ */
+export const createImageErrorHandler = (setImageSrc: (src: string) => void) => {
+  return () => {
+    // ตั้งค่ารูปภาพใหม่เป็นรูปตัวอย่าง
+    setImageSrc('/images/no-image.png');
   };
 };
