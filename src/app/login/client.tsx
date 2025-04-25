@@ -76,12 +76,19 @@ const StyledButton = styled(Button)(({ theme }) => ({
 export default function LoginClient() {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   
   // Fix hydration issues by ensuring component is mounted
   useEffect(() => {
     setIsMounted(true);
   }, []);
+  
+  // ถ้าผู้ใช้ล็อกอินอยู่แล้ว ให้เปลี่ยนหน้าไปที่หน้าหลัก
+  useEffect(() => {
+    if (isMounted && user?.isLoggedIn) {
+      router.replace('/');
+    }
+  }, [isMounted, user, router]);
   
   const [formData, setFormData] = useState({
     email: '',
