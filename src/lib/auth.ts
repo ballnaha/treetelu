@@ -20,12 +20,17 @@ export async function validateAdminUser(request: NextRequest): Promise<{
   error?: string;
 }> {
   try {
-    // รับ token จาก cookie
-    const token = request.cookies.get('auth_token')?.value;
+    // ดึง token จาก header ก่อน
+    let token = request.headers.get('authorization')?.replace('Bearer ', '');
     
-    // ถ้าไม่มี token แสดงว่าไม่ใช่ admin
+    // ถ้าไม่มีใน header ให้ดึงจาก cookie
     if (!token) {
-      console.log('No auth token found');
+      token = request.cookies.get('auth_token')?.value;
+    }
+    
+    // ถ้าไม่มี token ทั้งใน header และ cookie แสดงว่าไม่ใช่ admin
+    if (!token) {
+      console.log('No auth token found in header or cookie');
       return { isAdmin: false, error: 'ไม่พบ token การยืนยันตัวตน' };
     }
     

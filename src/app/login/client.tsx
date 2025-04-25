@@ -186,26 +186,33 @@ export default function LoginClient() {
         console.log('Login response data:', data);
         setSuccess(true);
         
+        // เก็บ token ใน localStorage
+        localStorage.setItem('auth_token', data.token);
+        
         // ใช้ AuthContext แทนการใช้ localStorage โดยตรง
         const userData = {
           id: data.user.id,
           name: data.user.name,
           isLoggedIn: true,
-          isAdmin: data.user.isAdmin // ใช้ค่า isAdmin ที่ได้จาก API ซึ่งเป็น boolean แล้ว
+          isAdmin: data.user.isAdmin,
+          token: data.token // เก็บ token ใน userData ด้วย
         };
         
         console.log('User data for context:', userData);
         
-        // ใช้ AuthContext
-        login(userData);
+        // ใช้ AuthContext และบันทึก CSRF token
+        login(userData, data.csrfToken);
         
-        // ตรวจสอบ cookie ที่ได้รับจาก server
+        // ตรวจสอบการเก็บ token
+        console.log('Token saved to localStorage');
+        if (data.csrfToken) {
+          console.log('CSRF Token received and saved');
+        }
         console.log('Redirecting after login...');
         
-        // ใช้โหลดหน้าใหม่ทันทีดีกว่าใช้ setTimeout
         if (userData.isAdmin) {
           console.log('User is admin, redirecting to admin products page...');
-          window.location.href = '/admin/products';
+          window.location.href = '/admin/products?auth=token';
         } else {
           window.location.href = '/';
         }

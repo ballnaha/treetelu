@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { sign } from 'jsonwebtoken';
+import { setCsrfTokenCookie } from '@/lib/csrf';
 
 // Define SafeUser type for the response
 type SafeUser = {
@@ -91,7 +92,8 @@ export async function POST(request: NextRequest) {
       user: {
         ...safeUser,
         isAdmin: safeUser.isAdmin
-      }
+      },
+      token: token
     });
     
     // Set cookie in response
@@ -104,8 +106,16 @@ export async function POST(request: NextRequest) {
       path: '/'
     });
     
+    // สร้างและตั้งค่า CSRF token
+    const csrfToken = setCsrfTokenCookie(response);
+    
+    // ส่ง CSRF token กลับไปพร้อมกับข้อมูลอื่นๆ
+    response.headers.append('X-CSRF-Token', csrfToken);
+    
     console.log('Login successful:', email);
-    console.log('Token set in cookie:', token.substring(0, 20) + '...');
+    console.log('Token generated for user');
+    console.log('CSRF token generated');
+    
     return response;
     
   } catch (error) {

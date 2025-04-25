@@ -7,13 +7,16 @@ interface User {
   name: string;
   isLoggedIn: boolean;
   isAdmin?: boolean;
+  token?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (userData: User) => void;
+  login: (userData: User, csrfToken?: string) => void;
   logout: () => Promise<void>;
   isLoading: boolean;
+  getAuthToken: () => string | null;
+  getCsrfToken: () => string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,17 +59,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   // ฟังก์ชันสำหรับการเข้าสู่ระบบ
-  const login = (userData: User) => {
+  const login = (userData: User, csrfToken?: string) => {
     console.log('AuthContext: login with data:', userData);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
+    
+    // เก็บ CSRF token ถ้ามี
+    if (csrfToken) {
+      localStorage.setItem('csrf_token', csrfToken);
+    }
   };
 
   // ฟังก์ชันสำหรับการออกจากระบบ
   const logout = async () => {
     try {
-      // ลองทำลอง localStorage ออกก่อนเพื่อให้ UI อัพเดททันที
+      // ลบข้อมูลทั้งหมดออกจาก localStorage
       localStorage.removeItem('user');
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('csrf_token');
       setUser(null);
       
       // จากนั้นจึงส่งคำขอไปยัง API
@@ -76,19 +86,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (!response.ok) {
         console.error('Logout failed with status:', response.status);
-        // ไม่ต้องตั้ง user กลับเพราะเราต้องการให้ UI อัพเดททันที
       }
     } catch (error) {
       console.error('Logout error:', error);
-      // สิ่งสำคัญคือเราต้องแน่ใจว่า UI ยังคงอัพเดทแม้จะมีข้อผิดพลาด
     }
+  };
+
+  // ฟังก์ชันสำหรับดึง token
+  const getAuthToken = (): string | null => {
+    // ตรวจสอบจาก localStorage โดยตรงก่อน (มีความสำคัญมากกว่า)
+    const token = localStorage.getItem('auth_token');
+    if (token) return token;
+    
+    // ถ้าไม่มีใน localStorage ให้ลองดูใน user object
+    if (user?.token) return user.token;
+    
+    return null;
+  };
+
+  // ฟังก์ชันสำหรับดึง CSRF token
+  const getCsrfToken = (): string | null => {
+    return localStorage.getItem('csrf_token');
   };
 
   const value = {
     user,
     login,
     logout,
-    isLoading
+    isLoading,
+    getAuthToken,
+    getCsrfToken
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

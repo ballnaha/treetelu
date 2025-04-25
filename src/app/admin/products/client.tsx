@@ -47,7 +47,7 @@ export interface Product {
 }
 
 export default function AdminProductsClient() {
-  const { user } = useAuth();
+  const { user, getAuthToken } = useAuth();
   const router = useRouter();
   
   const [products, setProducts] = useState<Product[]>([]);
@@ -82,8 +82,14 @@ export default function AdminProductsClient() {
     const checkAdminStatus = async () => {
       try {
         console.log('Checking admin status via API...');
+        // ใช้ token จาก AuthContext
+        const token = getAuthToken();
+        
         const response = await fetch('/api/admin/check-auth', {
-          credentials: 'include' // ส่ง cookie ไปด้วย
+          credentials: 'include', // ส่ง cookie ไปด้วย
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '' // ส่ง token ผ่าน header
+          }
         });
         
         if (response.ok) {
@@ -107,7 +113,7 @@ export default function AdminProductsClient() {
     };
     
     checkAdminStatus();
-  }, [router]); // เอา user ออกจาก dependency เพื่อไม่ใช้งาน useAuth
+  }, [router, getAuthToken]); // เพิ่ม getAuthToken ใน dependency
 
   // ปรับปรุงการโหลดข้อมูลสินค้า
   useEffect(() => {
@@ -131,10 +137,16 @@ export default function AdminProductsClient() {
       if (filters.status) queryParams.append('status', filters.status);
       if (filters.searchTerm) queryParams.append('search', filters.searchTerm);
       
+      // ใช้ token จาก AuthContext
+      const token = getAuthToken();
+      
       // Fetch products from API
       console.log('Fetching products with params:', queryParams.toString());
       const response = await fetch(`/api/admin/products?${queryParams.toString()}`, {
-        credentials: 'include' // Include cookies in the request
+        credentials: 'include', // Include cookies in the request
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '' // ส่ง token ผ่าน header
+        }
       });
       
       const data = await response.json();
@@ -198,11 +210,15 @@ export default function AdminProductsClient() {
       const method = isNew ? 'POST' : 'PUT';
       const url = '/api/admin/products';
       
+      // ใช้ token จาก AuthContext
+      const token = getAuthToken();
+      
       // Call the API endpoint
       const response = await fetch(url, {
         method,
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '' // ส่ง token ผ่าน header
         },
         body: JSON.stringify(product),
         credentials: 'include' // Include cookies in the request
@@ -268,9 +284,15 @@ export default function AdminProductsClient() {
     try {
       setLoading(true);
       
+      // ใช้ token จาก AuthContext
+      const token = getAuthToken();
+      
       // Call the DELETE API endpoint
       const response = await fetch(`/api/admin/products?productId=${productId}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '' // ส่ง token ผ่าน header
+        },
         credentials: 'include'
       });
       

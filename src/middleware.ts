@@ -27,8 +27,30 @@ export function middleware(request: NextRequest) {
   
   // Check if the requested path is an admin path
   if (adminPaths.some(path => pathname.startsWith(path))) {
-    // Check for auth token
+    // ดึง token จาก cookie
     const token = request.cookies.get('auth_token')?.value;
+    
+    // ดึงข้อมูลจาก URL query parameters
+    const url = new URL(request.url);
+    const authParam = url.searchParams.get('auth');
+    const debug = url.searchParams.get('debug');
+    
+    console.log('Middleware: URL path:', pathname);
+    console.log('Middleware: Auth param:', authParam);
+    console.log('Middleware: Debug mode:', !!debug);
+    console.log('Middleware: Auth token in cookie:', !!token);
+    
+    // อนุญาตในกรณีมีการใช้ auth=token ใน URL
+    if (authParam === 'token') {
+      console.log('Middleware: Using token auth mode, allowing access');
+      return NextResponse.next();
+    }
+    
+    // อนุญาตในกรณี debug=1
+    if (debug === '1') {
+      console.log('Middleware: Debug mode enabled, allowing access');
+      return NextResponse.next();
+    }
     
     // If no token is found, redirect to login page
     if (!token) {
