@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { validateAdminUser } from '../check-auth/route';
+import { validateAdminUser } from '@/lib/auth';
 import fs from 'fs';
 import path from 'path';
 
