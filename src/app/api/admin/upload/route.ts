@@ -3,6 +3,7 @@ import { withAdminAuth } from '@/middleware/adminAuth';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { revalidatePath } from 'next/cache';
 
 /**
  * POST handler for uploading product images (admin only)
@@ -54,6 +55,11 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
     
     // Write the file to disk
     await writeFile(filePath, buffer);
+    
+    // Revalidate paths to refresh cache
+    revalidatePath('/images/product');
+    revalidatePath('/admin/products');
+    revalidatePath('/products');
     
     // Return success response with the filename
     return NextResponse.json({

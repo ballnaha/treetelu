@@ -34,6 +34,9 @@ async function uploadFileToStorage(file: Buffer, filename: string): Promise<stri
     // สร้าง URL สำหรับเรียกใช้ไฟล์
     const fileUrl = `/uploads/payment-slips/${uniqueFilename}`;
     
+    // Revalidate path สำหรับรูปที่อัพโหลดใหม่
+    revalidatePath('/uploads/payment-slips');
+    
     console.log(`Resized and saved image to: ${filePath}`);
     return fileUrl;
   } catch (error) {
