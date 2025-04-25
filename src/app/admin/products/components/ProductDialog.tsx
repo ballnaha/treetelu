@@ -3,7 +3,16 @@
 import { useState, useEffect } from 'react';
 import { Product } from '../client';
 import { CircularProgress } from '@mui/material';
-import { revalidatePath } from 'next/cache';
+
+interface ProductImage {
+  id?: number;
+  productId?: number;
+  imageName: string;
+  imageDesc?: string;
+  isNew?: boolean;
+  file?: File;
+  preview?: string;
+}
 import {
   Dialog,
   DialogTitle,
@@ -34,16 +43,6 @@ import WarningIcon from '@mui/icons-material/Warning';
 import UploadIcon from '@mui/icons-material/Upload';
 import ImageIcon from '@mui/icons-material/Image';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
-
-interface ProductImage {
-  id?: number;
-  productId?: number;
-  imageName: string;
-  imageDesc?: string;
-  isNew?: boolean;
-  file?: File;
-  preview?: string;
-}
 
 interface ProductDialogProps {
   open: boolean;
@@ -389,13 +388,7 @@ export default function ProductDialog({
   };
   
   // Remove an additional image
-  const handleRemoveAdditionalImage = async (index: number, e?: React.MouseEvent) => {
-    // หยุด event propagation ถ้ามี event
-    if (e) {
-      e.stopPropagation();
-      e.preventDefault();
-    }
-    
+  const handleRemoveAdditionalImage = async (index: number) => {
     // ป้องกันการลบซ้ำขณะกำลังลบอยู่
     if (deletingImageIndex !== -1) return;
     
@@ -421,15 +414,6 @@ export default function ProductDialog({
           }
           
           console.log('Image deleted successfully from server');
-          
-          // รีวาลิเดท cache หลังจากลบรูปสำเร็จ
-          try {
-            await fetch('/api/revalidate?path=/admin/products&tag=product-images', {
-              method: 'POST'
-            });
-          } catch (revalidateError) {
-            console.error('Error revalidating paths:', revalidateError);
-          }
         } catch (error) {
           console.error('Error deleting image:', error);
           setDeletingImageIndex(-1);
@@ -965,7 +949,9 @@ export default function ProductDialog({
                             color="error"
                             disabled={deletingImageIndex === index}
                             onClick={(e) => {
-                              handleRemoveAdditionalImage(index, e);
+                              e.stopPropagation();
+                              e.preventDefault();
+                              handleRemoveAdditionalImage(index);
                             }}
                             onMouseDown={(e) => e.stopPropagation()}
                             sx={{ p: 0.5 }}

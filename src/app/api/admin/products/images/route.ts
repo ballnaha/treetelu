@@ -85,6 +85,12 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
       }
     });
     
+    // Revalidate cache
+    revalidatePath('/images/product', 'layout');
+    revalidatePath('/admin/products', 'layout');
+    revalidatePath('/products', 'layout');
+    revalidateTag('product-images');
+    
     return NextResponse.json({
       success: true,
       message: 'เพิ่มรูปภาพสินค้าเรียบร้อย',
