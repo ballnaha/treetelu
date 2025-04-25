@@ -109,14 +109,31 @@ export async function POST(request: NextRequest) {
     // สร้างและตั้งค่า CSRF token
     const csrfToken = setCsrfTokenCookie(response);
     
-    // ส่ง CSRF token กลับไปพร้อมกับข้อมูลอื่นๆ
-    response.headers.append('X-CSRF-Token', csrfToken);
+    // สร้าง response ใหม่ที่มี CSRF token รวมอยู่ใน JSON
+    const finalResponse = NextResponse.json({
+      message: 'เข้าสู่ระบบสำเร็จ',
+      user: {
+        ...safeUser,
+        isAdmin: safeUser.isAdmin
+      },
+      token: token,
+      csrfToken: csrfToken // เพิ่ม CSRF token ใน JSON response
+    }, {
+      status: 200,
+      headers: response.headers,
+      statusText: 'OK'
+    });
+    
+    // คัดลอก cookies จาก response เดิม
+    response.cookies.getAll().forEach(cookie => {
+      finalResponse.cookies.set(cookie);
+    });
     
     console.log('Login successful:', email);
     console.log('Token generated for user');
-    console.log('CSRF token generated');
+    console.log('CSRF token generated and included in JSON response');
     
-    return response;
+    return finalResponse;
     
   } catch (error) {
     console.error('Login error:', error);

@@ -40,6 +40,9 @@ export function middleware(request: NextRequest) {
     console.log('Middleware: Debug mode:', !!debug);
     console.log('Middleware: Auth token in cookie:', !!token);
     
+    // แสดงค่า cookie ทั้งหมดเพื่อการแก้ไขปัญหา
+    console.log('Middleware: All cookies:', [...request.cookies.getAll()].map(c => c.name));
+    
     // อนุญาตในกรณีมีการใช้ auth=token ใน URL
     if (authParam === 'token') {
       console.log('Middleware: Using token auth mode, allowing access');

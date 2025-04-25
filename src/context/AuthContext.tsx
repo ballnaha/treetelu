@@ -77,6 +77,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       localStorage.removeItem('user');
       localStorage.removeItem('auth_token');
       localStorage.removeItem('csrf_token');
+      
+      // ลบ cookie ด้วย
+      document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      document.cookie = 'csrf_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      
       setUser(null);
       
       // จากนั้นจึงส่งคำขอไปยัง API

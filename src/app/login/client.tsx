@@ -189,6 +189,9 @@ export default function LoginClient() {
         // เก็บ token ใน localStorage
         localStorage.setItem('auth_token', data.token);
         
+        // เพิ่มการเก็บ token ใน cookie ด้วยเพื่อให้ middleware สามารถเข้าถึงได้
+        document.cookie = `auth_token=${data.token}; path=/; max-age=${data.rememberMe ? 30*24*60*60 : 24*60*60}`;
+        
         // ใช้ AuthContext แทนการใช้ localStorage โดยตรง
         const userData = {
           id: data.user.id,
