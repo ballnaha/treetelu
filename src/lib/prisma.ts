@@ -2,33 +2,23 @@
 import { PrismaClient } from '@prisma/client'
 
 // ป้องกันการสร้าง PrismaClient หลายตัวในช่วง development
+// กำหนด global type
 declare global {
   var prisma: PrismaClient | undefined
 }
 
-// สร้าง PrismaClient ด้วย try/catch สำหรับจัดการข้อผิดพลาดในการ initialize
-let prisma: PrismaClient
+// กำหนดตัวแปร prisma client
+let prisma: PrismaClient;
 
-if (process.env.NODE_ENV === 'production') {
-  try {
-    prisma = new PrismaClient()
-  } catch (e) {
-    console.error('Failed to create PrismaClient in production', e)
-    throw e
-  }
+// แทนที่จะใช้เงื่อนไข production/development แบบเดิม
+// ให้ใช้ global instance เสมอเพื่อป้องกันปัญหาในช่วง hot-reload
+if (global.prisma) {
+  prisma = global.prisma;
 } else {
-  // ในโหมด development ให้ใช้ global variable
-  if (!global.prisma) {
-    try {
-      global.prisma = new PrismaClient({
-        log: ['query', 'error', 'warn'],
-      })
-    } catch (e) {
-      console.error('Failed to create PrismaClient in development', e)
-      throw e
-    }
-  }
-  prisma = global.prisma
+  global.prisma = new PrismaClient({
+    log: ['query', 'error', 'warn'],
+  });
+  prisma = global.prisma;
 }
 
 export default prisma
