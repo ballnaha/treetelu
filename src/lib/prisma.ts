@@ -1,6 +1,10 @@
 // lib/prisma.ts
 import { PrismaClient } from '@prisma/client'
 
+// PrismaClient is attached to the `global` object in development to prevent
+// exhausting your database connection limit.
+// Learn more: https://pris.ly/d/help/next-js-best-practices
+
 // ป้องกันการสร้าง PrismaClient หลายตัวในช่วง development
 // กำหนด global type
 declare global {
@@ -8,17 +12,17 @@ declare global {
 }
 
 // กำหนดตัวแปร prisma client
-let prisma: PrismaClient;
+let prisma: PrismaClient
 
-// แทนที่จะใช้เงื่อนไข production/development แบบเดิม
-// ให้ใช้ global instance เสมอเพื่อป้องกันปัญหาในช่วง hot-reload
-if (global.prisma) {
-  prisma = global.prisma;
+if (process.env.NODE_ENV === 'production') {
+  prisma = new PrismaClient()
 } else {
-  global.prisma = new PrismaClient({
-    log: ['query', 'error', 'warn'],
-  });
-  prisma = global.prisma;
+  if (!global.prisma) {
+    global.prisma = new PrismaClient({
+      log: ['query', 'error', 'warn'],
+    })
+  }
+  prisma = global.prisma
 }
 
 export default prisma

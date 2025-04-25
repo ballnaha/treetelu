@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { withAdminAuth } from '@/middleware/adminAuth';
-
-const prisma = new PrismaClient();
+import prisma from '@/lib/prisma';
 
 /**
  * GET handler for fetching the latest product SKU (admin only)

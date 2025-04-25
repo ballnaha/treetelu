@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { withAdminAuth } from '@/middleware/adminAuth';
+import prisma from '@/lib/prisma';
 
 // นำเข้า enum ที่ต้องการใช้งาน
 type OrderStatus = 'PENDING' | 'PROCESSING' | 'PAID' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 type PaymentStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED';
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 
 /**
  * Helper function to convert BigInt values to strings in an object

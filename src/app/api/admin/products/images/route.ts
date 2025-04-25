@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { withAdminAuth } from '@/middleware/adminAuth';
 import fs from 'fs';
 import path from 'path';
-
-const prisma = new PrismaClient();
+import prisma from '@/lib/prisma';
 
 /**
  * GET handler for fetching product images (admin only)
