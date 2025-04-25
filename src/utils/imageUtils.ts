@@ -70,12 +70,6 @@ export const getProductImagePath = (product: Product): string => {
     imagePath = "/images/no-image.png";
   }
   
-  // เพิ่ม timestamp เพื่อป้องกันการแคช
-  if (!imagePath.includes('no-image.png') && !imagePath.startsWith('http')) {
-    const timestamp = new Date().getTime();
-    imagePath = `${imagePath}?v=${timestamp}`;
-  }
-  
   return imagePath;
 };
 
