@@ -199,18 +199,16 @@ export default function LoginClient() {
         // ใช้ AuthContext
         login(userData);
         
-        // ใช้การโหลดหน้าเต็มรูปแบบเพื่อให้ cookie ที่ server ตั้งค่าถูกส่งไปพร้อมกับ request ใหม่
-        setTimeout(() => {
-          // ตรวจสอบ cookie ที่ได้รับจาก server
-          console.log('Cookies after login:', document.cookie);
-          
-          if (userData.isAdmin) {
-            console.log('Redirecting to admin products page...');
-            window.location.href = '/admin/products';
-          } else {
-            window.location.href = '/';
-          }
-        }, 1000); // เพิ่มเวลารอเป็น 1 วินาที เพื่อให้แน่ใจว่า cookie ถูกตั้งค่าแล้ว
+        // ตรวจสอบ cookie ที่ได้รับจาก server
+        console.log('Redirecting after login...');
+        
+        // ใช้โหลดหน้าใหม่ทันทีดีกว่าใช้ setTimeout
+        if (userData.isAdmin) {
+          console.log('User is admin, redirecting to admin products page...');
+          window.location.href = '/admin/products';
+        } else {
+          window.location.href = '/';
+        }
       } else {
         const data = await response.json();
         setError(data.error || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ');

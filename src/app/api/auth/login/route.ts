@@ -101,11 +101,11 @@ export async function POST(request: NextRequest) {
       httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       expires: cookieExpires,
-      path: '/',
-      sameSite: 'lax'
+      path: '/'
     });
     
     console.log('Login successful:', email);
+    console.log('Token set in cookie:', token.substring(0, 20) + '...');
     return response;
     
   } catch (error) {
