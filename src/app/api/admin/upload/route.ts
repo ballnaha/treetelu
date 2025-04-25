@@ -4,12 +4,15 @@ import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { revalidatePath, revalidateTag } from 'next/cache';
+import fs from 'fs';
 
 /**
  * POST handler for uploading product images (admin only)
  */
 export const POST = withAdminAuth(async (req: NextRequest) => {
   try {
+    console.log('Starting image upload process...');
+    
     const formData = await req.formData();
     const file = formData.get('image') as File;
     
@@ -19,6 +22,8 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
         { status: 400 }
       );
     }
+    
+    console.log(`File received: ${file.name}, type: ${file.type}, size: ${file.size} bytes`);
     
     // Validate file type
     const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -54,8 +59,51 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
     const publicPath = join(process.cwd(), 'public', 'images', 'product');
     const filePath = join(publicPath, filename);
     
+    console.log(`Preparing to save file to: ${filePath}`);
+    
+    // Make sure the directory exists
+    if (!fs.existsSync(publicPath)) {
+      console.log(`Creating directory: ${publicPath}`);
+      fs.mkdirSync(publicPath, { recursive: true });
+    }
+    
+    // Create an empty file first (helps with file system synchronization)
+    try {
+      fs.writeFileSync(filePath, '');
+      console.log('Empty file created successfully');
+    } catch (emptyFileError) {
+      console.error('Error creating empty file:', emptyFileError);
+    }
+    
     // Write the file to disk
-    await writeFile(filePath, buffer);
+    try {
+      await writeFile(filePath, buffer);
+      console.log('File written successfully');
+      
+      // Verify file was written
+      if (!fs.existsSync(filePath)) {
+        throw new Error('File was not created successfully');
+      }
+      
+      const stats = fs.statSync(filePath);
+      console.log(`File size on disk: ${stats.size} bytes`);
+      
+      if (stats.size === 0) {
+        throw new Error('File was created but is empty');
+      }
+    } catch (writeError) {
+      console.error('Error writing file:', writeError);
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'เกิดข้อผิดพลาดในการบันทึกไฟล์รูปภาพ',
+          error: writeError instanceof Error ? writeError.message : String(writeError)
+        },
+        { status: 500 }
+      );
+    }
+    
+    console.log('Starting cache revalidation...');
     
     // Revalidate everything related to images
     revalidatePath('/images', 'layout');
@@ -66,8 +114,12 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
     
     // ใช้ revalidateTag เพิ่มเติมเพื่อ invalidate cache ทั้งหมดที่เกี่ยวข้องกับรูปภาพ
     revalidateTag('products-images');
+    revalidateTag('product-images');
+    
+    console.log('Cache revalidation completed');
     
     // Return success response with the filename and timestamp to prevent caching
+    console.log(`Upload successful. Returning filename: ${filename}`);
     return NextResponse.json({
       success: true,
       message: 'อัปโหลดรูปภาพเรียบร้อย',

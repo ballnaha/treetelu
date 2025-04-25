@@ -454,6 +454,7 @@ export default function ProductDialog({
       formData.append('image', imageFile);
       
       try {
+        console.log('Uploading main product image...');
         const uploadResponse = await fetch('/api/admin/upload', {
           method: 'POST',
           body: formData,
@@ -463,32 +464,41 @@ export default function ProductDialog({
         if (uploadResponse.ok) {
           const uploadData = await uploadResponse.json();
           productData.productImg = uploadData.filename;
+          console.log('Main product image uploaded successfully:', uploadData.filename);
         } else {
-          alert('เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ');
+          const errorData = await uploadResponse.json();
+          console.error('Error uploading image:', errorData);
+          alert('เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ: ' + (errorData.message || 'Unknown error'));
           return;
         }
       } catch (error) {
-        console.error('Error uploading image:', error);
+        console.error('Exception during image upload:', error);
         alert('เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ');
         return;
       }
     }
     
     // Save the product first to get the product ID if it's new
+    console.log('Saving product data...');
     const savedProduct = await onSave(productData);
+    console.log('Product saved successfully:', savedProduct);
     
     // If we have additional images and a product ID, upload them
     if (additionalImages.length > 0 && savedProduct?.id) {
       const productId = savedProduct.id;
+      console.log(`Processing ${additionalImages.length} additional images for product ${productId}`);
       
       // Upload new images
       const newImages = additionalImages.filter(img => img.isNew && img.file);
+      console.log(`Found ${newImages.length} new images to upload`);
+      
       for (const image of newImages) {
         if (image.file) {
           const formData = new FormData();
           formData.append('image', image.file);
           
           try {
+            console.log(`Uploading additional image: ${image.imageName}...`);
             const uploadResponse = await fetch('/api/admin/upload', {
               method: 'POST',
               body: formData,
@@ -497,9 +507,11 @@ export default function ProductDialog({
             
             if (uploadResponse.ok) {
               const uploadData = await uploadResponse.json();
+              console.log('Additional image uploaded successfully:', uploadData.filename);
               
               // Save the image reference to the product
-              await fetch('/api/admin/products/images', {
+              console.log('Saving image reference to database...');
+              const saveResponse = await fetch('/api/admin/products/images', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json'
@@ -511,21 +523,35 @@ export default function ProductDialog({
                 }),
                 credentials: 'include'
               });
+              
+              if (saveResponse.ok) {
+                console.log('Image reference saved successfully');
+              } else {
+                const errorData = await saveResponse.json();
+                console.error('Error saving image reference:', errorData);
+              }
+            } else {
+              const errorData = await uploadResponse.json();
+              console.error('Error uploading additional image:', errorData);
             }
           } catch (error) {
-            console.error('Error uploading additional image:', error);
+            console.error('Exception during additional image upload:', error);
           }
         }
       }
       
+      // Add a delay to allow server processing to complete
+      console.log('Waiting for server processing...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       // Reload product images to get the latest data
+      console.log('Reloading product images...');
       if (savedProduct?.id) {
         await fetchProductImages(savedProduct.id);
       }
-      
-      // Handle deleted images (images that were in the database but removed from the UI)
-      // This is handled automatically by the product save endpoint
     }
+    
+    console.log('Product submission completed');
   };
   
   // Handle delete

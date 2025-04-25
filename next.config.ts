@@ -8,9 +8,12 @@ const nextConfig = {
     'https://168.231.118.94'
   ],
   reactStrictMode: true,
+  output: 'standalone', // ช่วยให้การเข้าถึงไฟล์สถิติใน production mode ดีขึ้น
+  distDir: '.next', // ระบุโฟลเดอร์สำหรับ build output
   experimental: {
     // เปิดใช้งานการทำงานแบบ serverActions เพื่อใช้ revalidatePath และ revalidateTag
     serverActions: true,
+    serverComponentsExternalPackages: [], // ช่วยลดปัญหาการ cache ของ server components
   },
   images: {
     //
@@ -23,6 +26,14 @@ const nextConfig = {
     // ลดเวลาในการเก็บ cache
     maxInactiveAge: 5 * 1000, // 5 วินาที (ค่าเริ่มต้นคือ 25 วินาที)
     pagesBufferLength: 1, // จำนวนหน้าที่เก็บใน cache (ค่าเริ่มต้นคือ 5)
+  },
+  // ป้องกัน webpack จากการ cache ไฟล์
+  webpack: (config, { dev, isServer }) => {
+    // ปิดการ cache ในโหมด production
+    if (!dev) {
+      config.cache = false;
+    }
+    return config;
   },
   // เพื่อป้องกันการ cache static files นานเกินไป
   headers: async () => {
