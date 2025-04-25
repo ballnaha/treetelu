@@ -46,6 +46,7 @@ export const generateSlug = (text: string): string => {
  */
 export const getProductImagePath = (product: Product): string => {
   let imagePath = "/images/no-image.png";
+  const timestamp = Date.now(); // สร้าง timestamp ในระดับมิลลิวินาที
   
   // ถ้ามี productImg ให้ใช้ path ที่ถูกต้อง
   if (product.productImg && product.productImg !== 'undefined') {
@@ -72,10 +73,20 @@ export const getProductImagePath = (product: Product): string => {
   
   // เพิ่ม timestamp เพื่อป้องกันการแคช
   if (!imagePath.includes('no-image.png') && !imagePath.startsWith('http')) {
-    const timestamp = new Date().getTime();
-    imagePath = `${imagePath}?v=${timestamp}`;
+    // ตรวจสอบว่า URL มี query parameter อยู่แล้วหรือไม่
+    if (imagePath.includes('?')) {
+      imagePath = `${imagePath}&v=${timestamp}`;
+    } else {
+      imagePath = `${imagePath}?v=${timestamp}`;
+    }
   }
   
+  // สำหรับ URL ภายนอก ไม่ต้องเพิ่ม timestamp
+  if (imagePath.startsWith('http')) {
+    return imagePath;
+  }
+  
+  // console.log(`[getProductImagePath] Generated image path: ${imagePath}`);
   return imagePath;
 };
 
