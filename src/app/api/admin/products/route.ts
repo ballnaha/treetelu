@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { validateAdminUser } from '@/lib/auth';
-import prisma from '@/lib/prisma';
 import fs from 'fs';
 import path from 'path';
 
-// const prisma = new PrismaClient();
+const prisma = new PrismaClient();
 
 /**
  * Helper function to convert BigInt values to strings in an object

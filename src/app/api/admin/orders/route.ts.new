@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, OrderStatus, PaymentStatus } from '@prisma/client';
 import { withAdminAuth } from '@/middleware/adminAuth';
-
-// นำเข้า enum ที่ต้องการใช้งาน
-type OrderStatus = 'PENDING' | 'PROCESSING' | 'PAID' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
-type PaymentStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED';
 
 const prisma = new PrismaClient();
 
@@ -106,7 +102,7 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
     });
     
     // Format dates and convert BigInt values to strings before sending to client
-    const formattedOrders = orders.map((order: any) => {
+    const formattedOrders = orders.map(order => {
       // Create a new object with formatted dates
       const formattedOrder = {
         ...order,
@@ -174,16 +170,14 @@ export const PUT = withAdminAuth(async (req: NextRequest) => {
     }
     
     // Validate status values
-    const validOrderStatuses: OrderStatus[] = ['PENDING', 'PROCESSING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
-    if (status && !validOrderStatuses.includes(status as OrderStatus)) {
+    if (status && !Object.values(OrderStatus).includes(status as OrderStatus)) {
       return NextResponse.json(
         { success: false, message: 'สถานะคำสั่งซื้อไม่ถูกต้อง' },
         { status: 400 }
       );
     }
     
-    const validPaymentStatuses: PaymentStatus[] = ['PENDING', 'CONFIRMED', 'REJECTED'];
-    if (paymentStatus && !validPaymentStatuses.includes(paymentStatus as PaymentStatus)) {
+    if (paymentStatus && !Object.values(PaymentStatus).includes(paymentStatus as PaymentStatus)) {
       return NextResponse.json(
         { success: false, message: 'สถานะการชำระเงินไม่ถูกต้อง' },
         { status: 400 }
