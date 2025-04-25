@@ -1,15 +1,5 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verify } from 'jsonwebtoken';
-
-// Interface for decoded token
-interface DecodedToken {
-  id: string | number;
-  email: string;
-  isAdmin: boolean | 'true' | 'false';
-  iat: number;
-  exp: number;
-}
 
 /**
  * Next.js middleware function
@@ -28,9 +18,6 @@ export function middleware(request: NextRequest) {
   // Get the pathname from the request URL
   const { pathname } = request.nextUrl;
   
-  // Get auth token from cookies
-  const token = request.cookies.get('auth_token')?.value;
-  
   // For the login page, we'll allow access regardless of token status
   // This prevents redirect loops and allows users to log in again if needed
   if (pathname === '/login') {
@@ -45,29 +32,14 @@ export function middleware(request: NextRequest) {
     
     // If no token is found, redirect to login page
     if (!token) {
+      console.log('Middleware: No auth token found, redirecting to login');
       return NextResponse.redirect(new URL('/login', request.url));
     }
     
-    try {
-      // Verify and decode the token
-      const JWT_SECRET = process.env.JWT_SECRET || 'next-tree-jwt-secret-2023';
-      const decoded = verify(token, JWT_SECRET) as DecodedToken;
-      
-      // Check if user is admin
-      const isAdmin = decoded.isAdmin === true || decoded.isAdmin === 'true';
-      
-      if (!isAdmin) {
-        // If not admin, redirect to home page
-        return NextResponse.redirect(new URL('/', request.url));
-      }
-      
-      // If admin, allow the request to proceed
-      return NextResponse.next();
-    } catch (error) {
-      // If token verification fails, redirect to login page
-      console.error('Admin auth error in middleware:', error);
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
+    // ไม่ตรวจสอบ token ใน middleware เนื่องจากข้อจำกัดของ Edge Runtime
+    // แทนที่จะตรวจสอบที่นี่ เราจะใช้ API /api/admin/check-auth ตรวจสอบในหน้า client แทน
+    console.log('Middleware: Auth token found, allowing access to admin page');
+    return NextResponse.next();
   }
   
   // For non-admin paths, proceed normally

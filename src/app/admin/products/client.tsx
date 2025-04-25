@@ -56,6 +56,7 @@ export default function AdminProductsClient() {
   const [isNewProduct, setIsNewProduct] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -75,19 +76,45 @@ export default function AdminProductsClient() {
     searchTerm: ''
   });
 
-  // Check if user is admin, redirect if not
+  // ตรวจสอบสิทธิ์ admin ด้วยการเรียก API แทนการใช้ state จาก AuthContext
   useEffect(() => {
-    if (user && !user.isAdmin) {
-      router.push('/');
-    }
-  }, [user, router]);
-
-  // Fetch products when page loads or filters change
-  useEffect(() => {
-    if (!user?.isAdmin) return;
+    // ฟังก์ชันสำหรับตรวจสอบสิทธิ์
+    const checkAdminStatus = async () => {
+      try {
+        console.log('Checking admin status via API...');
+        const response = await fetch('/api/admin/check-auth', {
+          credentials: 'include' // ส่ง cookie ไปด้วย
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Admin status check result:', data);
+          setIsAdmin(true);
+          // ถ้าเป็น admin ให้โหลดข้อมูลสินค้า
+          fetchProducts();
+        } else {
+          console.error('Not authorized as admin');
+          setIsAdmin(false);
+          router.push('/');
+        }
+      } catch (err) {
+        console.error('Error checking admin status:', err);
+        setIsAdmin(false);
+        router.push('/');
+      } finally {
+        setLoading(false);
+      }
+    };
     
-    fetchProducts();
-  }, [pagination.page, pagination.limit, filters, user]);
+    checkAdminStatus();
+  }, [router]); // เอา user ออกจาก dependency เพื่อไม่ใช้งาน useAuth
+
+  // ปรับปรุงการโหลดข้อมูลสินค้า
+  useEffect(() => {
+    if (isAdmin) {
+      fetchProducts();
+    }
+  }, [pagination.page, pagination.limit, filters, isAdmin]);
 
   // Function to fetch products with current filters and pagination
   const fetchProducts = async () => {
@@ -289,11 +316,11 @@ export default function AdminProductsClient() {
     }
   };
 
-  if (!user) {
+  if (loading) {
     return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
   }
-
-  if (!user.isAdmin) {
+  
+  if (isAdmin === false) {
     return <Container sx={{ p: 4 }}><Typography>คุณไม่มีสิทธิ์เข้าถึงหน้านี้</Typography></Container>;
   }
 

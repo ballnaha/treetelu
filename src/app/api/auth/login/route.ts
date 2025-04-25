@@ -58,10 +58,13 @@ export async function POST(request: NextRequest) {
     }
     
     // Create JWT token with ID converted to string
+    const isAdminValue = typeof user.isAdmin === 'boolean' ? user.isAdmin : user.isAdmin === 'true';
+    
     const tokenPayload = {
       id: user.id,
       email: user.email,
-      isAdmin: user.isAdmin
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      isAdmin: isAdminValue
     };
 
     const token = sign(tokenPayload, JWT_SECRET, { 
@@ -77,7 +80,7 @@ export async function POST(request: NextRequest) {
       id: user.id,
       email: user.email,
       name: `${user.firstName} ${user.lastName}`.trim(),
-      isAdmin: user.isAdmin === 'true',
+      isAdmin: isAdminValue,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };
@@ -95,10 +98,11 @@ export async function POST(request: NextRequest) {
     response.cookies.set({
       name: 'auth_token',
       value: token,
-      httpOnly: true,
+      httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       expires: cookieExpires,
-      path: '/'
+      path: '/',
+      sameSite: 'lax'
     });
     
     console.log('Login successful:', email);

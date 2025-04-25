@@ -191,7 +191,7 @@ export default function LoginClient() {
           id: data.user.id,
           name: data.user.name,
           isLoggedIn: true,
-          isAdmin: data.user.isAdmin // API ส่ง boolean มาแล้ว ไม่ต้องแปลงอีก
+          isAdmin: data.user.isAdmin // ใช้ค่า isAdmin ที่ได้จาก API ซึ่งเป็น boolean แล้ว
         };
         
         console.log('User data for context:', userData);
@@ -199,8 +199,18 @@ export default function LoginClient() {
         // ใช้ AuthContext
         login(userData);
         
-        // Redirect to home page after successful login
-        await router.replace('/');
+        // ใช้การโหลดหน้าเต็มรูปแบบเพื่อให้ cookie ที่ server ตั้งค่าถูกส่งไปพร้อมกับ request ใหม่
+        setTimeout(() => {
+          // ตรวจสอบ cookie ที่ได้รับจาก server
+          console.log('Cookies after login:', document.cookie);
+          
+          if (userData.isAdmin) {
+            console.log('Redirecting to admin products page...');
+            window.location.href = '/admin/products';
+          } else {
+            window.location.href = '/';
+          }
+        }, 1000); // เพิ่มเวลารอเป็น 1 วินาที เพื่อให้แน่ใจว่า cookie ถูกตั้งค่าแล้ว
       } else {
         const data = await response.json();
         setError(data.error || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ');

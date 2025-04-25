@@ -34,7 +34,9 @@ export async function isAdminMiddleware(req: NextRequest) {
     
     // Check if the user is an admin
     // Handle both string and boolean representations of isAdmin
-    const isAdmin = decoded.isAdmin === true || decoded.isAdmin === 'true';
+    const isAdmin = typeof decoded.isAdmin === 'boolean' 
+      ? decoded.isAdmin 
+      : decoded.isAdmin === 'true';
     
     if (!isAdmin) {
       // If not an admin, redirect to unauthorized page or home page
@@ -105,7 +107,10 @@ export function withAdminAuth(handler: Function) {
         
         // Check if the user is an admin
         // Handle both string and boolean representations of isAdmin
-        const isAdmin = decoded.isAdmin === true || decoded.isAdmin === 'true';
+        const isAdmin = typeof decoded.isAdmin === 'boolean' 
+          ? decoded.isAdmin 
+          : decoded.isAdmin === 'true';
+
         console.log('withAdminAuth: User isAdmin status:', isAdmin);
         
         if (!isAdmin) {

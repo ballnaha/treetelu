@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { withAdminAuth } from '@/middleware/adminAuth';
+import { validateAdminUser } from '../check-auth/route';
 import fs from 'fs';
 import path from 'path';
 
@@ -37,9 +37,18 @@ function convertBigIntToString(obj: any): any {
 /**
  * GET handler for fetching all products (admin only)
  */
-export const GET = withAdminAuth(async (req: NextRequest) => {
-  console.log('Admin products API called');
+export async function GET(req: NextRequest) {
   try {
+    // ตรวจสอบสิทธิ์ admin ก่อน
+    const authResult = await validateAdminUser(req);
+    if (!authResult.isAdmin) {
+      return NextResponse.json(
+        { message: authResult.error || 'ไม่มีสิทธิ์เข้าถึงข้อมูล' },
+        { status: 401 }
+      );
+    }
+    
+    console.log('Admin products API called');
     const url = new URL(req.url);
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '10');
@@ -132,13 +141,22 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
       { status: 500 }
     );
   }
-});
+}
 
 /**
  * POST handler for creating a new product (admin only)
  */
-export const POST = withAdminAuth(async (req: NextRequest) => {
+export async function POST(req: NextRequest) {
   try {
+    // ตรวจสอบสิทธิ์ admin ก่อน
+    const authResult = await validateAdminUser(req);
+    if (!authResult.isAdmin) {
+      return NextResponse.json(
+        { message: authResult.error || 'ไม่มีสิทธิ์เข้าถึงข้อมูล' },
+        { status: 401 }
+      );
+    }
+    
     const body = await req.json();
     
     console.log('Create product request:', body);
@@ -229,13 +247,22 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
       { status: 500 }
     );
   }
-});
+}
 
 /**
  * PUT handler for updating a product (admin only)
  */
-export const PUT = withAdminAuth(async (req: NextRequest) => {
+export async function PUT(req: NextRequest) {
   try {
+    // ตรวจสอบสิทธิ์ admin ก่อน
+    const authResult = await validateAdminUser(req);
+    if (!authResult.isAdmin) {
+      return NextResponse.json(
+        { message: authResult.error || 'ไม่มีสิทธิ์เข้าถึงข้อมูล' },
+        { status: 401 }
+      );
+    }
+    
     const body = await req.json();
     
     console.log('Update product request:', body);
@@ -326,13 +353,22 @@ export const PUT = withAdminAuth(async (req: NextRequest) => {
       { status: 500 }
     );
   }
-});
+}
 
 /**
  * DELETE handler for deleting a product (admin only)
  */
-export const DELETE = withAdminAuth(async (req: NextRequest) => {
+export async function DELETE(req: NextRequest) {
   try {
+    // ตรวจสอบสิทธิ์ admin ก่อน
+    const authResult = await validateAdminUser(req);
+    if (!authResult.isAdmin) {
+      return NextResponse.json(
+        { message: authResult.error || 'ไม่มีสิทธิ์เข้าถึงข้อมูล' },
+        { status: 401 }
+      );
+    }
+    
     const url = new URL(req.url);
     const productId = url.searchParams.get('productId');
     
@@ -428,4 +464,4 @@ export const DELETE = withAdminAuth(async (req: NextRequest) => {
       { status: 500 }
     );
   }
-});
+}
