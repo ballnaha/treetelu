@@ -1,5 +1,15 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { verify } from 'jsonwebtoken';
+
+// Interface for decoded token
+interface DecodedToken {
+  id: string | number;
+  email: string;
+  isAdmin: boolean | 'true' | 'false';
+  iat: number;
+  exp: number;
+}
 
 /**
  * Next.js middleware function
@@ -38,12 +48,26 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
     
-    // For middleware, we'll just check if the token exists
-    // The actual admin verification will happen in the API routes
-    // This is because the Edge Runtime doesn't support the crypto module
-    
-    // Allow the request to proceed
-    return NextResponse.next();
+    try {
+      // Verify and decode the token
+      const JWT_SECRET = process.env.JWT_SECRET || 'next-tree-jwt-secret-2023';
+      const decoded = verify(token, JWT_SECRET) as DecodedToken;
+      
+      // Check if user is admin
+      const isAdmin = decoded.isAdmin === true || decoded.isAdmin === 'true';
+      
+      if (!isAdmin) {
+        // If not admin, redirect to home page
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+      
+      // If admin, allow the request to proceed
+      return NextResponse.next();
+    } catch (error) {
+      // If token verification fails, redirect to login page
+      console.error('Admin auth error in middleware:', error);
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
   }
   
   // For non-admin paths, proceed normally
