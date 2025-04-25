@@ -3,8 +3,6 @@ import { withAdminAuth } from '@/middleware/adminAuth';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import fs from 'fs';
-import sharp from 'sharp';
 
 /**
  * POST handler for uploading product images (admin only)
@@ -54,48 +52,14 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
     const publicPath = join(process.cwd(), 'public', 'images', 'product');
     const filePath = join(publicPath, filename);
     
-    // ตรวจสอบว่าโฟลเดอร์มีอยู่หรือไม่ ถ้าไม่มีให้สร้าง
-    if (!fs.existsSync(publicPath)) {
-      fs.mkdirSync(publicPath, { recursive: true });
-      console.log(`Created directory: ${publicPath}`);
-    }
-    
-    try {
-      // แปลงและบันทึกรูปภาพด้วย sharp
-      await sharp(buffer)
-        .resize(800) // ปรับขนาดให้มีความกว้าง 800px
-        .toFormat('jpeg') // แปลงเป็นรูปแบบ jpeg
-        .jpeg({ quality: 85 }) // ตั้งค่าคุณภาพ
-        .toFile(filePath);
-      
-      console.log(`Successfully saved optimized image to: ${filePath}`);
-    } catch (sharpError) {
-      console.error(`Sharp error: ${sharpError}`);
-      // ถ้าล้มเหลวในการใช้ sharp ให้บันทึกไฟล์โดยตรง
-      await writeFile(filePath, buffer);
-      console.log(`Fallback: Saved original image to: ${filePath}`);
-    }
-    
-    // ทดสอบว่าไฟล์ถูกบันทึกจริงหรือไม่
-    const fileExists = fs.existsSync(filePath);
-    console.log(`File exists check: ${fileExists}`);
-    
-    // ล้าง cache หรือดึงข้อมูลใหม่ถ้าเป็นไปได้
-    try {
-      const { revalidatePath } = require('next/cache');
-      revalidatePath('/images/product');
-      console.log('Revalidated path: /images/product');
-    } catch (revalidateError) {
-      console.log('Revalidation not available:', revalidateError);
-    }
+    // Write the file to disk
+    await writeFile(filePath, buffer);
     
     // Return success response with the filename
     return NextResponse.json({
       success: true,
       message: 'อัปโหลดรูปภาพเรียบร้อย',
-      filename: filename,
-      path: `/images/product/${filename}`,
-      fullUrl: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/images/product/${filename}?v=${Date.now()}`
+      filename: filename
     });
   } catch (error) {
     console.error('Error uploading image:', error);
