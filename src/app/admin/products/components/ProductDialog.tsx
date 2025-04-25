@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Product } from '../client';
+import { CircularProgress } from '@mui/material';
 
 interface ProductImage {
   id?: number;
@@ -28,7 +29,12 @@ import {
   InputAdornment,
   Divider,
   Stack,
-  Paper
+  Paper,
+  Chip,
+  FormControl,
+  FormLabel,
+  RadioGroup,
+  Radio
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import SaveIcon from '@mui/icons-material/Save';
@@ -122,6 +128,7 @@ export default function ProductDialog({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [additionalImages, setAdditionalImages] = useState<ProductImage[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(-1);
+  const [deletingImageIndex, setDeletingImageIndex] = useState<number>(-1);
   
   // Fetch categories when component mounts
   useEffect(() => {
@@ -381,12 +388,51 @@ export default function ProductDialog({
   };
   
   // Remove an additional image
-  const handleRemoveAdditionalImage = (index: number) => {
-    setAdditionalImages(prev => prev.filter((_, i) => i !== index));
-    if (selectedImageIndex === index) {
-      setSelectedImageIndex(-1);
-    } else if (selectedImageIndex > index) {
-      setSelectedImageIndex(prev => prev - 1);
+  const handleRemoveAdditionalImage = async (index: number) => {
+    // ป้องกันการลบซ้ำขณะกำลังลบอยู่
+    if (deletingImageIndex !== -1) return;
+    
+    // ตั้งค่า index ที่กำลังลบ
+    setDeletingImageIndex(index);
+    
+    try {
+      // ดึงข้อมูลรูปภาพที่ต้องการลบ
+      const imageToRemove = additionalImages[index];
+      
+      // ถ้ารูปอยู่ในฐานข้อมูล (มี id) ให้ลบผ่าน API
+      if (!imageToRemove.isNew && imageToRemove.id) {
+        try {
+          const response = await fetch(`/api/admin/products/images?id=${imageToRemove.id}`, {
+            method: 'DELETE',
+            credentials: 'include'
+          });
+          
+          if (!response.ok) {
+            console.error('Failed to delete image from server', await response.json());
+            setDeletingImageIndex(-1);
+            return;
+          }
+          
+          console.log('Image deleted successfully from server');
+        } catch (error) {
+          console.error('Error deleting image:', error);
+          setDeletingImageIndex(-1);
+          return;
+        }
+      }
+      
+      // ลบรูปภาพออกจาก state
+      setAdditionalImages(prev => prev.filter((_, i) => i !== index));
+      
+      // รีเซ็ตรูปที่เลือกถ้าจำเป็น
+      if (selectedImageIndex === index) {
+        setSelectedImageIndex(-1);
+      } else if (selectedImageIndex > index) {
+        setSelectedImageIndex(prev => prev - 1);
+      }
+    } finally {
+      // รีเซ็ตสถานะการลบไม่ว่าจะสำเร็จหรือไม่
+      setDeletingImageIndex(-1);
     }
   };
   
@@ -901,13 +947,20 @@ export default function ProductDialog({
                           <IconButton 
                             size="small" 
                             color="error"
+                            disabled={deletingImageIndex === index}
                             onClick={(e) => {
                               e.stopPropagation();
+                              e.preventDefault();
                               handleRemoveAdditionalImage(index);
                             }}
+                            onMouseDown={(e) => e.stopPropagation()}
                             sx={{ p: 0.5 }}
                           >
-                            <DeleteIcon fontSize="small" />
+                            {deletingImageIndex === index ? (
+                              <CircularProgress size={18} color="inherit" />
+                            ) : (
+                              <DeleteIcon fontSize="small" />
+                            )}
                           </IconButton>
                         </Box>
                       </Box>

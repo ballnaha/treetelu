@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { withAdminAuth } from '@/middleware/adminAuth';
 import fs from 'fs';
 import path from 'path';
+import { revalidatePath, revalidateTag } from 'next/cache';
 
 const prisma = new PrismaClient();
 
@@ -158,6 +159,12 @@ export const DELETE = withAdminAuth(async (req: NextRequest) => {
       console.error('Error deleting image file:', fileError);
       // Continue even if file deletion fails
     }
+    
+    // Revalidate cache
+    revalidatePath('/images/product', 'layout');
+    revalidatePath('/admin/products', 'layout');
+    revalidatePath('/products', 'layout');
+    revalidateTag('product-images');
     
     return NextResponse.json({
       success: true,
