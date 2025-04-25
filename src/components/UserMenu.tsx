@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Box, Typography, IconButton, Menu, MenuItem, Button, Divider } from '@mui/material';
+import { Box, Typography, IconButton, Menu, MenuItem, Button, Divider, Avatar } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
@@ -102,17 +102,6 @@ export default function UserMenu() {
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-      <Typography 
-        variant="body2" 
-        sx={{ 
-          fontFamily: 'inherit',
-          fontWeight: 500,
-          mr: 1
-        }}
-      >
-        สวัสดี, {user.name.length > 10 ? `${user.name.substring(0, 10)}...` : user.name}
-      </Typography>
-      
       <IconButton
         onClick={handleClick}
         size="medium"
@@ -123,11 +112,20 @@ export default function UserMenu() {
           color: 'text.primary',
           '&:hover': {
             color: 'primary.main',
-          },
-          mr: 1
+          }
         }}
       >
-        <AccountCircleIcon />
+        <Avatar 
+          sx={{ 
+            width: 32, 
+            height: 32, 
+            bgcolor: 'primary.main',
+            fontSize: '0.875rem',
+            fontWeight: 600
+          }}
+        >
+          {user.name.charAt(0).toUpperCase()}
+        </Avatar>
       </IconButton>
       
       <Menu
@@ -139,9 +137,21 @@ export default function UserMenu() {
           'aria-labelledby': 'account-button',
         }}
       >
+        <Box sx={{ px: 2, py: 1 }}>
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              fontFamily: 'inherit',
+              fontWeight: 600,
+              color: 'primary.main'
+            }}
+          >
+            สวัสดี, {user.name}
+          </Typography>
+        </Box>
+        <Divider />
         <MenuItem onClick={() => {router.push('/profile'); handleClose();}}>โปรไฟล์</MenuItem>
         <MenuItem onClick={() => {router.push('/orders'); handleClose();}}>ประวัติการสั่งซื้อ</MenuItem>
-        <MenuItem onClick={() => {router.push('/new-menu'); handleClose();}}>เมนูใหม่</MenuItem>
         
         {/* เมนูพิเศษสำหรับผู้ดูแลระบบ - แสดงตลอดเวลาสำหรับการทดสอบ */}
         {user.isAdmin && <Divider />}

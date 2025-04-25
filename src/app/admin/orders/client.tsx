@@ -218,7 +218,7 @@ export default function AdminOrdersClient() {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 6 }}>
+    <Container maxWidth="xl" sx={{ py: 0 }}>
       {/* Page Header */}
       <Box sx={{ 
         display: 'flex', 
@@ -226,7 +226,7 @@ export default function AdminOrdersClient() {
         justifyContent: 'space-between',
         alignItems: { xs: 'flex-start', md: 'center' },
         mb: 3,
-        gap: 2
+        gap: 2,
       }}>
         <Box>
           <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', color: 'text.primary' }}>

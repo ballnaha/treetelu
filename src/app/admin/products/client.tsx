@@ -298,7 +298,7 @@ export default function AdminProductsClient() {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 6 }}>
+    <Container maxWidth="xl" sx={{ py: 0}}>
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
