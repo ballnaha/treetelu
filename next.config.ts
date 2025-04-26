@@ -13,7 +13,7 @@ const nextConfig = {
   experimental: {
     // เปิดใช้งานการทำงานแบบ serverActions เพื่อใช้ revalidatePath และ revalidateTag
     serverActions: true,
-    serverComponentsExternalPackages: [], // ช่วยลดปัญหาการ cache ของ server components
+    serverExternalPackages: [],
   },
   images: {
     //
