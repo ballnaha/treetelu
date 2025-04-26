@@ -8,12 +8,10 @@ const nextConfig = {
     'https://168.231.118.94'
   ],
   reactStrictMode: true,
-  output: 'standalone', // ช่วยให้การเข้าถึงไฟล์สถิติใน production mode ดีขึ้น
   distDir: '.next', // ระบุโฟลเดอร์สำหรับ build output
   experimental: {
-    // เปิดใช้งานการทำงานแบบ serverActions เพื่อใช้ revalidatePath และ revalidateTag
-    serverActions: true,
-    serverExternalPackages: [],
+    // Server Actions ได้ถูกเปิดใช้งานเป็นค่าเริ่มต้นใน Next.js เวอร์ชัน 14 ขึ้นไป
+    // ไม่จำเป็นต้องระบุ serverActions: true อีกต่อไป
   },
   images: {
     //
