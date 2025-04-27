@@ -347,7 +347,7 @@ export default function AdminProductsClient() {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 0}}>
+    <Container maxWidth="xl" sx={{ py: 0 }}>
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
@@ -370,7 +370,7 @@ export default function AdminProductsClient() {
         justifyContent: 'space-between',
         alignItems: { xs: 'flex-start', md: 'center' },
         mb: 3,
-        gap: 2
+        gap: 2,
       }}>
         <Box>
           <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', color: 'text.primary' }}>

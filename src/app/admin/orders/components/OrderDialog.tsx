@@ -58,6 +58,13 @@ export interface Order {
     firstName: string;
     lastName: string;
   };
+  paymentInfo?: {
+    slipUrl?: string;
+  };
+  paymentConfirmations?: {
+    slipUrl: string;
+    createdAt: string;
+  }[];
 }
 
 // Enum ที่ตรงกับ model Order ในฐานข้อมูล
@@ -122,12 +129,20 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
   const [status, setStatus] = useState<string>(order?.status || 'PENDING');
   const [paymentStatus, setPaymentStatus] = useState<string>(order?.paymentStatus || 'PENDING');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [paymentImage, setPaymentImage] = useState<string | null>(null);
+  const [showImageModal, setShowImageModal] = useState(false);
   
   // Reset form when order changes
   useEffect(() => {
     if (order) {
       setStatus(order.status);
       setPaymentStatus(order.paymentStatus);
+      
+      // หารูปหลักฐานการชำระเงิน
+      const slipUrl = order.paymentInfo?.slipUrl || 
+                     (order.paymentConfirmations && order.paymentConfirmations.length > 0 ? 
+                       order.paymentConfirmations[0].slipUrl : null);
+      setPaymentImage(slipUrl || null);
     }
   }, [order]);
   
@@ -447,6 +462,35 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
                 </Typography>
               </Box>
             </Stack>
+            
+            {/* แสดงรูปหลักฐานการชำระเงิน */}
+            {paymentImage && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                  หลักฐานการชำระเงิน
+                </Typography>
+                <Box 
+                  component="img" 
+                  src={paymentImage}
+                  alt="หลักฐานการชำระเงิน"
+                  sx={{ 
+                    width: '100%', 
+                    maxWidth: 300, 
+                    height: 'auto', 
+                    cursor: 'pointer', 
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1
+                  }}
+                  onClick={() => setShowImageModal(true)}
+                  onError={(e) => {
+                    // Fallback if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.src = 'https://via.placeholder.com/300x400?text=ไม่พบรูปภาพ';
+                  }}
+                />
+              </Box>
+            )}
           </Paper>
         </Box>
       </DialogContent>
@@ -502,6 +546,40 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
             ยืนยันการลบ
           </Button>
         </DialogActions>
+      </Dialog>
+      
+      {/* Modal แสดงรูปภาพเต็มจอ */}
+      <Dialog 
+        open={showImageModal} 
+        onClose={() => setShowImageModal(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          หลักฐานการชำระเงิน
+          <IconButton onClick={() => setShowImageModal(false)}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {paymentImage && (
+            <Box 
+              component="img" 
+              src={paymentImage}
+              alt="หลักฐานการชำระเงิน"
+              sx={{ 
+                width: '100%', 
+                height: 'auto',
+                objectFit: 'contain'
+              }}
+              onError={(e) => {
+                // Fallback if image fails to load
+                const target = e.target as HTMLImageElement;
+                target.src = 'https://via.placeholder.com/800x600?text=ไม่พบรูปภาพ';
+              }}
+            />
+          )}
+        </DialogContent>
       </Dialog>
     </Dialog>
   );

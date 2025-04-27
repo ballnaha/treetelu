@@ -314,7 +314,7 @@ function PaymentConfirmationClient() {
             py: { xs: 4, md: 6 },
             display: 'flex',
             alignItems: 'center',
-            backgroundColor: '#f8f8f8'
+            backgroundColor: 'white'
           }}
         >
           <Container maxWidth="lg">
@@ -390,7 +390,7 @@ function PaymentConfirmationClient() {
         sx={{ 
           flex: 1,
           py: { xs: 4, md: 4, lg: 4 },
-          backgroundColor: '#f8f8f8', 
+          backgroundColor: 'white', 
         }}
       >
         <Container sx={{ 

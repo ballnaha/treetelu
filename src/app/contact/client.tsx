@@ -54,7 +54,7 @@ export default function ContactPage() {
     sx={{ 
       flex: 1,
       py: { xs: 4, md: 4, lg: 4 },
-      backgroundColor: '#f8f8f8', 
+      backgroundColor: 'white', 
     }}
   >
       {/* Breadcrumb Navigation */}

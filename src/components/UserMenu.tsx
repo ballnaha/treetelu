@@ -151,7 +151,7 @@ export default function UserMenu() {
         </Box>
         <Divider />
         <MenuItem onClick={() => {router.push('/profile'); handleClose();}}>โปรไฟล์</MenuItem>
-        <MenuItem onClick={() => {router.push('/orders'); handleClose();}}>ประวัติการสั่งซื้อ</MenuItem>
+        <MenuItem onClick={() => {router.push('/order-history'); handleClose();}}>ประวัติการสั่งซื้อ</MenuItem>
         
         {/* เมนูพิเศษสำหรับผู้ดูแลระบบ - แสดงตลอดเวลาสำหรับการทดสอบ */}
         {user.isAdmin && <Divider />}

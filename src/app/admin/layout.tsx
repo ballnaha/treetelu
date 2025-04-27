@@ -281,7 +281,7 @@ export default function AdminLayout({
       <Box component="main" sx={{ 
         pt: { xs: 8, sm: 9 }, // ให้เนื้อหาอยู่ใต้ header
         minHeight: '100vh',
-        bgcolor: '#f5f5f5'
+        
       }}>
         {children}
       </Box>

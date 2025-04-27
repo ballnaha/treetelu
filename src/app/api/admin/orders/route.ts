@@ -105,13 +105,35 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
       }
     });
     
+    // ดึง payment confirmations สำหรับออเดอร์ทั้งหมด
+    const orderNumbers = orders.map(order => order.orderNumber);
+    const paymentConfirmations = await prisma.paymentConfirmation.findMany({
+      where: {
+        orderNumber: { in: orderNumbers }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+    
+    // จัดกลุ่ม payment confirmations ตาม orderNumber
+    const paymentConfirmationsByOrderNumber = paymentConfirmations.reduce((acc, pc) => {
+      if (!acc[pc.orderNumber]) {
+        acc[pc.orderNumber] = [];
+      }
+      acc[pc.orderNumber].push(pc);
+      return acc;
+    }, {} as Record<string, any[]>);
+    
     // Format dates and convert BigInt values to strings before sending to client
     const formattedOrders = orders.map((order: any) => {
       // Create a new object with formatted dates
       const formattedOrder = {
         ...order,
         createdAt: order.createdAt.toISOString(),
-        updatedAt: order.updatedAt.toISOString()
+        updatedAt: order.updatedAt.toISOString(),
+        // เพิ่ม payment confirmations ที่เกี่ยวข้องกับออเดอร์นี้
+        paymentConfirmations: paymentConfirmationsByOrderNumber[order.orderNumber] || []
       };
       return formattedOrder;
     });
@@ -213,11 +235,22 @@ export const PUT = withAdminAuth(async (req: NextRequest) => {
       }
     });
     
+    // ดึงข้อมูล payment confirmations ที่เกี่ยวข้องกับออเดอร์นี้
+    const paymentConfirmations = await prisma.paymentConfirmation.findMany({
+      where: {
+        orderNumber: updatedOrder.orderNumber
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+    
     // Format dates and convert BigInt values to strings before sending to client
     const formattedOrder = {
       ...updatedOrder,
       createdAt: updatedOrder.createdAt.toISOString(),
-      updatedAt: updatedOrder.updatedAt.toISOString()
+      updatedAt: updatedOrder.updatedAt.toISOString(),
+      paymentConfirmations: paymentConfirmations || []
     };
     
     // Convert BigInt values to strings
