@@ -37,12 +37,59 @@ function convertBigIntToString(obj: any): any {
 }
 
 /**
- * GET handler for fetching all orders (admin only)
+ * GET handler for fetching all orders or a single order by ID (admin only)
  */
 export const GET = withAdminAuth(async (req: NextRequest) => {
   console.log('Admin orders API called');
   try {
     const url = new URL(req.url);
+    const orderId = url.searchParams.get('orderId');
+    
+    // ถ้ามี orderId ให้ดึงข้อมูลคำสั่งซื้อเฉพาะรายการนั้น
+    if (orderId) {
+      console.log('Fetching single order with ID:', orderId);
+      
+      const order = await prisma.order.findUnique({
+        where: { id: parseInt(orderId) },
+        include: {
+          customerInfo: true,
+          orderItems: true,
+          shippingInfo: true,
+          paymentInfo: true
+        }
+      });
+      
+      if (!order) {
+        return NextResponse.json(
+          { success: false, message: 'ไม่พบคำสั่งซื้อที่ต้องการ' },
+          { status: 404 }
+        );
+      }
+      
+      // ดึงข้อมูล payment confirmations ที่เกี่ยวข้องกับออเดอร์นี้
+      const paymentConfirmations = await prisma.paymentConfirmation.findMany({
+        where: { orderNumber: order.orderNumber },
+        orderBy: { createdAt: 'desc' }
+      });
+      
+      // Format dates and convert BigInt values to strings
+      const formattedOrder = {
+        ...order,
+        createdAt: order.createdAt.toISOString(),
+        updatedAt: order.updatedAt.toISOString(),
+        paymentConfirmations: paymentConfirmations || []
+      };
+      
+      // Convert BigInt values to strings
+      const safeOrder = convertBigIntToString(formattedOrder);
+      
+      return NextResponse.json({
+        success: true,
+        order: safeOrder
+      });
+    }
+    
+    // ถ้าไม่มี orderId ให้ดึงข้อมูลคำสั่งซื้อทั้งหมดตามเดิม
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '10');
     const status = url.searchParams.get('status') || undefined;

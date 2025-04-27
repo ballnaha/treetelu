@@ -279,7 +279,7 @@ export default function AdminLayout({
       
       {/* เนื้อหาหลัก */}
       <Box component="main" sx={{ 
-        pt: { xs: 8, sm: 9 }, // ให้เนื้อหาอยู่ใต้ header
+        pt: { xs: 0, sm: 0 }, // ให้เนื้อหาอยู่ใต้ header
         minHeight: '100vh',
         
       }}>
