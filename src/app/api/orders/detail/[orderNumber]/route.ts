@@ -33,9 +33,11 @@ const prisma = new PrismaClient();
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { orderNumber: string } }
+  context: { params: Promise<{ orderNumber: string }> }
 ) {
   try {
+    // รอให้ params ถูก resolve ก่อนใช้งาน
+    const params = await context.params;
     console.log('Order detail API called for order:', params.orderNumber);
     
     // ตรวจสอบว่าผู้ใช้ล็อกอินแล้วหรือไม่
