@@ -298,10 +298,20 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
 
     // ตรวจสอบว่ามีรูป thumbnail หรือไม่
     if (isThumbnail) {
-      return `/images/product/${imageName}`;
+      return `/images/product/${imageName}?v=${getImageVersion(imageName)}`;
     }
     
-    return `/images/product/${imageName}`;
+    return `/images/product/${imageName}?v=${getImageVersion(imageName)}`;
+  };
+
+  // สร้างเวอร์ชันของรูปภาพจากชื่อไฟล์ (ใช้ส่วนแรกของ UUID)
+  const getImageVersion = (imageName: string) => {
+    // ใช้ 8 ตัวแรกของชื่อไฟล์เป็น version หรือใช้ timestamp หากไม่มี UUID pattern
+    const match = imageName.match(/^([a-f0-9]{8})-/);
+    if (match) {
+      return match[1];
+    }
+    return '1'; // default version
   };
 
   // ตรวจสอบว่ารูป thumbnail มีอยู่จริงหรือไม่
@@ -436,6 +446,9 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
                   onError={handleMainImageError}
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   quality={85}
+                  loading="eager"
+                  placeholder="blur"
+                  blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChgF/sWryvgAAAABJRU5ErkJggg=="
                 />
                 {hasDiscount && (
                   <Chip 
@@ -476,6 +489,9 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
                         onError={(e) => handleThumbnailError(e, img)}
                         sizes="(max-width: 768px) 60px, 80px"
                         loading="eager"
+                        quality={75}
+                        placeholder="blur"
+                        blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChgF/sWryvgAAAABJRU5ErkJggg=="
                       />
                     </ThumbImage>
                   ))}

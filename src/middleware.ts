@@ -50,6 +50,15 @@ export async function middleware(request: NextRequest) {
     
     console.log('Middleware: Rewriting to:', url.pathname);
     
+    // ตรวจสอบว่าเป็นคำขอจาก browser ที่มี Cache-Control: no-cache หรือไม่
+    const cacheControl = request.headers.get('cache-control') || '';
+    const noCacheBrowser = cacheControl.includes('no-cache') || cacheControl.includes('max-age=0');
+    
+    // ถ้าเป็นคำขอที่ระบุให้ไม่ใช้ cache ก็เพิ่ม query parameter
+    if (noCacheBrowser) {
+      url.searchParams.set('no-cache', 'true');
+    }
+    
     // ทำการ rewrite URL
     return NextResponse.rewrite(url);
   }
@@ -64,6 +73,15 @@ export async function middleware(request: NextRequest) {
     url.pathname = `/api/image/${pathname.substring(1)}`;
     
     console.log('Middleware: Rewriting to:', url.pathname);
+    
+    // ตรวจสอบว่าเป็นคำขอจาก browser ที่มี Cache-Control: no-cache หรือไม่
+    const cacheControl = request.headers.get('cache-control') || '';
+    const noCacheBrowser = cacheControl.includes('no-cache') || cacheControl.includes('max-age=0');
+    
+    // ถ้าเป็นคำขอที่ระบุให้ไม่ใช้ cache ก็เพิ่ม query parameter
+    if (noCacheBrowser) {
+      url.searchParams.set('no-cache', 'true');
+    }
     
     // ทำการ rewrite URL
     return NextResponse.rewrite(url);

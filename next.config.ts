@@ -16,9 +16,12 @@ const nextConfig = {
   // ย้ายจาก experimental.serverComponentsExternalPackages ไปเป็น serverExternalPackages ตามคำแนะนำ
   serverExternalPackages: ['fs', 'path'],
   images: {
-    //
     domains: ['localhost', '168.231.118.94'],
-    unoptimized: true, // ไม่ทำการ optimize รูปภาพเพื่อป้องกันปัญหา cache
+    unoptimized: false, // เปิดใช้งานการ optimize รูปภาพของ Next.js เพื่อให้รูปภาพโหลดเร็วขึ้น
+    formats: ['image/webp'], // แปลงรูปภาพเป็น WebP เพื่อให้ขนาดไฟล์เล็กลง
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920], // ขนาดของอุปกรณ์ที่จะใช้ในการสร้างรูปภาพ
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384], // ขนาดของรูปภาพที่จะถูกสร้าง
+    minimumCacheTTL: 3600, // ตั้งค่า cache รูปภาพขั้นต่ำเป็น 1 ชั่วโมง
   },
   // เพิ่ม config สำหรับ static files
   staticPageGenerationTimeout: 1000,
@@ -73,7 +76,7 @@ const nextConfig = {
       ]
     }
   },
-  // เพื่อป้องกันการ cache static files นานเกินไป
+  // แก้ไขการตั้งค่า headers เพื่อให้สามารถ cache รูปภาพได้
   headers: async () => {
     return [
       {
@@ -86,23 +89,12 @@ const nextConfig = {
         ],
       },
       {
+        // เปิดใช้งาน cache สำหรับรูปภาพใน /images/ 
         source: '/images/:path*',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'no-store, no-cache, must-revalidate, max-age=0',
-          },
-          {
-            key: 'Pragma',
-            value: 'no-cache',
-          },
-          {
-            key: 'Expires',
-            value: '0',
-          },
-          {
-            key: 'Surrogate-Control',
-            value: 'no-store',
+            value: 'public, max-age=3600, stale-while-revalidate=86400',
           },
           {
             key: 'X-Content-Type-Options',
@@ -111,23 +103,12 @@ const nextConfig = {
         ],
       },
       {
+        // เปิดใช้งาน cache สำหรับรูปภาพใน /uploads/
         source: '/uploads/:path*',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'no-store, no-cache, must-revalidate, max-age=0',
-          },
-          {
-            key: 'Pragma',
-            value: 'no-cache',
-          },
-          {
-            key: 'Expires',
-            value: '0',
-          },
-          {
-            key: 'Surrogate-Control',
-            value: 'no-store',
+            value: 'public, max-age=3600, stale-while-revalidate=86400',
           },
           {
             key: 'X-Content-Type-Options',
