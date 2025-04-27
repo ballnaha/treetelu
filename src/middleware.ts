@@ -1,11 +1,25 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// อ่าน content type ของไฟล์
+function getContentType(filename: string): string {
+  if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) {
+    return 'image/jpeg';
+  } else if (filename.endsWith('.png')) {
+    return 'image/png';
+  } else if (filename.endsWith('.gif')) {
+    return 'image/gif';
+  } else if (filename.endsWith('.webp')) {
+    return 'image/webp';
+  }
+  return 'application/octet-stream';
+}
+
 /**
  * Next.js middleware function
  * This runs before any route is processed
  */
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   // Define admin-only paths
   const adminPaths = [
     '/admin',
@@ -17,6 +31,43 @@ export function middleware(request: NextRequest) {
   
   // Get the pathname from the request URL
   const { pathname } = request.nextUrl;
+  
+  console.log('Middleware processing path:', pathname);
+  
+  // ตรวจสอบว่าเป็นการเรียกไฟล์รูปภาพสินค้าหรือไม่
+  if (pathname.startsWith('/images/product/')) {
+    console.log('Middleware: Handling image path:', pathname);
+    
+    // สร้าง URL ใหม่ที่ชี้ไปที่ API route
+    const url = request.nextUrl.clone();
+    
+    // แยกชื่อไฟล์และ query string
+    const segments = pathname.split('/');
+    const fileName = segments[segments.length - 1];
+    
+    // แก้ไข path และคงส่วน query string ไว้
+    url.pathname = `/api/image/${pathname.substring(1)}`;
+    
+    console.log('Middleware: Rewriting to:', url.pathname);
+    
+    // ทำการ rewrite URL
+    return NextResponse.rewrite(url);
+  }
+  
+  if (pathname.startsWith('/uploads/payment-slips/')) {
+    console.log('Middleware: Handling payment slip path:', pathname);
+    
+    // สร้าง URL ใหม่ที่ชี้ไปที่ API route
+    const url = request.nextUrl.clone();
+    
+    // แก้ไข path และคงส่วน query string ไว้
+    url.pathname = `/api/image/${pathname.substring(1)}`;
+    
+    console.log('Middleware: Rewriting to:', url.pathname);
+    
+    // ทำการ rewrite URL
+    return NextResponse.rewrite(url);
+  }
   
   // For the login page, we'll allow access regardless of token status
   // This prevents redirect loops and allows users to log in again if needed
@@ -70,3 +121,13 @@ export function middleware(request: NextRequest) {
   // For non-admin paths, proceed normally
   return NextResponse.next();
 }
+
+// กำหนด path patterns ที่จะให้ middleware นี้ทำงาน
+export const config = {
+  matcher: [
+    '/admin/:path*',
+    '/login',
+    '/images/product/:path*',
+    '/uploads/payment-slips/:path*'
+  ],
+};

@@ -55,8 +55,13 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
     const timestamp = Date.now();
     const filename = `${uuidv4()}_${timestamp}${ext}`;
     
+    // Define paths for both development and production
+    const isProd = process.env.NODE_ENV === 'production';
+    
     // Define the path to save the file
-    const publicPath = join(process.cwd(), 'public', 'images', 'product');
+    // ในโหมด production ให้เก็บไฟล์ไว้ที่ /uploads/images/product แทน /public
+    const baseDir = isProd ? join(process.cwd(), 'uploads') : join(process.cwd(), 'public');
+    const publicPath = join(baseDir, 'images', 'product');
     const filePath = join(publicPath, filename);
     
     console.log(`Preparing to save file to: ${filePath}`);

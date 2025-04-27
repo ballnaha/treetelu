@@ -17,8 +17,10 @@ async function uploadFileToStorage(file: Buffer, filename: string): Promise<stri
     const timestamp = Date.now();
     const uniqueFilename = `${uuidv4()}_${timestamp}-${filename}`;
     
-    // กำหนดโฟลเดอร์สำหรับเก็บไฟล์
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'payment-slips');
+    // กำหนดโฟลเดอร์สำหรับเก็บไฟล์ (แยกตาม environment)
+    const isProd = process.env.NODE_ENV === 'production';
+    const baseDir = isProd ? path.join(process.cwd(), 'uploads') : path.join(process.cwd(), 'public');
+    const uploadDir = path.join(baseDir, 'uploads', 'payment-slips');
     const filePath = path.join(uploadDir, uniqueFilename);
     
     // ตรวจสอบและสร้างโฟลเดอร์หากยังไม่มี
