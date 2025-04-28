@@ -159,8 +159,8 @@ export default function AdminProductsClient() {
       });
       
       const data = await response.json();
-      console.log('API response status:', response.status, response.statusText);
-      console.log('API response data:', data);
+      //console.log('API response status:', response.status, response.statusText);
+      //console.log('API response data:', data);
       
       if (!response.ok) {
         throw new Error(data.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลสินค้า');
