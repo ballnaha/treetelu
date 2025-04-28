@@ -471,7 +471,11 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
         {/* เนื้อหาหลัก */}
         <Box>
           {/* สไลด์เด่นหลักสุด */}
-          <HeroSection>
+          <HeroSection sx={{ 
+            position: 'relative',
+            overflow: 'hidden',
+            marginTop: -6
+          }}>
             <Container maxWidth={false} disableGutters>
               <Box 
                 onTouchStart={handleTouchStart}
@@ -551,7 +555,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                           justifyContent: { xs: 'flex-end', md: 'center' },
                           pb: { xs: 8, md: 0 },
                           position: 'relative',
-                          zIndex: 2
+                          zIndex: 2,
                         }}
                       >
                         <Box sx={{ 
