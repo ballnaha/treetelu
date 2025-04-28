@@ -429,7 +429,7 @@ export default function Checkout() {
 
   const handlePlaceOrder = async () => {
     // Debug log for user object
-    console.log('User object in checkout:', user);
+    //console.log('User object in checkout:', user);
     if (isProcessing) return;
     
     setShowAlert(false);
@@ -503,12 +503,12 @@ export default function Checkout() {
       };
       
       // Debug log for order data with userId
-      console.log('Order data with userId:', {
-        userId: orderData.userId,
-        userLoggedIn: user?.isLoggedIn,
-        userId_raw: user?.id,
-        userId_converted: user?.id ? Number(user.id) : undefined
-      });
+      // console.log('Order data with userId:', {
+      //   userId: orderData.userId,
+      //   userLoggedIn: user?.isLoggedIn,
+      //   userId_raw: user?.id,
+      //   userId_converted: user?.id ? Number(user.id) : undefined
+      // });
       
       // ถ้าเป็นการจัดส่งให้ตัวเอง
       if (shippingTab === 0) {
@@ -553,7 +553,7 @@ export default function Checkout() {
         };
       }
       
-      console.log('Sending order data:', JSON.stringify(orderData, null, 2));
+      //console.log('Sending order data:', JSON.stringify(orderData, null, 2));
 
       // ส่งข้อมูลไปยัง API
       const response = await fetch('/api/orders', {

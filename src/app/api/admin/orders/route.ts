@@ -96,12 +96,13 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
     const search = url.searchParams.get('search') || undefined;
     const dateFrom = url.searchParams.get('dateFrom') || undefined;
     const dateTo = url.searchParams.get('dateTo') || undefined;
+    const paymentStatus = url.searchParams.get('paymentStatus') || undefined;
     
     // ตรวจสอบว่าเป็น 'all' หรือไม่
     const isShowAll = limitParam.toLowerCase() === 'all';
     const limit = isShowAll ? 1000 : parseInt(limitParam); // ใช้ค่าสูงๆ เช่น 1000 เมื่อเป็น 'all'
     
-    console.log('Query params:', { page, limit, isShowAll, status, search, dateFrom, dateTo });
+    console.log('Query params:', { page, limit, isShowAll, status, search, dateFrom, dateTo, paymentStatus });
     
     // Calculate pagination
     const skip = (page - 1) * limit;
@@ -111,6 +112,10 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
     
     if (status) {
       where.status = status as OrderStatus;
+    }
+    
+    if (paymentStatus) {
+      where.paymentStatus = paymentStatus as PaymentStatus;
     }
     
     if (dateFrom || dateTo) {

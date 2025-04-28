@@ -31,7 +31,7 @@ export default function UserMenu() {
   const router = useRouter();
   const { user, logout, isLoading } = useAuth();
   
-  console.log('UserMenu: user from AuthContext:', user);
+  //console.log('UserMenu: user from AuthContext:', user);
   
   // state สำหรับ menu
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);

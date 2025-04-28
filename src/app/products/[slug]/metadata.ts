@@ -19,11 +19,11 @@ export async function generateMetadata(props: any): Promise<Metadata> {
     product = await res.json();
     
     // พิมพ์ค่าเพื่อดูข้อมูล
-    console.log('Product data for SEO:', {
-      productName: product?.productName,
-      slug: slug,
-      status: res.status
-    });
+    // console.log('Product data for SEO:', {
+    //   productName: product?.productName,
+    //   slug: slug,
+    //   status: res.status
+    // });
   } catch (error) {
     console.error('Error fetching product data for metadata:', error);
   }

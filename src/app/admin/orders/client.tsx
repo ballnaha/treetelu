@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import OrderList from './components/OrderList';
 import OrderFilters from './components/OrderFilters';
@@ -14,17 +14,21 @@ import {
   Box, 
   Paper, 
   Button, 
-  Alert, 
   CircularProgress,
   Divider,
-  Stack
+  Stack,
+  Snackbar,
+  IconButton
 } from '@mui/material';
+import MuiAlert from '@mui/material/Alert';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import PrintIcon from '@mui/icons-material/Print';
+import CloseIcon from '@mui/icons-material/Close';
 
 export default function AdminOrdersClient() {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -43,13 +47,71 @@ export default function AdminOrdersClient() {
     totalPages: 0
   });
   
+  // Snackbar states
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'info' | 'warning'
+  });
+
+  // Handle close snackbar
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
+  
+  // Show snackbar message
+  const showSnackbar = (message: string, severity: 'success' | 'error' | 'info' | 'warning' = 'success') => {
+    setSnackbar({
+      open: true,
+      message,
+      severity
+    });
+  };
+
   // Filter states
   const [filters, setFilters] = useState({
     status: '',
     dateFrom: '',
     dateTo: '',
-    searchTerm: ''
+    searchTerm: '',
+    paymentStatus: ''
   });
+
+  // ตรวจสอบพารามิเตอร์ URL จาก searchParams
+  useEffect(() => {
+    if (searchParams) {
+      const statusParam = searchParams.get('status');
+      const paymentStatusParam = searchParams.get('paymentStatus');
+      const searchTermParam = searchParams.get('search');
+      const dateFromParam = searchParams.get('dateFrom');
+      const dateToParam = searchParams.get('dateTo');
+      
+      console.log('URL Parameters from searchParams:', { 
+        statusParam, 
+        paymentStatusParam,
+        searchTermParam,
+        dateFromParam,
+        dateToParam
+      });
+      
+      // สร้าง object filters ใหม่ทั้งหมด ไม่ใช้ ...filters ซึ่งอาจอ้างอิงค่าเก่า
+      const newFilters = {
+        status: statusParam || '',
+        dateFrom: dateFromParam || '',
+        dateTo: dateToParam || '',
+        searchTerm: searchTermParam || '',
+        paymentStatus: paymentStatusParam || ''
+      };
+      
+      // ตรวจสอบว่าค่า filters เปลี่ยนไปจากเดิมหรือไม่
+      const filtersChanged = JSON.stringify(newFilters) !== JSON.stringify(filters);
+      
+      if (filtersChanged) {
+        console.log('Setting filters from URL params:', newFilters);
+        setFilters(newFilters);
+      }
+    }
+  }, [searchParams]); // เปลี่ยนให้ใช้ searchParams เป็น dependency
 
   // Check if user is admin, redirect if not
   useEffect(() => {
@@ -58,10 +120,11 @@ export default function AdminOrdersClient() {
     }
   }, [user, router]);
 
-  // Fetch orders when page loads or filters change
+  // ดึงรายการคำสั่งซื้อเฉพาะเมื่อผู้ใช้เป็นแอดมิน และเมื่อมีการเปลี่ยนแปลงฟิลเตอร์หรือหน้า
   useEffect(() => {
     if (!user?.isAdmin) return;
     
+    console.log('Fetching orders with filters:', filters);
     fetchOrders();
   }, [pagination.page, pagination.limit, filters, user]);
 
@@ -81,6 +144,7 @@ export default function AdminOrdersClient() {
       }
       
       if (filters.status) queryParams.append('status', filters.status);
+      if (filters.paymentStatus) queryParams.append('paymentStatus', filters.paymentStatus);
       if (filters.dateFrom) queryParams.append('dateFrom', filters.dateFrom);
       if (filters.dateTo) queryParams.append('dateTo', filters.dateTo);
       if (filters.searchTerm) queryParams.append('search', filters.searchTerm);
@@ -131,6 +195,20 @@ export default function AdminOrdersClient() {
   const handleFilterChange = (newFilters: any) => {
     setFilters(newFilters);
     setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page on filter change
+    
+    // สร้าง URL ใหม่ที่มีพารามิเตอร์ตรงกับ filters
+    const queryParams = new URLSearchParams();
+    
+    if (newFilters.status) queryParams.set('status', newFilters.status);
+    if (newFilters.paymentStatus) queryParams.set('paymentStatus', newFilters.paymentStatus);
+    if (newFilters.dateFrom) queryParams.set('dateFrom', newFilters.dateFrom);
+    if (newFilters.dateTo) queryParams.set('dateTo', newFilters.dateTo);
+    if (newFilters.searchTerm) queryParams.set('search', newFilters.searchTerm);
+    
+    // อัปเดต URL โดยไม่โหลดหน้าใหม่
+    const queryString = queryParams.toString();
+    const newPath = queryString ? `/admin/orders?${queryString}` : '/admin/orders';
+    router.push(newPath, { scroll: false });
   };
 
   // Function to handle order selection
@@ -169,14 +247,14 @@ export default function AdminOrdersClient() {
         setSelectedOrder(data.order);
       }
       
-      alert('อัปเดตสถานะคำสั่งซื้อเรียบร้อย');
+      showSnackbar('อัปเดตสถานะคำสั่งซื้อเรียบร้อย', 'success');
     } catch (err: unknown) {
       console.error('Error updating order:', err);
       // Type guard to check if err is an Error object with a message property
       if (err instanceof Error) {
-        alert(err.message);
+        showSnackbar(err.message, 'error');
       } else {
-        alert('เกิดข้อผิดพลาดในการอัปเดตสถานะคำสั่งซื้อ');
+        showSnackbar('เกิดข้อผิดพลาดในการอัปเดตสถานะคำสั่งซื้อ', 'error');
       }
     } finally {
       setLoading(false);
@@ -202,7 +280,7 @@ export default function AdminOrdersClient() {
       
       // Show success message
       setError('');
-      alert('ลบคำสั่งซื้อเรียบร้อยแล้ว');
+      showSnackbar('ลบคำสั่งซื้อเรียบร้อยแล้ว', 'success');
       
       // Refresh the orders list
       fetchOrders();
@@ -214,8 +292,10 @@ export default function AdminOrdersClient() {
       
       if (err instanceof Error) {
         setError(err.message);
+        showSnackbar(err.message, 'error');
       } else {
         setError('เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ');
+        showSnackbar('เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ', 'error');
       }
     } finally {
       setLoading(false);
@@ -270,9 +350,9 @@ export default function AdminOrdersClient() {
       </Box>
       
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <MuiAlert severity="error" sx={{ mb: 3 }}>
           {error}
-        </Alert>
+        </MuiAlert>
       )}
       
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3 }}>
@@ -354,6 +434,31 @@ export default function AdminOrdersClient() {
           )}
         </Box>
       </Box>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        action={
+          <IconButton
+            size="small"
+            color="inherit"
+            onClick={handleCloseSnackbar}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        }
+      >
+        <MuiAlert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </MuiAlert>
+      </Snackbar>
     </Container>
   );
 }

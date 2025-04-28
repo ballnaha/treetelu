@@ -182,10 +182,10 @@ export default function LayoutProvider({ children }: { children: ReactNode }) {
       if (typeof window !== 'undefined') {
         try {
           const userData = localStorage.getItem('user');
-          console.log('Raw user data:', userData); // Log เพื่อ debug
+          //console.log('Raw user data:', userData); // Log เพื่อ debug
           if (userData) {
             const parsedUser = JSON.parse(userData);
-            console.log('Parsed user data:', parsedUser); // Log เพื่อ debug
+            //console.log('Parsed user data:', parsedUser); // Log เพื่อ debug
             setUser(parsedUser);
           } else {
             setUser(null);
@@ -203,7 +203,7 @@ export default function LayoutProvider({ children }: { children: ReactNode }) {
     // ตรวจจับการเปลี่ยนแปลงของ localStorage
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'user') {
-        console.log('User data changed in localStorage');
+        //console.log('User data changed in localStorage');
         getUserData();
       }
     };
@@ -213,7 +213,7 @@ export default function LayoutProvider({ children }: { children: ReactNode }) {
     
     // Custom event สำหรับตรวจจับการเปลี่ยนแปลง login state
     const handleLoginStateChange = () => {
-      console.log('Login state change detected');
+      //console.log('Login state change detected');
       getUserData();
     };
     

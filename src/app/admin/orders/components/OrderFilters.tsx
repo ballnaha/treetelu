@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -11,17 +11,20 @@ import {
   InputAdornment,
   Divider,
   Paper,
-  IconButton
+  IconButton,
+  Chip
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import ClearIcon from '@mui/icons-material/Clear';
 
 interface FiltersProps {
   status: string;
   dateFrom: string;
   dateTo: string;
   searchTerm: string;
+  paymentStatus: string;
 }
 
 interface OrderFiltersProps {
@@ -29,18 +32,45 @@ interface OrderFiltersProps {
   onFilterChange: (filters: FiltersProps) => void;
 }
 
+// สถานะคำสั่งซื้อ Map
+const orderStatusMap: Record<string, string> = {
+  'PENDING': 'รอดำเนินการ',
+  'PROCESSING': 'กำลังดำเนินการ',
+  'PAID': 'ชำระเงินแล้ว',
+  'SHIPPED': 'จัดส่งแล้ว',
+  'DELIVERED': 'จัดส่งสำเร็จ',
+  'CANCELLED': 'ยกเลิก'
+};
+
+// สถานะการชำระเงิน Map
+const paymentStatusMap: Record<string, string> = {
+  'PENDING': 'รอการชำระเงิน',
+  'CONFIRMED': 'ยืนยันการชำระเงินแล้ว',
+  'REJECTED': 'ปฏิเสธการชำระเงิน'
+};
+
 export default function OrderFilters({ filters, onFilterChange }: OrderFiltersProps) {
   const [localFilters, setLocalFilters] = useState<FiltersProps>(filters);
+  const [activeFiltersCount, setActiveFiltersCount] = useState<number>(0);
+  
+  // ปรับปรุง localFilters เมื่อ props filters เปลี่ยนแปลง
+  useEffect(() => {
+    console.log('Filters from props changed:', filters);
+    setLocalFilters(filters);
+    
+    // คำนวณจำนวนตัวกรองที่ใช้งานอยู่
+    const count = Object.values(filters).filter(value => value !== '').length;
+    setActiveFiltersCount(count);
+  }, [filters]);
   
   // Handle input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setLocalFilters(prev => ({ ...prev, [name]: value }));
-  };
-  
-  // Apply filters
-  const applyFilters = () => {
-    onFilterChange(localFilters);
+    const newFilters = { ...localFilters, [name]: value };
+    setLocalFilters(newFilters);
+    // เรียกใช้ onFilterChange ทันทีเมื่อมีการเปลี่ยนแปลงค่า
+    onFilterChange(newFilters);
+    console.log('Filter changed automatically:', name, value);
   };
   
   // Reset filters
@@ -49,10 +79,18 @@ export default function OrderFilters({ filters, onFilterChange }: OrderFiltersPr
       status: '',
       dateFrom: '',
       dateTo: '',
-      searchTerm: ''
+      searchTerm: '',
+      paymentStatus: ''
     };
     setLocalFilters(resetFilters);
     onFilterChange(resetFilters);
+  };
+  
+  // ล้างตัวกรองเฉพาะช่อง
+  const clearSingleFilter = (filterName: keyof FiltersProps) => {
+    const newFilters = { ...localFilters, [filterName]: '' };
+    setLocalFilters(newFilters);
+    onFilterChange(newFilters);
   };
   
   return (
@@ -67,6 +105,14 @@ export default function OrderFilters({ filters, onFilterChange }: OrderFiltersPr
         <Typography variant="h6" component="h2">
           ค้นหาและกรองคำสั่งซื้อ
         </Typography>
+        {activeFiltersCount > 0 && (
+          <Chip 
+            label={`${activeFiltersCount} ตัวกรอง`} 
+            size="small" 
+            color="primary" 
+            sx={{ ml: 'auto' }} 
+          />
+        )}
       </Box>
       
       <Stack spacing={2.5}>
@@ -87,6 +133,18 @@ export default function OrderFilters({ filters, onFilterChange }: OrderFiltersPr
                 <SearchIcon fontSize="small" />
               </InputAdornment>
             ),
+            endAdornment: localFilters.searchTerm ? (
+              <InputAdornment position="end">
+                <IconButton
+                  size="small"
+                  onClick={() => clearSingleFilter('searchTerm')}
+                  edge="end"
+                  aria-label="clear search"
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            ) : null
           }}
         />
         
@@ -101,6 +159,20 @@ export default function OrderFilters({ filters, onFilterChange }: OrderFiltersPr
           size="small"
           value={localFilters.status}
           onChange={handleInputChange}
+          InputProps={{
+            endAdornment: localFilters.status ? (
+              <InputAdornment position="end">
+                <IconButton
+                  size="small"
+                  onClick={() => clearSingleFilter('status')}
+                  edge="end"
+                  aria-label="clear status"
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            ) : null
+          }}
         >
           <MenuItem value="">ทั้งหมด</MenuItem>
           <MenuItem value="PENDING">รอดำเนินการ</MenuItem>
@@ -109,6 +181,38 @@ export default function OrderFilters({ filters, onFilterChange }: OrderFiltersPr
           <MenuItem value="SHIPPED">จัดส่งแล้ว</MenuItem>
           <MenuItem value="DELIVERED">จัดส่งสำเร็จ</MenuItem>
           <MenuItem value="CANCELLED">ยกเลิก</MenuItem>
+        </TextField>
+        
+        {/* Payment Status filter */}
+        <TextField
+          select
+          fullWidth
+          id="paymentStatus"
+          name="paymentStatus"
+          label="สถานะการชำระเงิน"
+          variant="outlined"
+          size="small"
+          value={localFilters.paymentStatus}
+          onChange={handleInputChange}
+          InputProps={{
+            endAdornment: localFilters.paymentStatus ? (
+              <InputAdornment position="end">
+                <IconButton
+                  size="small"
+                  onClick={() => clearSingleFilter('paymentStatus')}
+                  edge="end"
+                  aria-label="clear payment status"
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            ) : null
+          }}
+        >
+          <MenuItem value="">ทั้งหมด</MenuItem>
+          <MenuItem value="PENDING">รอการชำระเงิน</MenuItem>
+          <MenuItem value="CONFIRMED">ยืนยันการชำระเงินแล้ว</MenuItem>
+          <MenuItem value="REJECTED">ปฏิเสธการชำระเงิน</MenuItem>
         </TextField>
         
         {/* Date range */}
@@ -123,6 +227,20 @@ export default function OrderFilters({ filters, onFilterChange }: OrderFiltersPr
           value={localFilters.dateFrom}
           onChange={handleInputChange}
           InputLabelProps={{ shrink: true }}
+          InputProps={{
+            endAdornment: localFilters.dateFrom ? (
+              <InputAdornment position="end">
+                <IconButton
+                  size="small"
+                  onClick={() => clearSingleFilter('dateFrom')}
+                  edge="end"
+                  aria-label="clear date from"
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            ) : null
+          }}
         />
         
         <TextField
@@ -136,33 +254,87 @@ export default function OrderFilters({ filters, onFilterChange }: OrderFiltersPr
           value={localFilters.dateTo}
           onChange={handleInputChange}
           InputLabelProps={{ shrink: true }}
+          InputProps={{
+            endAdornment: localFilters.dateTo ? (
+              <InputAdornment position="end">
+                <IconButton
+                  size="small"
+                  onClick={() => clearSingleFilter('dateTo')}
+                  edge="end"
+                  aria-label="clear date to"
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            ) : null
+          }}
         />
+        
+        {/* แสดงตัวกรองที่ใช้งานอยู่ */}
+        {activeFiltersCount > 0 && (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, my: 1 }}>
+            {localFilters.status && (
+              <Chip 
+                label={`สถานะ: ${orderStatusMap[localFilters.status]}`}
+                size="small"
+                onDelete={() => clearSingleFilter('status')}
+                color="primary"
+                variant="outlined"
+              />
+            )}
+            {localFilters.paymentStatus && (
+              <Chip 
+                label={`การชำระเงิน: ${paymentStatusMap[localFilters.paymentStatus]}`}
+                size="small"
+                onDelete={() => clearSingleFilter('paymentStatus')}
+                color="primary"
+                variant="outlined"
+              />
+            )}
+            {localFilters.searchTerm && (
+              <Chip 
+                label={`ค้นหา: ${localFilters.searchTerm}`}
+                size="small"
+                onDelete={() => clearSingleFilter('searchTerm')}
+                color="primary"
+                variant="outlined"
+              />
+            )}
+            {localFilters.dateFrom && (
+              <Chip 
+                label={`จากวันที่: ${localFilters.dateFrom}`}
+                size="small"
+                onDelete={() => clearSingleFilter('dateFrom')}
+                color="primary"
+                variant="outlined"
+              />
+            )}
+            {localFilters.dateTo && (
+              <Chip 
+                label={`ถึงวันที่: ${localFilters.dateTo}`}
+                size="small"
+                onDelete={() => clearSingleFilter('dateTo')}
+                color="primary"
+                variant="outlined"
+              />
+            )}
+          </Box>
+        )}
         
         <Divider sx={{ my: 1 }} />
         
-        {/* Action buttons */}
-        <Stack direction="row" spacing={2}>
-          <Button
-            fullWidth
-            variant="contained"
-            color="primary"
-            onClick={applyFilters}
-            startIcon={<SearchIcon />}
-            sx={{ py: 1 }}
-          >
-            ค้นหา
-          </Button>
-          <Button
-            fullWidth
-            variant="outlined"
-            color="inherit"
-            onClick={resetFilters}
-            startIcon={<RestartAltIcon />}
-            sx={{ py: 1 }}
-          >
-            รีเซ็ต
-          </Button>
-        </Stack>
+        {/* ปุ่มรีเซ็ต */}
+        <Button
+          fullWidth
+          variant="outlined"
+          color="inherit"
+          onClick={resetFilters}
+          startIcon={<RestartAltIcon />}
+          sx={{ py: 1 }}
+          disabled={activeFiltersCount === 0}
+        >
+          รีเซ็ตตัวกรอง
+        </Button>
       </Stack>
     </Box>
   );

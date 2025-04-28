@@ -46,6 +46,7 @@ import {
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
+import ImageIcon from '@mui/icons-material/Image';
 
 interface PaginationProps {
   page: number;
@@ -195,6 +196,12 @@ export default function OrderList({
     }
   };
   
+  // Function ตรวจสอบว่าคำสั่งซื้อนี้มีหลักฐานการชำระเงินแนบมาหรือไม่
+  const hasPaymentSlip = (order: Order): boolean => {
+    return !!(order.paymentInfo?.slipUrl || 
+      (order.paymentConfirmations && order.paymentConfirmations.length > 0));
+  };
+  
   // Handle pagination change
   const handlePaginationChange = (_event: React.ChangeEvent<unknown>, value: number) => {
     onPageChange(value);
@@ -264,17 +271,6 @@ export default function OrderList({
                                 : '-'}
                             </Typography>
                           </Box>
-                          
-                          <IconButton 
-                            size="small"
-                            onClick={(e) => handleViewOrder(order, e)}
-                            color={isSelected ? "primary" : "default"}
-                            sx={{ 
-                              bgcolor: isSelected ? alpha(theme.palette.primary.main, 0.1) : 'background.neutral'
-                            }}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
                         </Box>
                         
                         <Divider sx={{ my: 1 }} />
@@ -306,16 +302,25 @@ export default function OrderList({
                             }}
                           />
                           
-                          <Chip 
-                            label={translatePaymentStatus(order.paymentStatus)}
-                            size="small"
-                            sx={{ 
-                              color: paymentStatusColor.color,
-                              backgroundColor: paymentStatusColor.backgroundColor,
-                              fontWeight: 600,
-                              fontSize: '0.75rem'
-                            }}
-                          />
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Chip 
+                              label={translatePaymentStatus(order.paymentStatus)}
+                              size="small"
+                              sx={{ 
+                                color: paymentStatusColor.color,
+                                backgroundColor: paymentStatusColor.backgroundColor,
+                                fontWeight: 600,
+                                fontSize: '0.75rem'
+                              }}
+                            />
+                            {hasPaymentSlip(order) && (
+                              <ImageIcon 
+                                fontSize="small" 
+                                color="primary" 
+                                sx={{ opacity: 0.8 }}
+                              />
+                            )}
+                          </Box>
                         </Box>
                       </CardContent>
                     </Card>
@@ -358,7 +363,6 @@ export default function OrderList({
                     <TableCell>ยอดรวม</TableCell>
                     <TableCell>สถานะ</TableCell>
                     <TableCell>การชำระเงิน</TableCell>
-                    <TableCell align="center">จัดการ</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -421,30 +425,27 @@ export default function OrderList({
                             />
                           </TableCell>
                           <TableCell>
-                            <Chip 
-                              label={translatePaymentStatus(order.paymentStatus)}
-                              size="small"
-                              sx={{ 
-                                color: paymentStatusColor.color,
-                                backgroundColor: paymentStatusColor.backgroundColor,
-                                fontWeight: 600,
-                                fontSize: '0.75rem'
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell align="center">
-                            <Tooltip title="แก้ไขสถานะ">
-                              <IconButton 
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Chip 
+                                label={translatePaymentStatus(order.paymentStatus)}
                                 size="small"
-                                onClick={(e) => handleViewOrder(order, e)}
-                                color={isSelected ? "primary" : "default"}
                                 sx={{ 
-                                  bgcolor: isSelected ? alpha(theme.palette.primary.main, 0.1) : 'background.neutral'
+                                  color: paymentStatusColor.color,
+                                  backgroundColor: paymentStatusColor.backgroundColor,
+                                  fontWeight: 600,
+                                  fontSize: '0.75rem'
                                 }}
-                              >
-                                <EditIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
+                              />
+                              {hasPaymentSlip(order) && (
+                                <Tooltip title="มีหลักฐานการชำระเงิน">
+                                  <ImageIcon 
+                                    fontSize="small" 
+                                    color="primary" 
+                                    sx={{ opacity: 0.8 }}
+                                  />
+                                </Tooltip>
+                              )}
+                            </Box>
                           </TableCell>
                         </TableRow>
                       );

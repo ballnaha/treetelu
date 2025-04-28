@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -45,9 +45,25 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import { ArcElement } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
+import { keyframes } from '@mui/system';
+import { SelectChangeEvent } from '@mui/material';
 
 // Register ChartJS components
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
+
+// กำหนด keyframes สำหรับ animation แบบกระพริบ
+const blinking = keyframes`
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+`;
 
 // สถิติแบบจำลอง
 interface DashboardStats {
@@ -56,7 +72,9 @@ interface DashboardStats {
   totalProducts: number;
   totalCustomers: number;
   pendingOrders: number;
+  pendingPaymentsCount: number;
   lowStockProducts: number;
+  outOfStockProducts: number;
   recentOrders: RecentOrder[];
   salesByMonth: MonthSales[];
   orderStatusDistribution: StatusData[];
@@ -185,80 +203,6 @@ const prepareSalesChartData = (salesData: MonthSales[]) => {
   };
 };
 
-// ตัวเลือกสำหรับ Chart.js
-const chartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      position: 'top' as const,
-      labels: {
-        font: {
-          family: 'Kanit, sans-serif'
-        }
-      }
-    },
-    title: {
-      display: false,
-      text: 'ยอดขายรายเดือน',
-      font: {
-        family: 'Kanit, sans-serif',
-        size: 16
-      }
-    },
-    tooltip: {
-      callbacks: {
-        label: function(context: any) {
-          let label = context.dataset.label || '';
-          if (label) {
-            label += ': ';
-          }
-          if (context.parsed.y !== null) {
-            label += new Intl.NumberFormat('th-TH', {
-              style: 'currency',
-              currency: 'THB',
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0
-            }).format(context.parsed.y);
-          }
-          return label;
-        }
-      }
-    }
-  },
-  scales: {
-    x: {
-      grid: {
-        display: false
-      },
-      ticks: {
-        font: {
-          family: 'Kanit, sans-serif'
-        }
-      }
-    },
-    y: {
-      beginAtZero: true,
-      grid: {
-        drawBorder: false
-      },
-      ticks: {
-        font: {
-          family: 'Kanit, sans-serif'
-        },
-        callback: function(value: any) {
-          return new Intl.NumberFormat('th-TH', {
-            style: 'currency',
-            currency: 'THB',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-          }).format(value);
-        }
-      }
-    }
-  }
-};
-
 // ฟังก์ชันเตรียมข้อมูลสำหรับ Chart.js สินค้าขายดี
 const prepareTopProductsChartData = (products: TopProduct[]) => {
   // คู่สีสวยงามที่ไล่เฉดกัน
@@ -338,12 +282,17 @@ const productChartOptions = {
   }
 };
 
+// ฟังก์ชันจัดรูปแบบปี ค.ศ. เป็น พ.ศ.
+const formatThaiYear = (year: number): string => {
+  return `${year} (พ.ศ. ${year + 543})`;
+};
+
 export default function AdminDashboardClient() {
   const { user, getAuthToken } = useAuth();
   const router = useRouter();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
   
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -355,213 +304,187 @@ export default function AdminDashboardClient() {
   
   const chartRef = useRef(null);
   
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear() + 543); // ปี พ.ศ.
+  // เปลี่ยนค่าเริ่มต้นเป็นปีปัจจุบันในระบบปฏิทิน (ค.ศ.)
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [showUnit, setShowUnit] = useState<string>('amount'); // 'amount' หรือ 'orders'
   const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [filteredStats, setFilteredStats] = useState<DashboardStats | null>(null);
   
   const [chartData, setChartData] = useState<any>(null);
   const [productChartData, setProductChartData] = useState<any>(null);
   
-  // ตัวเลือกกราฟแบบแท่ง
-  const barOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: true,
-        position: 'top' as const,
-        labels: {
+  // สร้าง options สำหรับกราฟตามขนาดหน้าจอ
+  const salesChartOptions = useMemo(() => {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: isMobile ? 'bottom' as const : 'top' as const,
+          labels: {
+            font: {
+              family: 'Kanit, sans-serif',
+              size: isMobile ? 10 : 12
+            },
+            boxWidth: isMobile ? 12 : 30,
+            padding: isMobile ? 8 : 10
+          }
+        },
+        title: {
+          display: false,
+          text: showUnit === 'amount' ? 'ยอดขายรายเดือน' : 'จำนวนคำสั่งซื้อรายเดือน',
           font: {
             family: 'Kanit, sans-serif',
-            size: 12
+            size: isMobile ? 14 : 16
+          }
+        },
+        tooltip: {
+          titleFont: {
+            family: 'Kanit, sans-serif',
+            size: isMobile ? 10 : 12
           },
-          usePointStyle: true,
-          pointStyle: 'circle'
+          bodyFont: {
+            family: 'Kanit, sans-serif',
+            size: isMobile ? 10 : 12
+          },
+          callbacks: {
+            label: function(context: any) {
+              let label = context.dataset.label || '';
+              if (label) {
+                label += ': ';
+              }
+              if (context.parsed.y !== null) {
+                if (showUnit === 'amount') {
+                  label += new Intl.NumberFormat('th-TH', {
+                    style: 'currency',
+                    currency: 'THB',
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                  }).format(context.parsed.y);
+        } else {
+                  label += `${context.parsed.y} ชิ้น`;
+                }
+              }
+              return label;
+            }
+          }
         }
       },
-      tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleFont: {
-          family: 'Kanit, sans-serif',
-          size: 14
+      scales: {
+        x: {
+          type: 'category' as const,
+          grid: {
+            display: false
+          },
+          ticks: {
+            font: {
+              family: 'Kanit, sans-serif',
+              size: isMobile ? 8 : isTablet ? 10 : 12
+            },
+            maxRotation: isMobile ? 45 : 0,
+            minRotation: isMobile ? 45 : 0,
+            autoSkip: true,
+            maxTicksLimit: isMobile ? 6 : isTablet ? 8 : 12
+          }
         },
-        bodyFont: {
-          family: 'Kanit, sans-serif',
-          size: 13
-        },
-        padding: 12,
-        cornerRadius: 8,
-        callbacks: {
-          label: function(context: any) {
-            let label = context.dataset.label || '';
-            if (label) {
-              label += ': ';
-            }
-            if (context.parsed.y !== null) {
+        y: {
+          type: 'linear' as const,
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(0, 0, 0, 0.05)'
+          },
+          ticks: {
+            font: {
+              family: 'Kanit, sans-serif',
+              size: isMobile ? 8 : isTablet ? 10 : 12
+            },
+            maxTicksLimit: isMobile ? 5 : 8,
+            callback: function(value: any) {
               if (showUnit === 'amount') {
-                label += new Intl.NumberFormat('th-TH', {
+                // ลดรูปแบบการแสดงผลบนมือถือให้สั้นลง
+                if (isMobile) {
+                  if (value >= 1000) {
+                    return '฿' + (value / 1000) + 'K';
+                  }
+                  return '฿' + value;
+                }
+                return new Intl.NumberFormat('th-TH', {
                   style: 'currency',
                   currency: 'THB',
                   minimumFractionDigits: 0,
                   maximumFractionDigits: 0
-                }).format(context.parsed.y);
+                }).format(value);
               } else {
-                label += `${context.parsed.y} ชิ้น`;
+                return value + (isMobile ? '' : ' ชิ้น');
               }
             }
-            return label;
-          }
-        }
-      }
-    },
-    scales: {
-      x: {
-        grid: {
-          display: false,
-          drawBorder: false
-        },
-        ticks: {
-          font: {
-            family: 'Kanit, sans-serif',
-            size: 12
           }
         }
       },
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: 'rgba(0, 0, 0, 0.05)',
-          drawBorder: false
-        },
-        ticks: {
-          font: {
-            family: 'Kanit, sans-serif',
-            size: 12
-          },
-          callback: function(value: any) {
-            if (showUnit === 'amount') {
-              return new Intl.NumberFormat('th-TH', {
-                style: 'currency',
-                currency: 'THB',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0
-              }).format(value);
-            } else {
-              return value + ' ชิ้น';
-            }
-          }
+      // ปรับความสูงของกราฟตามขนาดหน้าจอ
+      aspectRatio: isMobile ? 1 : isTablet ? 1.5 : 2,
+      // ลดขนาด padding สำหรับหน้าจอมือถือ
+      layout: {
+        padding: {
+          left: isMobile ? 0 : 10,
+          right: isMobile ? 0 : 10,
+          top: isMobile ? 0 : 10,
+          bottom: isMobile ? 0 : 10
         }
-      }
-    },
-    elements: {
-      bar: {
-        borderRadius: 6,
-        borderWidth: 0
-      }
-    },
-    animation: {
-      duration: 1500,
-      easing: 'easeOutQuart'
-    }
-  };
-
-  // ตัวเลือกกราฟวงกลม
-  const doughnutOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    cutout: '60%',
-    plugins: {
-      legend: {
-        position: 'right' as const,
-        labels: {
-          font: {
-            family: 'Kanit, sans-serif',
-            size: 12
-          },
-          padding: 15,
-          usePointStyle: true,
-          pointStyle: 'circle',
-          generateLabels: function(chart: any) {
-            const original = ChartJS.overrides.doughnut.plugins.legend.labels.generateLabels;
-            const labels = original.call(this, chart);
-            
-            labels.forEach((label: any) => {
-              if (label.text && label.text.length > 15) {
-                label.text = label.text.substring(0, 15) + '...';
-              }
-            });
-            
-            return labels;
-          }
-        }
-      },
-      tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleFont: {
-          family: 'Kanit, sans-serif',
-          size: 14
-        },
-        bodyFont: {
-          family: 'Kanit, sans-serif',
-          size: 13
-        },
-        padding: 12,
-        cornerRadius: 8,
-        callbacks: {
-          label: function(context: any) {
-            const label = context.label || '';
-            const value = context.raw;
-            const percentage = ((context.raw / context.chart._metasets[context.datasetIndex].total) * 100).toFixed(1);
-            return `${label}: ${value} ชิ้น (${percentage}%)`;
-          }
-        }
-      }
-    },
-    animation: {
-      animateRotate: true,
-      animateScale: true,
-      duration: 1500,
-      easing: 'easeOutCirc'
-    }
-  };
-  
-  // ตรวจสอบสิทธิ์ admin
-  useEffect(() => {
-    const checkAdminStatus = async () => {
-      try {
-        console.log('Checking admin status via API...');
-        const token = getAuthToken();
-        
-        const response = await fetch('/api/admin/check-auth', {
-          credentials: 'include',
-          headers: {
-            'Authorization': token ? `Bearer ${token}` : ''
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Admin status check result:', data);
-          setIsAdmin(true);
-          fetchDashboardData();
-        } else {
-          console.error('Not authorized as admin');
-          setIsAdmin(false);
-          router.push('/');
-        }
-      } catch (err) {
-        console.error('Error checking admin status:', err);
-        setIsAdmin(false);
-        router.push('/');
-      } finally {
-        setLoading(false);
       }
     };
-    
-    checkAdminStatus();
-  }, [router, getAuthToken]);
+  }, [isMobile, isTablet, showUnit]);
   
-  // ดึงข้อมูลแดชบอร์ด
+  // สร้าง options สำหรับกราฟวงกลมตามขนาดหน้าจอ
+  const doughnutChartOptions = useMemo(() => {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: isMobile ? 'bottom' as const : 'right' as const,
+          labels: {
+            font: {
+              family: 'Kanit, sans-serif',
+              size: isMobile ? 10 : 12
+            },
+            boxWidth: isMobile ? 12 : 15,
+            padding: isMobile ? 8 : 10
+          }
+        },
+        tooltip: {
+          titleFont: {
+            family: 'Kanit, sans-serif',
+            size: isMobile ? 10 : 12
+          },
+          bodyFont: {
+            family: 'Kanit, sans-serif',
+            size: isMobile ? 10 : 12
+          }
+        }
+      },
+      // ปรับขนาดวงกลมตามขนาดหน้าจอ
+      cutout: isMobile ? '65%' : '50%',
+      // ลดขนาดของกราฟสำหรับหน้าจอมือถือ
+      layout: {
+        padding: isMobile ? 5 : 10
+      }
+    };
+  }, [isMobile]);
+  
+  // ฟังก์ชันกรองข้อมูลตามปีที่เลือก
+  const getFilteredSalesData = () => {
+    if (!stats || !stats.salesByMonth) return [];
+    return stats.salesByMonth.filter(item => item.year === selectedYear);
+  };
+
+  // ฟังก์ชันควบคุมการเปลี่ยนปี
+  const handleYearChange = (event: SelectChangeEvent<number>) => {
+    const newYear = event.target.value as number;
+    setSelectedYear(newYear);
+  };
+
+  // ฟังก์ชันดึงข้อมูลแดชบอร์ด
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
@@ -588,17 +511,17 @@ export default function AdminDashboardClient() {
         // อัปเดตปีที่มีข้อมูล
         if (result.data.salesByMonth && result.data.salesByMonth.length > 0) {
           // ดึงปีที่มีข้อมูลและกรองให้เป็นตัวเลขเท่านั้น
-          const yearsData = result.data.salesByMonth
+          const yearsData: number[] = result.data.salesByMonth
             .map((item: any) => item.year)
-            .filter((year: any): year is number => typeof year === 'number' && !isNaN(year));
+            .filter((year: any) => typeof year === 'number' && !isNaN(year));
           
-          // ใช้ Set เพื่อกำจัดค่าซ้ำและแปลงกลับเป็น array
-          const uniqueYears = Array.from(new Set(yearsData)) as number[];
+          // ใช้ Set เพื่อกำจัดค่าซ้ำและแปลงกลับเป็น array และเรียงลำดับจากมากไปน้อย
+          const uniqueYears: number[] = Array.from(new Set(yearsData)).sort((a, b) => b - a);
           setAvailableYears(uniqueYears);
           
           // ตั้งค่าปีล่าสุดที่มีข้อมูล ถ้ายังไม่มีปีที่เลือกในข้อมูล
           if (uniqueYears.length > 0 && !uniqueYears.includes(selectedYear)) {
-            setSelectedYear(uniqueYears[uniqueYears.length - 1] as number);
+            setSelectedYear(uniqueYears[0]);
           }
         }
         
@@ -706,141 +629,170 @@ export default function AdminDashboardClient() {
       setOrderLoading(false);
     }
   };
-  
-  // ฟังก์ชัน filter ข้อมูลตามปีที่เลือก
-  const getFilteredSalesData = () => {
-    if (!stats?.salesByMonth) return [];
+
+  // ตรวจสอบสิทธิ์ admin
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      try {
+        //console.log('Checking admin status via API...');
+        const token = getAuthToken();
+        
+        const response = await fetch('/api/admin/check-auth', {
+          credentials: 'include',
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : ''
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          //console.log('Admin status check result:', data);
+          setIsAdmin(true);
+          fetchDashboardData();
+        } else {
+          console.error('Not authorized as admin');
+          setIsAdmin(false);
+          router.push('/');
+        }
+      } catch (err) {
+        console.error('Error checking admin status:', err);
+        setIsAdmin(false);
+        router.push('/');
+      } finally {
+        setLoading(false);
+      }
+    };
     
-    return stats.salesByMonth.filter(item => item.year === selectedYear);
-  };
-  
-  // ฟังก์ชันเตรียมข้อมูลสำหรับกราฟยอดขายที่จะแสดงจำนวนเงินหรือจำนวนคำสั่งซื้อ
-  const prepareSalesChartDataByUnit = (salesData: MonthSales[]) => {
-    const gradientColors = {
-      amount: {
-        start: 'rgba(75, 192, 192, 0.8)',
-        end: 'rgba(75, 192, 192, 0.1)'
-      },
-      orders: {
-        start: 'rgba(54, 162, 235, 0.8)',
-        end: 'rgba(54, 162, 235, 0.1)'
-      }
-    };
+    checkAdminStatus();
+  }, [router, getAuthToken]);
 
-    // สีแท่งกราฟที่สวยงาม
-    const barColors = {
-      amount: {
-        backgroundColor: 'rgba(75, 192, 192, 0.7)',
-        borderColor: 'rgba(75, 192, 192, 1)',
-        hoverBackgroundColor: 'rgba(75, 192, 192, 0.9)',
-      },
-      orders: {
-        backgroundColor: 'rgba(54, 162, 235, 0.7)',
-        borderColor: 'rgba(54, 162, 235, 1)',
-        hoverBackgroundColor: 'rgba(54, 162, 235, 0.9)',
-      }
+  // ใช้ useEffect เพื่ออัปเดตข้อมูลเมื่อมีการเปลี่ยนปีหรือโหลดข้อมูลใหม่
+  useEffect(() => {
+    if (!stats) return;
+    
+    // กำหนดค่าปีปัจจุบัน
+    const currentYear = 2025;  // ปีปัจจุบันที่เซิร์ฟเวอร์คือ 2025
+    
+    // สร้างข้อมูลสถิติที่กรองตามปี
+    const salesByMonth = getFilteredSalesData();
+    
+    // คำนวณข้อมูลของปีที่เลือก
+    let totalSalesForYear = 0;
+    let totalOrdersForYear = 0;
+    
+    salesByMonth.forEach(month => {
+      totalSalesForYear += month.sales;
+      totalOrdersForYear += month.numOrders || 0;
+    });
+    
+    // สร้าง stats ใหม่ที่กรองตามปี
+    const filteredStatsData: DashboardStats = {
+      ...stats,
+      salesByMonth: salesByMonth,
+      // ถ้าเป็นปีปัจจุบันให้ใช้ข้อมูลปัจจุบัน ถ้าเป็นปีอื่นให้ใช้ข้อมูลที่คำนวณจากยอดขายรายเดือน
+      totalSales: selectedYear === currentYear ? stats.totalSales : totalSalesForYear,
+      totalOrders: selectedYear === currentYear ? stats.totalOrders : totalOrdersForYear,
     };
+    
+    // กรองสินค้าขายดีตามปีที่เลือก
+    if ((stats as any).topSellingProductsByYear) {
+      // ดึงข้อมูลรายปีจาก topSellingProductsByYear
+      const productsByYear = (stats as any).topSellingProductsByYear;
+      
+      // ทำให้แน่ใจว่า selectedYear เป็น string key
+      const yearKey = String(selectedYear);
+      
+      // console.log('Debug topSellingProductsByYear:', {
+      //   selectedYear,
+      //   yearKey,
+      //   productsByYear,
+      //   availableYears: Object.keys(productsByYear),
+      //   hasYear: productsByYear[yearKey] !== undefined,
+      //   yearData: productsByYear[yearKey]
+      // });
+      
+      // ใช้ข้อมูล topSellingProductsByYear เพื่อดึงข้อมูลสินค้าขายดีตามปีที่เลือก
+      const productsForYear = productsByYear[yearKey] || [];
+      filteredStatsData.topSellingProducts = productsForYear;
+      
+      //console.log(`ข้อมูลสินค้าขายดีปี ${yearKey}:`, productsForYear);
+    } else if (stats.topSellingProducts) {
+      // ถ้าไม่มี topSellingProductsByYear ให้ใช้วิธีเดิม เพื่อความเข้ากันได้กับ API เวอร์ชันเก่า
+      filteredStatsData.topSellingProducts = selectedYear === currentYear 
+        ? stats.topSellingProducts 
+        : [];
+    }
+    
+    // กรองคำสั่งซื้อล่าสุดตามปีที่เลือก
+    if (stats.recentOrders) {
+      if ((stats as any).recentOrdersByYear) {
+        // ใช้ข้อมูลคำสั่งซื้อแยกตามปี ถ้ามี API ส่งมา
+        const yearKey = String(selectedYear);
+        filteredStatsData.recentOrders = (stats as any).recentOrdersByYear[yearKey] || [];
+      } else if (selectedYear === currentYear) {
+        // ถ้าเป็นปีปัจจุบันใช้ข้อมูลเดิม
+        filteredStatsData.recentOrders = stats.recentOrders;
+      } else {
+        // กรองคำสั่งซื้อตามปีที่เลือก
+        filteredStatsData.recentOrders = stats.recentOrders.filter(order => {
+          const orderDate = new Date(order.date);
+          return orderDate.getFullYear() === selectedYear;
+        });
+      }
+    }
 
-    return {
-      labels: salesData.map(item => item.month),
-      datasets: [
-        {
-          label: showUnit === 'amount' ? 'ยอดขาย (บาท)' : 'จำนวนคำสั่งซื้อ (ชิ้น)',
-          data: salesData.map(item => showUnit === 'amount' ? item.sales : (item.numOrders || 0)),
-          backgroundColor: barColors[showUnit as keyof typeof barColors].backgroundColor,
-          borderColor: barColors[showUnit as keyof typeof barColors].borderColor,
-          hoverBackgroundColor: barColors[showUnit as keyof typeof barColors].hoverBackgroundColor,
-          borderWidth: 1,
-          borderRadius: 6,
-          barPercentage: 0.7,
-          categoryPercentage: 0.8
+    // กรองการกระจายสถานะคำสั่งซื้อตามปีที่เลือก
+    if (stats.orderStatusDistribution) {
+      if ((stats as any).orderStatusDistributionByYear) {
+        // ใช้ข้อมูลการกระจายสถานะตามปี ถ้ามี API ส่งมา
+        const yearKey = String(selectedYear);
+        const statusesForYear = (stats as any).orderStatusDistributionByYear[yearKey] || [];
+        
+        // ถ้าไม่มีข้อมูลสำหรับปีนี้ ให้สร้างข้อมูลว่าง
+        if (statusesForYear.length === 0 && filteredStatsData.recentOrders.length > 0) {
+          // คำนวณข้อมูลสถานะจากคำสั่งซื้อที่มีในปีนั้น
+          const statusCounts: Record<string, number> = {};
+          
+          // นับจำนวนออเดอร์แต่ละสถานะ
+          filteredStatsData.recentOrders.forEach(order => {
+            statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
+          });
+          
+          // แปลงเป็น array ของ StatusData
+          filteredStatsData.orderStatusDistribution = Object.keys(statusCounts).map(status => ({
+            status,
+            count: statusCounts[status]
+          }));
+        } else {
+          filteredStatsData.orderStatusDistribution = statusesForYear;
         }
-      ]
-    };
-  };
-  
-  // ตัวเลือกสำหรับกราฟยอดขายที่แสดงจำนวนเงินหรือจำนวนคำสั่งซื้อ
-  const getSalesChartOptions = () => {
-    return {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'top' as const,
-          labels: {
-            font: {
-              family: 'Kanit, sans-serif'
-            }
-          }
-        },
-        title: {
-          display: false,
-          text: showUnit === 'amount' ? 'ยอดขายรายเดือน' : 'จำนวนคำสั่งซื้อรายเดือน',
-          font: {
-            family: 'Kanit, sans-serif',
-            size: 16
-          }
-        },
-        tooltip: {
-          callbacks: {
-            label: function(context: any) {
-              let label = context.dataset.label || '';
-              if (label) {
-                label += ': ';
-              }
-              if (context.parsed.y !== null) {
-                if (showUnit === 'amount') {
-                  label += new Intl.NumberFormat('th-TH', {
-                    style: 'currency',
-                    currency: 'THB',
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                  }).format(context.parsed.y);
-                } else {
-                  label += `${context.parsed.y} ชิ้น`;
-                }
-              }
-              return label;
-            }
-          }
-        }
-      },
-      scales: {
-        x: {
-          type: 'category' as const,
-          grid: {
-            display: false
-          },
-          ticks: {
-            font: {
-              family: 'Kanit, sans-serif'
-            }
-          }
-        },
-        y: {
-          type: 'linear' as const,
-          beginAtZero: true,
-          ticks: {
-            font: {
-              family: 'Kanit, sans-serif'
-            },
-            callback: function(value: any) {
-              if (showUnit === 'amount') {
-                return new Intl.NumberFormat('th-TH', {
-                  style: 'currency',
-                  currency: 'THB',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0
-                }).format(value);
-              } else {
-                return value + ' ชิ้น';
-              }
-            }
-          }
-        }
+      } else if (selectedYear === currentYear) {
+        // ถ้าเป็นปีปัจจุบันใช้ข้อมูลเดิม
+        filteredStatsData.orderStatusDistribution = stats.orderStatusDistribution;
+      } else {
+        // คำนวณข้อมูลสถานะจากคำสั่งซื้อที่กรองตามปีที่เลือก
+        const filteredOrders = stats.recentOrders.filter(order => {
+          const orderDate = new Date(order.date);
+          return orderDate.getFullYear() === selectedYear;
+        });
+        
+        // นับจำนวนออเดอร์แต่ละสถานะ
+        const statusCounts: Record<string, number> = {};
+        
+        filteredOrders.forEach(order => {
+          statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
+        });
+        
+        // แปลงเป็น array ของ StatusData
+        filteredStatsData.orderStatusDistribution = Object.keys(statusCounts).map(status => ({
+          status,
+          count: statusCounts[status]
+        }));
       }
-    };
-  };
+    }
+    
+    setFilteredStats(filteredStatsData);
+  }, [stats, selectedYear]);
   
   // แสดงหน้าโหลดข้อมูล
   if (isAdmin === null || (loading && !stats)) {
@@ -935,8 +887,35 @@ export default function AdminDashboardClient() {
         </Alert>
       )}
       
+      {/* ตัวเลือกปี แสดงด้านบนของแดชบอร์ด */}
+      {availableYears.length > 0 && (
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'flex-end', 
+          mb: 3,
+          mt: -2,
+        }}>
+          <FormControl variant="outlined" size="small" sx={{ minWidth: { xs: 150, sm: 200 } }}>
+            <InputLabel id="year-filter-label">เลือกปี</InputLabel>
+            <Select
+              labelId="year-filter-label"
+              id="year-filter"
+              value={selectedYear}
+              onChange={handleYearChange}
+              label="เลือกปี"
+            >
+              {availableYears.map(year => (
+                <MenuItem key={year} value={year}>
+                  {formatThaiYear(year)}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+      )}
+      
       {/* ข้อมูลสรุป (Summary Cards) */}
-      {stats && (
+      {filteredStats && (
         <>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 4, position: 'relative' }}>
             {/* บัตรแสดงยอดคำสั่งซื้อ */}
@@ -969,15 +948,34 @@ export default function AdminDashboardClient() {
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <ShoppingCartIcon sx={{ color: 'primary.main', mr: 1 }} />
                     <Typography variant="subtitle2" color="text.secondary">
-                      คำสั่งซื้อทั้งหมด
+                      คำสั่งซื้อทั้งหมด {selectedYear !== 2025 && formatThaiYear(selectedYear)}
                     </Typography>
                   </Box>
                   <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    {stats.totalOrders}
+                    {filteredStats.totalOrders}
                   </Typography>
+                  
+                  {selectedYear === 2025 && (
                   <Typography variant="body2" color="text.secondary">
-                    มี {stats.pendingOrders} คำสั่งซื้อที่รอดำเนินการ
+                      มี {filteredStats.pendingOrders} คำสั่งซื้อที่รอดำเนินการ
                   </Typography>
+                  )}
+                  
+                  {selectedYear === 2025 && filteredStats.pendingPaymentsCount > 0 && (
+                    <Chip
+                      color="warning"
+                      variant="filled"
+                      label={`รอตรวจสอบ ${filteredStats.pendingPaymentsCount} รายการ`}
+                      onClick={() => router.push('/admin/orders')}
+                      icon={<NotificationsActiveIcon />}
+                      sx={{
+                        animation: `${blinking} 2s infinite`,
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        ml: 2
+                      }}
+                    />
+                  )}
                 </CardContent>
               </Card>
             </Box>
@@ -1012,29 +1010,32 @@ export default function AdminDashboardClient() {
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <MonetizationOnIcon sx={{ color: 'success.main', mr: 1 }} />
                     <Typography variant="subtitle2" color="text.secondary">
-                      ยอดขายทั้งหมด
+                      ยอดขายทั้งหมด {selectedYear !== 2025 && formatThaiYear(selectedYear)}
                     </Typography>
                   </Box>
                   <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    {formatCurrency(stats.totalSales)}
+                    {formatCurrency(filteredStats.totalSales)}
                   </Typography>
+                  
+                  {selectedYear === 2025 && (
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    {stats.salesGrowthRate >= 0 ? (
+                      {filteredStats.salesGrowthRate >= 0 ? (
                       <>
                         <TrendingUpIcon sx={{ color: 'success.main', fontSize: '1rem', mr: 0.5 }} />
                         <Typography variant="body2" color="success.main">
-                          +{stats.salesGrowthRate}% จากเดือนที่แล้ว
+                            +{filteredStats.salesGrowthRate}% จากเดือนที่แล้ว
                         </Typography>
                       </>
                     ) : (
                       <>
                         <TrendingDownIcon sx={{ color: 'error.main', fontSize: '1rem', mr: 0.5 }} />
                         <Typography variant="body2" color="error.main">
-                          {stats.salesGrowthRate}% จากเดือนที่แล้ว
+                            {filteredStats.salesGrowthRate}% จากเดือนที่แล้ว
                         </Typography>
                       </>
                     )}
                   </Box>
+                  )}
                 </CardContent>
               </Card>
             </Box>
@@ -1073,11 +1074,16 @@ export default function AdminDashboardClient() {
                     </Typography>
                   </Box>
                   <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    {stats.totalProducts}
+                    {filteredStats.totalProducts}
                   </Typography>
-                  <Typography variant="body2" color="warning.main">
-                    มี {stats.lowStockProducts} รายการที่ใกล้หมดสต๊อก
-                  </Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography variant="body2" color="warning.main">
+                      มี {filteredStats.lowStockProducts} รายการที่ใกล้หมดสต๊อก
+                    </Typography>
+                    <Typography variant="body2" color="error.main">
+                      มี {filteredStats.outOfStockProducts} รายการที่หมดสต๊อก
+                    </Typography>
+                  </Box>
                 </CardContent>
               </Card>
             </Box>
@@ -1116,21 +1122,21 @@ export default function AdminDashboardClient() {
                     </Typography>
                   </Box>
                   <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    {stats.totalCustomers}
+                    {filteredStats.totalCustomers}
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    {stats.customersGrowthRate >= 0 ? (
+                    {filteredStats.customersGrowthRate >= 0 ? (
                       <>
                         <TrendingUpIcon sx={{ color: 'success.main', fontSize: '1rem', mr: 0.5 }} />
                         <Typography variant="body2" color="success.main">
-                          +{stats.customersGrowthRate}% จากเดือนที่แล้ว
+                          +{filteredStats.customersGrowthRate}% จากเดือนที่แล้ว
                         </Typography>
                       </>
                     ) : (
                       <>
                         <TrendingDownIcon sx={{ color: 'error.main', fontSize: '1rem', mr: 0.5 }} />
                         <Typography variant="body2" color="error.main">
-                          {stats.customersGrowthRate}% จากเดือนที่แล้ว
+                          {filteredStats.customersGrowthRate}% จากเดือนที่แล้ว
                         </Typography>
                       </>
                     )}
@@ -1156,7 +1162,7 @@ export default function AdminDashboardClient() {
                 <CardHeader 
                   title={
                     <Typography variant="h6" component="div">
-                      คำสั่งซื้อล่าสุด
+                      คำสั่งซื้อล่าสุด {selectedYear !== 2025 && `ปี ${formatThaiYear(selectedYear)}`}
                     </Typography>
                   }
                   action={
@@ -1167,8 +1173,10 @@ export default function AdminDashboardClient() {
                 />
                 <Divider />
                 <CardContent>
+                  {filteredStats.recentOrders.length > 0 ? (
+                    <>
                   <List>
-                    {stats.recentOrders.map((order, index) => (
+                        {filteredStats.recentOrders.map((order, index) => (
                       <React.Fragment key={order.id}>
                         <ListItem
                           sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
@@ -1205,7 +1213,7 @@ export default function AdminDashboardClient() {
                             </Typography>
                           </Box>
                         </ListItem>
-                        {index < stats.recentOrders.length - 1 && <Divider />}
+                            {index < filteredStats.recentOrders.length - 1 && <Divider />}
                       </React.Fragment>
                     ))}
                   </List>
@@ -1218,6 +1226,21 @@ export default function AdminDashboardClient() {
                       ดูทั้งหมด
                     </Button>
                   </Box>
+                    </>
+                  ) : (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
+                      <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+                        ไม่มีข้อมูลคำสั่งซื้อในปี {formatThaiYear(selectedYear)}
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => setSelectedYear(new Date().getFullYear())}
+                      >
+                        กลับไปยังปีปัจจุบัน
+                      </Button>
+                    </Box>
+                  )}
                 </CardContent>
               </Card>
             </Box>
@@ -1236,23 +1259,29 @@ export default function AdminDashboardClient() {
                 <CardHeader 
                   title={
                     <Typography variant="h6" component="div">
-                      สถานะคำสั่งซื้อ
+                      สถานะคำสั่งซื้อ {selectedYear !== 2025 && `ปี ${formatThaiYear(selectedYear)}`}
                     </Typography>
                   }
                 />
                 <Divider />
                 <CardContent>
+                  {filteredStats.orderStatusDistribution.length > 0 ? (
                   <List>
-                    {stats.orderStatusDistribution.map((item, index) => (
+                      {filteredStats.orderStatusDistribution.map((item, index) => (
                       <ListItem key={item.status} disablePadding sx={{ py: 1 }}>
                         <Box sx={{ width: '100%' }}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Typography variant="body2" component="span">
                               {translateOrderStatus(item.status)}
                             </Typography>
-                            <Typography variant="body2" component="span" fontWeight="medium">
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <Typography variant="body2" component="span" fontWeight="medium" sx={{ mr: 1 }}>
                               {item.count}
                             </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  ({Math.round((item.count / filteredStats.totalOrders) * 100)}%)
+                                </Typography>
+                              </Box>
                           </Box>
                           <Box sx={{ width: '100%', mt: 1 }}>
                             <Box 
@@ -1266,7 +1295,7 @@ export default function AdminDashboardClient() {
                             >
                               <Box 
                                 sx={{ 
-                                  width: `${(item.count / stats.totalOrders) * 100}%`,
+                                    width: `${(item.count / filteredStats.totalOrders) * 100}%`,
                                   height: '100%',
                                   bgcolor: getStatusColor(item.status) + '.main',
                                   borderRadius: 2
@@ -1278,121 +1307,91 @@ export default function AdminDashboardClient() {
                       </ListItem>
                     ))}
                   </List>
+                  ) : (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
+                      <Typography variant="body1" color="text.secondary">
+                        ไม่มีข้อมูลสถานะคำสั่งซื้อในปี {formatThaiYear(selectedYear)}
+                      </Typography>
+                    </Box>
+                  )}
                 </CardContent>
               </Card>
             </Box>
           </Box>
           
           {/* แสดงข้อมูลแถวที่ 3 */}
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-            {/* ยอดขายรายเดือน */}
-            <Box sx={{ flex: '1 1 60%' }}>
-              <Card 
-                elevation={0}
-                sx={{ 
-                  borderRadius: 2,
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-                  height: '100%',
-                  border: '1px solid rgba(0,0,0,0.05)'
-                }}
-              >
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3, width: '100%' }}>
+            <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 60%' } }}>
+              <Card elevation={1} sx={{ borderRadius: 2 }}>
                 <CardHeader 
                   title={
-                    <Typography variant="h6" component="div">
-                      {showUnit === 'amount' ? 'ยอดขายรายเดือน' : 'จำนวนคำสั่งซื้อรายเดือน'}
-                    </Typography>
-                  }
-                  action={
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <FormControl variant="outlined" size="small" sx={{ minWidth: 100 }}>
-                        <InputLabel>หน่วย</InputLabel>
-                        <Select
-                          value={showUnit}
-                          onChange={(e) => setShowUnit(e.target.value as string)}
-                          label="หน่วย"
-                        >
-                          <MenuItem value="amount">ยอดเงิน</MenuItem>
-                          <MenuItem value="orders">จำนวนชิ้น</MenuItem>
-                        </Select>
-                      </FormControl>
-                      
-                      <FormControl variant="outlined" size="small" sx={{ minWidth: 100 }}>
-                        <InputLabel>ปี</InputLabel>
-                        <Select
-                          value={selectedYear}
-                          onChange={(e) => setSelectedYear(Number(e.target.value))}
-                          label="ปี"
-                        >
-                          {availableYears.map(year => (
-                            <MenuItem key={year} value={year}>{year}</MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                      
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <UpdateIcon sx={{ fontSize: '1rem', color: 'text.secondary', mr: 0.5 }} />
-                        <Typography variant="caption" color="text.secondary">
-                          อัปเดตล่าสุด: {new Date().toLocaleDateString('th-TH')}
-                        </Typography>
+                        <Typography variant="h6">
+                          {showUnit === 'amount' ? 'ยอดขายรายเดือน' : 'จำนวนคำสั่งซื้อรายเดือน'}
+                      </Typography>
+                        <Chip 
+                          label={formatThaiYear(selectedYear)} 
+                          size="small" 
+                          color="primary" 
+                          variant="outlined" 
+                        />
                       </Box>
+                      <FormControl variant="outlined" size="small" sx={{ minWidth: { xs: 100, sm: 150 } }}>
+                        <InputLabel id="chart-unit-label">หน่วย</InputLabel>
+                        <Select
+                          labelId="chart-unit-label"
+                          id="chart-unit"
+                          value={showUnit}
+                          onChange={(e) => setShowUnit(e.target.value)}
+                          label="หน่วย"
+                          sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                        >
+                          <MenuItem value="amount">แสดงเป็นยอดเงิน</MenuItem>
+                          <MenuItem value="orders">แสดงเป็นจำนวนคำสั่งซื้อ</MenuItem>
+                        </Select>
+                      </FormControl>
                     </Box>
                   }
                 />
-                <Divider />
                 <CardContent>
-                  <Box sx={{ height: 300 }}>
-                    {stats?.salesByMonth && getFilteredSalesData().length > 0 ? (
-                      <Bar 
-                        ref={chartRef}
-                        data={prepareSalesChartDataByUnit(getFilteredSalesData())} 
-                        options={barOptions as any}
-                        height={300}
-                      />
-                    ) : (
-                      <Box sx={{ 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        justifyContent: 'center', 
-                        alignItems: 'center', 
-                        height: '100%' 
-                      }}>
-                        <Typography variant="body2" color="text.secondary">
-                          ไม่มีข้อมูลยอดขายสำหรับปี {selectedYear}
-                        </Typography>
-                      </Box>
-                    )}
+                    <Box sx={{ 
+                    height: { xs: 250, sm: 300, md: 350 },
+                    position: 'relative'
+                  }}>
+                    <Bar data={prepareSalesChartData(getFilteredSalesData())} options={salesChartOptions} />
                   </Box>
                 </CardContent>
               </Card>
             </Box>
             
-            {/* สินค้าขายดี 10 อันดับ */}
-            <Box sx={{ flex: '1 1 40%' }}>
-              <Card 
-                elevation={0}
-                sx={{ 
-                  borderRadius: 2,
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-                  height: '100%',
-                  border: '1px solid rgba(0,0,0,0.05)'
-                }}
-              >
-                <CardHeader 
+            <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 40%' } }}>
+              <Card elevation={1} sx={{ borderRadius: 2, height: '100%' }}>
+                <CardHeader
                   title={
-                    <Typography variant="h6" component="div">
-                      สินค้าขายดี 10 อันดับ
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="h6">สินค้าขายดี</Typography>
+                      {selectedYear !== 2025 && (
+                        <Chip 
+                          label={formatThaiYear(selectedYear)} 
+                          size="small" 
+                          color="primary" 
+                          variant="outlined" 
+                        />
+                      )}
+                    </Box>
                   }
                 />
-                <Divider />
                 <CardContent>
-                  <Box sx={{ height: 300 }}>
-                    {stats?.topSellingProducts && stats.topSellingProducts.length > 0 ? (
-                      <Doughnut 
-                        data={prepareTopProductsChartData(stats.topSellingProducts)} 
-                        options={doughnutOptions as any}
-                        height={300}
-                      />
+                  <Box sx={{ 
+                    height: { xs: 200, sm: 250, md: 275 },
+                    position: 'relative',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center' 
+                  }}>
+                    {filteredStats?.topSellingProducts && filteredStats.topSellingProducts.length > 0 ? (
+                      <Doughnut data={prepareTopProductsChartData(filteredStats.topSellingProducts)} options={doughnutChartOptions} />
                     ) : (
                       <Box sx={{ 
                         display: 'flex', 
@@ -1401,10 +1400,11 @@ export default function AdminDashboardClient() {
                         alignItems: 'center', 
                         height: '100%' 
                       }}>
-                        <Typography variant="body2" color="text.secondary">
-                          ไม่มีข้อมูลสินค้าขายดี
-                        </Typography>
-                      </Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          ไม่มีข้อมูลสินค้าขายดีในปี {formatThaiYear(selectedYear)}
+                          </Typography>
+                        
+                        </Box>
                     )}
                   </Box>
                 </CardContent>
