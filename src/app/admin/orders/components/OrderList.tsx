@@ -49,7 +49,7 @@ import EditIcon from '@mui/icons-material/Edit';
 
 interface PaginationProps {
   page: number;
-  limit: number;
+  limit: number | string;
   totalItems: number;
   totalPages: number;
 }
@@ -57,7 +57,7 @@ interface PaginationProps {
 interface OrderListProps {
   orders: Order[];
   pagination: PaginationProps;
-  onPageChange: (page: number) => void;
+  onPageChange: (page: number, limit?: number | string) => void;
   onOrderSelect: (order: Order) => void;
   onUpdateStatus: (orderId: string, status: string, paymentStatus: string) => void;
   selectedOrderId: string | null;
@@ -73,6 +73,11 @@ export default function OrderList({
 }: OrderListProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  
+  // เพิ่ม local state สำหรับจัดการ rowsPerPage ที่เป็น number เท่านั้น
+  const [rowsPerPage, setRowsPerPage] = useState<number>(
+    typeof pagination.limit === 'number' ? pagination.limit : 10
+  );
   
   // Handle view order details
   const handleViewOrder = (order: Order, e?: React.MouseEvent) => {
@@ -202,11 +207,18 @@ export default function OrderList({
   
   // Handle rows per page change
   const handleRowsPerPageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newLimit = parseInt(e.target.value, 10);
-    // Reset to page 1 when changing limit
-    onPageChange(1);
-    // Update limit in parent component
-    pagination.limit = newLimit;
+    const value = e.target.value;
+    const newRowsPerPage = parseInt(value, 10);
+    setRowsPerPage(newRowsPerPage);
+    
+    // ถ้าเป็น -1 (All) ให้ส่งค่าเป็น 'all'
+    let newLimit: number | string = newRowsPerPage;
+    if (newRowsPerPage === -1) {
+      newLimit = 'all';
+    }
+    
+    // ส่งค่า newLimit กลับไปยัง parent component
+    onPageChange(1, newLimit);
   };
   
   return (
@@ -447,14 +459,31 @@ export default function OrderList({
               component="div"
               count={pagination.totalItems}
               page={pagination.page - 1} // API uses 1-based indexing, MUI uses 0-based
-              rowsPerPage={pagination.limit}
-              rowsPerPageOptions={[10, 25, 50]}
+              rowsPerPage={rowsPerPage}
+              rowsPerPageOptions={[
+                10, 
+                25, 
+                50, 
+                100,
+                { label: 'แสดงทั้งหมด', value: -1 }
+              ]}
               onPageChange={handleTablePageChange}
               onRowsPerPageChange={handleRowsPerPageChange}
               labelDisplayedRows={({ from, to, count }: { from: number; to: number; count: number }) => 
                 `${from}-${to} จาก ${count}`
               }
               labelRowsPerPage="แสดง:"
+              sx={{
+                '.MuiTablePagination-selectLabel': {
+                  display: { xs: 'none', sm: 'block' }
+                },
+                '.MuiTablePagination-displayedRows': {
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                },
+                '.MuiTablePagination-select': {
+                  paddingLeft: { xs: 0, sm: 1 }
+                }
+              }}
             />
           </>
         )}

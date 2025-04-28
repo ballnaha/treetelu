@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { validateAdminUser } from '@/lib/auth';
 
-const prisma = new PrismaClient();
+// ใช้ global variable สำหรับรันไทม์ของ Next.js เพื่อแก้ปัญหา hot-reloading
+// ซึ่งทำให้เกิดการสร้าง PrismaClient ใหม่หลายตัว
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
+
+const prisma = globalForPrisma.prisma || new PrismaClient();
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 /**
  * Helper function to convert BigInt values to strings in an object
@@ -62,6 +68,9 @@ export async function GET(req: NextRequest) {
     const salesData = await prisma.order.aggregate({
       _sum: {
         finalAmount: true
+      },
+      where: {
+        paymentStatus: 'CONFIRMED'
       }
     });
     const totalSales = salesData._sum.finalAmount || 0;
@@ -141,6 +150,15 @@ export async function GET(req: NextRequest) {
       return thaiMonths[date.getMonth()];
     };
     
+    // เพิ่มรหัสและชื่อเดือนไทยในฟอร์แมตใหม่
+    const getFormattedThaiMonth = (date: Date) => {
+      const thaiMonths = [
+        'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+        'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+      ];
+      return `${thaiMonths[date.getMonth()]} ${date.getFullYear() + 543}`;
+    };
+    
     // สร้างอาเรย์ของเดือนย้อนหลัง 6 เดือน
     const last6Months = Array.from({ length: 6 }, (_, i) => {
       const date = new Date();
@@ -153,10 +171,8 @@ export async function GET(req: NextRequest) {
       const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
       const endOfMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59);
       
-      const monthlySales = await prisma.order.aggregate({
-        _sum: {
-          finalAmount: true
-        },
+      // ดึงข้อมูลรายการคำสั่งซื้อในเดือนนี้
+      const monthlyOrders = await prisma.order.findMany({
         where: {
           createdAt: {
             gte: startOfMonth,
@@ -164,17 +180,61 @@ export async function GET(req: NextRequest) {
           },
           status: {
             not: 'CANCELLED'
-          }
+          },
+          paymentStatus: 'CONFIRMED'
+        },
+        select: {
+          finalAmount: true,
+          createdAt: true
         }
       });
       
+      // คำนวณยอดขายรวม
+      const totalSales = monthlyOrders.reduce((sum, order) => {
+        return sum + Number(order.finalAmount || 0);
+      }, 0);
+      
       return {
         month: getThaiMonth(month),
-        sales: Number(monthlySales._sum.finalAmount || 0)
+        monthFull: getFormattedThaiMonth(month),
+        sales: totalSales,
+        year: month.getFullYear() + 543, // ปี พ.ศ.
+        numOrders: monthlyOrders.length
       };
     });
     
     const salesByMonth = await Promise.all(monthlySalesPromises);
+    
+    // เตรียมข้อมูลเพิ่มเติมสำหรับการแสดงผลกราฟ
+    const maxSales = Math.max(...salesByMonth.map(m => m.sales));
+    const totalSalesAllMonths = salesByMonth.reduce((sum, month) => sum + month.sales, 0);
+    const averageMonthlySales = salesByMonth.length > 0 
+      ? totalSalesAllMonths / salesByMonth.length 
+      : 0;
+    
+    // 10. ดึงข้อมูลสินค้าขายดี 10 อันดับ
+    // ต้องเชื่อมข้อมูลจาก orderItem กับข้อมูลสินค้า
+    const topSellingProducts = await prisma.$queryRaw`
+      SELECT 
+        p.id,
+        p.productName as name,
+        CAST(SUM(oi.quantity) AS SIGNED) as totalSold,
+        CAST(SUM(oi.totalPrice) AS DECIMAL(10,2)) as totalAmount
+      FROM 
+        order_items oi
+      JOIN 
+        product p ON oi.productId = p.id
+      JOIN 
+        orders o ON oi.orderId = o.id
+      WHERE 
+        o.status != 'CANCELLED'
+        AND o.paymentStatus = 'CONFIRMED'
+      GROUP BY 
+        p.id, p.productName
+      ORDER BY 
+        totalSold DESC
+      LIMIT 10
+    `;
     
     // รวมข้อมูลทั้งหมด
     const dashboardData: any = {
@@ -186,7 +246,18 @@ export async function GET(req: NextRequest) {
       totalCustomers,
       recentOrders: formattedRecentOrders,
       orderStatusDistribution,
-      salesByMonth
+      salesByMonth,
+      salesGraphData: {
+        maxSales,
+        totalSalesAllMonths,
+        averageMonthlySales
+      },
+      topSellingProducts: Array.isArray(topSellingProducts) ? topSellingProducts.map(product => ({
+        id: String(product.id),
+        name: product.name,
+        totalSold: Number(product.totalSold),
+        totalAmount: Number(product.totalAmount)
+      })) : []
     };
     
     // คำนวณอัตราการเติบโตเทียบกับเดือนก่อนหน้า
@@ -213,7 +284,8 @@ export async function GET(req: NextRequest) {
         },
         status: {
           not: 'CANCELLED'
-        }
+        },
+        paymentStatus: 'CONFIRMED'
       }
     });
     
@@ -229,7 +301,8 @@ export async function GET(req: NextRequest) {
         },
         status: {
           not: 'CANCELLED'
-        }
+        },
+        paymentStatus: 'CONFIRMED'
       }
     });
     

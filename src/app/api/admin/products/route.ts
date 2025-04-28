@@ -51,12 +51,16 @@ export async function GET(req: NextRequest) {
     console.log('Admin products API called');
     const url = new URL(req.url);
     const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '10');
+    const limitParam = url.searchParams.get('limit') || '10';
     const category = url.searchParams.get('category') || undefined;
     const status = url.searchParams.get('status') || undefined;
     const search = url.searchParams.get('search') || undefined;
     
-    console.log('Query params:', { page, limit, category, status, search });
+    // ตรวจสอบว่าเป็น 'all' หรือไม่
+    const isShowAll = limitParam.toLowerCase() === 'all';
+    const limit = isShowAll ? 1000 : parseInt(limitParam); // ใช้ค่าสูงๆ เช่น 1000 เมื่อเป็น 'all'
+    
+    console.log('Query params:', { page, limit, isShowAll, category, status, search });
     
     // Calculate pagination
     const skip = (page - 1) * limit;

@@ -91,13 +91,17 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
     
     // ถ้าไม่มี orderId ให้ดึงข้อมูลคำสั่งซื้อทั้งหมดตามเดิม
     const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '10');
+    const limitParam = url.searchParams.get('limit') || '10';
     const status = url.searchParams.get('status') || undefined;
     const search = url.searchParams.get('search') || undefined;
     const dateFrom = url.searchParams.get('dateFrom') || undefined;
     const dateTo = url.searchParams.get('dateTo') || undefined;
     
-    console.log('Query params:', { page, limit, status, search, dateFrom, dateTo });
+    // ตรวจสอบว่าเป็น 'all' หรือไม่
+    const isShowAll = limitParam.toLowerCase() === 'all';
+    const limit = isShowAll ? 1000 : parseInt(limitParam); // ใช้ค่าสูงๆ เช่น 1000 เมื่อเป็น 'all'
+    
+    console.log('Query params:', { page, limit, isShowAll, status, search, dateFrom, dateTo });
     
     // Calculate pagination
     const skip = (page - 1) * limit;

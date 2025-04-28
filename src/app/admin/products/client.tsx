@@ -62,7 +62,12 @@ export default function AdminProductsClient() {
     message: '',
     severity: 'success' as 'success' | 'error' | 'info' | 'warning'
   });
-  const [pagination, setPagination] = useState({
+  const [pagination, setPagination] = useState<{
+    page: number;
+    limit: number | string;
+    totalItems: number;
+    totalPages: number;
+  }>({
     page: 1,
     limit: 10,
     totalItems: 0,
@@ -129,9 +134,13 @@ export default function AdminProductsClient() {
       
       // Build query parameters
       const queryParams = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString()
+        page: pagination.page.toString()
       });
+      
+      // เพิ่มค่า limit เป็น 'all' หรือเป็นตัวเลข
+      if (pagination.limit !== undefined) {
+        queryParams.append('limit', pagination.limit.toString());
+      }
       
       if (filters.category) queryParams.append('category', filters.category);
       if (filters.status) queryParams.append('status', filters.status);
@@ -177,8 +186,12 @@ export default function AdminProductsClient() {
   };
 
   // Function to handle page change
-  const handlePageChange = (newPage: number) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
+  const handlePageChange = (newPage: number, newLimit?: number | string) => {
+    setPagination(prev => ({
+      ...prev,
+      page: newPage,
+      limit: newLimit !== undefined ? newLimit : prev.limit
+    }));
   };
 
   // Function to handle filter changes

@@ -58,16 +58,29 @@ export async function isAdminMiddleware(req: NextRequest) {
  * @returns A new route handler with admin authentication
  */
 export function withAdminAuth(handler: Function) {
-  return async (req: NextRequest) => {
+  return async (req: NextRequest, context?: any) => {
     try {
       console.log('withAdminAuth: Processing request for path:', req.nextUrl.pathname);
+      console.log('withAdminAuth: Context:', context);
       
       // Get the JWT token from cookies
       const token = req.cookies.get('auth_token')?.value;
       console.log('withAdminAuth: Auth token exists:', !!token);
       
-      // If no token is found, return unauthorized response
+      // If no token is found, check Authorization header
+      let headerToken = '';
       if (!token) {
+        const authHeader = req.headers.get('Authorization');
+        if (authHeader?.startsWith('Bearer ')) {
+          headerToken = authHeader.substring(7);
+          console.log('withAdminAuth: Authorization header token exists:', !!headerToken);
+        }
+      }
+      
+      const authToken = token || headerToken;
+      
+      // If no token is found, return unauthorized response
+      if (!authToken) {
         console.log('withAdminAuth: No auth token found, returning 401');
         return NextResponse.json(
           { message: 'ไม่ได้รับอนุญาตให้เข้าถึง กรุณาเข้าสู่ระบบ' },
@@ -82,11 +95,11 @@ export function withAdminAuth(handler: Function) {
       try {
         // Verify the token and decode it
         console.log('withAdminAuth: Attempting to verify token');
-        console.log('withAdminAuth: Token preview:', token.substring(0, 10) + '...');
+        console.log('withAdminAuth: Token preview:', authToken.substring(0, 10) + '...');
         
         let decoded;
         try {
-          decoded = verify(token, JWT_SECRET) as DecodedToken;
+          decoded = verify(authToken, JWT_SECRET) as DecodedToken;
           console.log('withAdminAuth: Token verified successfully, decoded:', decoded);
         } catch (tokenError) {
           console.error('withAdminAuth: Token verification error:', tokenError);
@@ -94,7 +107,7 @@ export function withAdminAuth(handler: Function) {
           // Try with the old secret key as fallback (for backward compatibility)
           try {
             const OLD_JWT_SECRET = 'your-secret-key'; // Old fallback secret
-            decoded = verify(token, OLD_JWT_SECRET) as DecodedToken;
+            decoded = verify(authToken, OLD_JWT_SECRET) as DecodedToken;
             console.log('withAdminAuth: Token verified with old secret, decoded:', decoded);
           } catch (oldTokenError) {
             console.error('withAdminAuth: Old token verification also failed:', oldTokenError);
@@ -123,8 +136,8 @@ export function withAdminAuth(handler: Function) {
         }
         
         // If the user is an admin, call the original handler
-        console.log('withAdminAuth: User is admin, proceeding to handler');
-        return handler(req, decoded);
+        console.log('withAdminAuth: User is admin, proceeding to handler with context:', context);
+        return handler(req, context, decoded);
       } catch (verifyError) {
         console.error('withAdminAuth: Token verification failed:', verifyError);
         return NextResponse.json(

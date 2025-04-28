@@ -35,7 +35,8 @@ import {
   CardContent,
   FormControlLabel,
   Switch,
-  Stack
+  Stack,
+  Checkbox
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
@@ -78,6 +79,19 @@ export default function UsersClient() {
   // สถานะสำหรับการยืนยันการลบ
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  
+  // เพิ่ม state สำหรับ edit dialog
+  const [openEditDialog, setOpenEditDialog] = useState<boolean>(false);
+  const [userToEdit, setUserToEdit] = useState<User | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    firstName: '',
+    lastName: '',
+    isAdmin: 'false',
+    emailVerified: false
+  });
+  const [editLoading, setEditLoading] = useState<boolean>(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSuccess, setEditSuccess] = useState<boolean>(false);
   
   // ตรวจสอบสิทธิ์ admin
   useEffect(() => {
@@ -228,13 +242,83 @@ export default function UsersClient() {
   };
   
   // ไปที่หน้าแก้ไขผู้ใช้
-  const handleEditUser = (userId: number) => {
-    router.push(`/admin/users/edit/${userId}`);
+  const handleEditUser = (user: User) => {
+    setUserToEdit(user);
+    setEditFormData({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      isAdmin: user.isAdmin === 'true' ? 'true' : 'false',
+      emailVerified: user.emailVerifiedAt !== null
+    });
+    setEditError(null);
+    setEditSuccess(false);
+    setOpenEditDialog(true);
   };
   
   // ไปที่หน้าเพิ่มผู้ใช้ใหม่
   const handleAddUser = () => {
     router.push('/admin/users/add');
+  };
+  
+  const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, checked, type } = e.target;
+    setEditFormData({
+      ...editFormData,
+      [name]: type === 'checkbox' ? checked : value
+    });
+  };
+  
+  const handleEditDialogClose = () => {
+    if (!editLoading) {
+      setOpenEditDialog(false);
+      setUserToEdit(null);
+    }
+  };
+  
+  const handleEditSubmit = async () => {
+    if (!userToEdit) return;
+    
+    setEditLoading(true);
+    setEditError(null);
+    setEditSuccess(false);
+    
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`/api/admin/users/${userToEdit.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        credentials: 'include',
+        body: JSON.stringify(editFormData),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลผู้ใช้');
+      }
+      
+      // อัปเดตข้อมูลผู้ใช้ในรายการ
+      setUsers(users.map(user => 
+        user.id === userToEdit.id ? data.user : user
+      ));
+      
+      setEditSuccess(true);
+      
+      // ปิด dialog หลังจากสำเร็จ
+      setTimeout(() => {
+        setOpenEditDialog(false);
+        setUserToEdit(null);
+      }, 1500);
+      
+    } catch (error) {
+      console.error('Error updating user:', error);
+      setEditError(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ');
+    } finally {
+      setEditLoading(false);
+    }
   };
   
   // แสดงหน้าโหลดข้อมูล
@@ -454,7 +538,7 @@ export default function UsersClient() {
                             <IconButton 
                               size="small" 
                               color="primary"
-                              onClick={() => handleEditUser(user.id)}
+                              onClick={() => handleEditUser(user)}
                             >
                               <EditIcon />
                             </IconButton>
@@ -541,7 +625,7 @@ export default function UsersClient() {
                             <IconButton 
                               size="small" 
                               color="primary"
-                              onClick={() => handleEditUser(user.id)}
+                              onClick={() => handleEditUser(user)}
                             >
                               <EditIcon />
                             </IconButton>
@@ -602,6 +686,135 @@ export default function UsersClient() {
             disabled={loading}
           >
             {loading ? 'กำลังลบ...' : 'ลบ'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog แก้ไขข้อมูลผู้ใช้ */}
+      <Dialog
+        open={openEditDialog}
+        onClose={handleEditDialogClose}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle sx={{ borderBottom: 1, borderColor: 'divider', pb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <EditIcon color="primary" />
+            <Typography variant="h6">แก้ไขข้อมูลผู้ใช้</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          {editError && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {editError}
+            </Alert>
+          )}
+          
+          {editSuccess && (
+            <Alert severity="success" sx={{ mb: 3 }}>
+              อัปเดตข้อมูลเรียบร้อยแล้ว
+            </Alert>
+          )}
+          
+          <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 3 , py: 4 }}>
+            <TextField
+              label="ชื่อ"
+              name="firstName"
+              value={editFormData.firstName}
+              onChange={handleEditFormChange}
+              fullWidth
+              required
+              disabled={editLoading}
+              variant="outlined"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <PersonIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            
+            <TextField
+              label="นามสกุล"
+              name="lastName"
+              value={editFormData.lastName}
+              onChange={handleEditFormChange}
+              fullWidth
+              required
+              disabled={editLoading}
+              variant="outlined"
+            />
+            
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 1 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
+                สิทธิ์และการยืนยัน
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={editFormData.isAdmin === 'true'}
+                      onChange={(e) => 
+                        setEditFormData({
+                          ...editFormData,
+                          isAdmin: e.target.checked ? 'true' : 'false'
+                        })
+                      }
+                      disabled={editLoading}
+                      color="primary"
+                    />
+                  }
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AdminPanelSettingsIcon fontSize="small" color={editFormData.isAdmin === 'true' ? 'primary' : 'disabled'} />
+                      <Typography>สิทธิ์แอดมิน</Typography>
+                    </Box>
+                  }
+                />
+                
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      name="emailVerified"
+                      checked={editFormData.emailVerified}
+                      onChange={handleEditFormChange}
+                      disabled={editLoading}
+                      color="success"
+                    />
+                  }
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Chip 
+                        label={editFormData.emailVerified ? "ยืนยันแล้ว" : "ยังไม่ยืนยัน"} 
+                        color={editFormData.emailVerified ? "success" : "error"}
+                        size="small"
+                      />
+                      <Typography>ยืนยันอีเมล</Typography>
+                    </Box>
+                  }
+                />
+              </Box>
+            </Paper>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, borderTop: 1, borderColor: 'divider' }}>
+          <Button 
+            onClick={handleEditDialogClose} 
+            disabled={editLoading}
+            variant="outlined"
+          >
+            ยกเลิก
+          </Button>
+          <Button
+            onClick={handleEditSubmit}
+            color="primary"
+            variant="contained"
+            disabled={editLoading}
+            startIcon={editLoading ? <CircularProgress size={20} /> : null}
+          >
+            {editLoading ? 'กำลังบันทึก...' : 'บันทึก'}
           </Button>
         </DialogActions>
       </Dialog>

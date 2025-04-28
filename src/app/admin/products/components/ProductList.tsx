@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Product } from '../client';
 import {
   Box,
@@ -28,7 +29,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 
 interface PaginationProps {
   page: number;
-  limit: number;
+  limit: number | string;
   totalItems: number;
   totalPages: number;
 }
@@ -36,7 +37,7 @@ interface PaginationProps {
 interface ProductListProps {
   products: Product[];
   pagination: PaginationProps;
-  onPageChange: (page: number) => void;
+  onPageChange: (page: number, limit?: number | string) => void;
   onProductSelect: (product: Product) => void;
   selectedProductId: string | null;
 }
@@ -49,7 +50,12 @@ export default function ProductList({
   selectedProductId
 }: ProductListProps) {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  
+  // เพิ่ม local state สำหรับจัดการ rowsPerPage ที่เป็น number เท่านั้น
+  const [rowsPerPage, setRowsPerPage] = useState<number>(
+    typeof pagination.limit === 'number' ? pagination.limit : 10
+  );
   
   // Function to get status color
   const getStatusColor = (status: string | null) => {
@@ -83,7 +89,7 @@ export default function ProductList({
   
   // Handle page change
   const handleChangePage = (_: unknown, newPage: number) => {
-    onPageChange(newPage + 1); // API uses 1-based indexing
+    onPageChange(newPage + 1);
   };
   
   return (
@@ -366,15 +372,28 @@ export default function ProductList({
           component="div"
           count={pagination.totalItems}
           page={pagination.page - 1} // API uses 1-based indexing, MUI uses 0-based
-          rowsPerPage={pagination.limit}
-          rowsPerPageOptions={isMobile ? [10, 25] : [10, 25, 50]}
+          rowsPerPage={rowsPerPage}
+          rowsPerPageOptions={[
+            10, 
+            25, 
+            50, 
+            100,
+            { label: 'แสดงทั้งหมด', value: -1 }
+          ]}
           onPageChange={handleChangePage}
           onRowsPerPageChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-            const newLimit = parseInt(e.target.value, 10);
-            // Reset to page 1 when changing limit
-            onPageChange(1);
-            // Update limit in parent component
-            pagination.limit = newLimit;
+            const value = e.target.value;
+            const newRowsPerPage = parseInt(value, 10);
+            setRowsPerPage(newRowsPerPage);
+            
+            // ถ้าเป็น -1 (All) ให้ส่งค่าเป็น 'all'
+            let newLimit: number | string = newRowsPerPage;
+            if (newRowsPerPage === -1) {
+              newLimit = 'all';
+            }
+            
+            // ส่งค่า newLimit กลับไปยัง parent component
+            onPageChange(1, newLimit);
           }}
           labelDisplayedRows={({ from, to, count }: { from: number; to: number; count: number }) => 
             `${from}-${to} จาก ${count}`

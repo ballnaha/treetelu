@@ -31,7 +31,12 @@ export default function AdminOrdersClient() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [pagination, setPagination] = useState({
+  const [pagination, setPagination] = useState<{
+    page: number;
+    limit: number | string;
+    totalItems: number;
+    totalPages: number;
+  }>({
     page: 1,
     limit: 10,
     totalItems: 0,
@@ -67,9 +72,13 @@ export default function AdminOrdersClient() {
       
       // Build query parameters
       const queryParams = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString()
+        page: pagination.page.toString()
       });
+      
+      // เพิ่มค่า limit เป็น 'all' หรือเป็นตัวเลข
+      if (pagination.limit !== undefined) {
+        queryParams.append('limit', pagination.limit.toString());
+      }
       
       if (filters.status) queryParams.append('status', filters.status);
       if (filters.dateFrom) queryParams.append('dateFrom', filters.dateFrom);
@@ -110,8 +119,12 @@ export default function AdminOrdersClient() {
   };
 
   // Function to handle page change
-  const handlePageChange = (newPage: number) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
+  const handlePageChange = (newPage: number, newLimit?: number | string) => {
+    setPagination(prev => ({
+      ...prev,
+      page: newPage,
+      limit: newLimit !== undefined ? newLimit : prev.limit
+    }));
   };
 
   // Function to handle filter changes

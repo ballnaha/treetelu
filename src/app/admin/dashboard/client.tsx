@@ -1,7 +1,6 @@
 'use client';
 
-import React from 'react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -38,6 +37,17 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import Link from 'next/link';
 import OrderDetailDialog, { Order as DetailOrder } from './components/OrderDetailDialog';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { Bar } from 'react-chartjs-2';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import { ArcElement } from 'chart.js';
+import { Doughnut } from 'react-chartjs-2';
+
+// Register ChartJS components
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 // สถิติแบบจำลอง
 interface DashboardStats {
@@ -52,6 +62,7 @@ interface DashboardStats {
   orderStatusDistribution: StatusData[];
   salesGrowthRate: number;
   customersGrowthRate: number;
+  topSellingProducts?: TopProduct[];
 }
 
 // ปรับให้มีโครงสร้างเดียวกับ DetailOrder แต่ข้อมูลอาจจะน้อยกว่า
@@ -99,12 +110,23 @@ interface RecentOrder {
 
 interface MonthSales {
   month: string;
+  monthFull?: string;
   sales: number;
+  year?: number;
+  numOrders?: number;
 }
 
 interface StatusData {
   status: string;
   count: number;
+}
+
+// เพิ่มอินเตอร์เฟซสำหรับสินค้าขายดี
+interface TopProduct {
+  id: string;
+  name: string;
+  totalSold: number;
+  totalAmount: number;
 }
 
 // ฟังก์ชันแปลสถานะ
@@ -145,6 +167,177 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+// ฟังก์ชันเตรียมข้อมูลสำหรับ Chart.js
+const prepareSalesChartData = (salesData: MonthSales[]) => {
+  return {
+    labels: salesData.map(item => item.month),
+    datasets: [
+      {
+        label: 'ยอดขาย (บาท)',
+        data: salesData.map(item => item.sales),
+        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        borderWidth: 1,
+        borderRadius: 5,
+        hoverBackgroundColor: 'rgba(75, 192, 192, 0.8)',
+      }
+    ]
+  };
+};
+
+// ตัวเลือกสำหรับ Chart.js
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: 'top' as const,
+      labels: {
+        font: {
+          family: 'Kanit, sans-serif'
+        }
+      }
+    },
+    title: {
+      display: false,
+      text: 'ยอดขายรายเดือน',
+      font: {
+        family: 'Kanit, sans-serif',
+        size: 16
+      }
+    },
+    tooltip: {
+      callbacks: {
+        label: function(context: any) {
+          let label = context.dataset.label || '';
+          if (label) {
+            label += ': ';
+          }
+          if (context.parsed.y !== null) {
+            label += new Intl.NumberFormat('th-TH', {
+              style: 'currency',
+              currency: 'THB',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0
+            }).format(context.parsed.y);
+          }
+          return label;
+        }
+      }
+    }
+  },
+  scales: {
+    x: {
+      grid: {
+        display: false
+      },
+      ticks: {
+        font: {
+          family: 'Kanit, sans-serif'
+        }
+      }
+    },
+    y: {
+      beginAtZero: true,
+      grid: {
+        drawBorder: false
+      },
+      ticks: {
+        font: {
+          family: 'Kanit, sans-serif'
+        },
+        callback: function(value: any) {
+          return new Intl.NumberFormat('th-TH', {
+            style: 'currency',
+            currency: 'THB',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+          }).format(value);
+        }
+      }
+    }
+  }
+};
+
+// ฟังก์ชันเตรียมข้อมูลสำหรับ Chart.js สินค้าขายดี
+const prepareTopProductsChartData = (products: TopProduct[]) => {
+  // คู่สีสวยงามที่ไล่เฉดกัน
+  const backgroundColors = [
+    'rgba(255, 99, 132, 0.8)',  // สีชมพู
+    'rgba(54, 162, 235, 0.8)',  // สีฟ้า
+    'rgba(255, 206, 86, 0.8)',  // สีเหลือง
+    'rgba(75, 192, 192, 0.8)',  // สีเขียวมิ้นท์
+    'rgba(153, 102, 255, 0.8)', // สีม่วง
+    'rgba(255, 159, 64, 0.8)',  // สีส้ม
+    'rgba(238, 130, 238, 0.8)', // สีม่วงอ่อน
+    'rgba(106, 90, 205, 0.8)',  // สีสเลท
+    'rgba(60, 179, 113, 0.8)',  // สีเขียวปานกลาง
+    'rgba(255, 99, 71, 0.8)',   // สีแดงส้ม (ทอมาโต้)
+  ];
+  
+  const borderColors = backgroundColors.map(color => color.replace('0.8', '1'));
+
+  return {
+    labels: products.map(product => product.name.length > 20 ? product.name.substring(0, 20) + '...' : product.name),
+    datasets: [
+      {
+        label: 'จำนวนที่ขายได้',
+        data: products.map(product => product.totalSold),
+        backgroundColor: backgroundColors,
+        borderColor: borderColors,
+        borderWidth: 1.5,
+        hoverOffset: 15
+      }
+    ]
+  };
+};
+
+// ตัวเลือกสำหรับ Chart.js สินค้าขายดี
+const productChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: 'right' as const,
+      labels: {
+        font: {
+          family: 'Kanit, sans-serif'
+        },
+        // กำหนดให้แสดงชื่อไม่เกิน 15 ตัวอักษร
+        generateLabels: function(chart: any) {
+          const original = ChartJS.overrides.doughnut.plugins.legend.labels.generateLabels;
+          const labels = original.call(this, chart);
+          
+          labels.forEach((label: any) => {
+            if (label.text && label.text.length > 15) {
+              label.text = label.text.substring(0, 15) + '...';
+            }
+          });
+          
+          return labels;
+        }
+      }
+    },
+    title: {
+      display: false,
+      text: 'สินค้าขายดี 10 อันดับ',
+      font: {
+        family: 'Kanit, sans-serif',
+        size: 16
+      }
+    },
+    tooltip: {
+      callbacks: {
+        label: function(context: any) {
+          const label = context.label || '';
+          const value = context.raw;
+          return `${label}: ${value} ชิ้น`;
+        }
+      }
+    }
+  }
+};
+
 export default function AdminDashboardClient() {
   const { user, getAuthToken } = useAuth();
   const router = useRouter();
@@ -159,6 +352,178 @@ export default function AdminDashboardClient() {
   const [showOrderDetail, setShowOrderDetail] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<DetailOrder | null>(null);
   const [orderLoading, setOrderLoading] = useState(false);
+  
+  const chartRef = useRef(null);
+  
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear() + 543); // ปี พ.ศ.
+  const [showUnit, setShowUnit] = useState<string>('amount'); // 'amount' หรือ 'orders'
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  
+  const [chartData, setChartData] = useState<any>(null);
+  const [productChartData, setProductChartData] = useState<any>(null);
+  
+  // ตัวเลือกกราฟแบบแท่ง
+  const barOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top' as const,
+        labels: {
+          font: {
+            family: 'Kanit, sans-serif',
+            size: 12
+          },
+          usePointStyle: true,
+          pointStyle: 'circle'
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleFont: {
+          family: 'Kanit, sans-serif',
+          size: 14
+        },
+        bodyFont: {
+          family: 'Kanit, sans-serif',
+          size: 13
+        },
+        padding: 12,
+        cornerRadius: 8,
+        callbacks: {
+          label: function(context: any) {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              if (showUnit === 'amount') {
+                label += new Intl.NumberFormat('th-TH', {
+                  style: 'currency',
+                  currency: 'THB',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0
+                }).format(context.parsed.y);
+              } else {
+                label += `${context.parsed.y} ชิ้น`;
+              }
+            }
+            return label;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false,
+          drawBorder: false
+        },
+        ticks: {
+          font: {
+            family: 'Kanit, sans-serif',
+            size: 12
+          }
+        }
+      },
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(0, 0, 0, 0.05)',
+          drawBorder: false
+        },
+        ticks: {
+          font: {
+            family: 'Kanit, sans-serif',
+            size: 12
+          },
+          callback: function(value: any) {
+            if (showUnit === 'amount') {
+              return new Intl.NumberFormat('th-TH', {
+                style: 'currency',
+                currency: 'THB',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+              }).format(value);
+            } else {
+              return value + ' ชิ้น';
+            }
+          }
+        }
+      }
+    },
+    elements: {
+      bar: {
+        borderRadius: 6,
+        borderWidth: 0
+      }
+    },
+    animation: {
+      duration: 1500,
+      easing: 'easeOutQuart'
+    }
+  };
+
+  // ตัวเลือกกราฟวงกลม
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '60%',
+    plugins: {
+      legend: {
+        position: 'right' as const,
+        labels: {
+          font: {
+            family: 'Kanit, sans-serif',
+            size: 12
+          },
+          padding: 15,
+          usePointStyle: true,
+          pointStyle: 'circle',
+          generateLabels: function(chart: any) {
+            const original = ChartJS.overrides.doughnut.plugins.legend.labels.generateLabels;
+            const labels = original.call(this, chart);
+            
+            labels.forEach((label: any) => {
+              if (label.text && label.text.length > 15) {
+                label.text = label.text.substring(0, 15) + '...';
+              }
+            });
+            
+            return labels;
+          }
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleFont: {
+          family: 'Kanit, sans-serif',
+          size: 14
+        },
+        bodyFont: {
+          family: 'Kanit, sans-serif',
+          size: 13
+        },
+        padding: 12,
+        cornerRadius: 8,
+        callbacks: {
+          label: function(context: any) {
+            const label = context.label || '';
+            const value = context.raw;
+            const percentage = ((context.raw / context.chart._metasets[context.datasetIndex].total) * 100).toFixed(1);
+            return `${label}: ${value} ชิ้น (${percentage}%)`;
+          }
+        }
+      }
+    },
+    animation: {
+      animateRotate: true,
+      animateScale: true,
+      duration: 1500,
+      easing: 'easeOutCirc'
+    }
+  };
   
   // ตรวจสอบสิทธิ์ admin
   useEffect(() => {
@@ -219,6 +584,24 @@ export default function AdminDashboardClient() {
       
       if (result.success && result.data) {
         setStats(result.data);
+        
+        // อัปเดตปีที่มีข้อมูล
+        if (result.data.salesByMonth && result.data.salesByMonth.length > 0) {
+          // ดึงปีที่มีข้อมูลและกรองให้เป็นตัวเลขเท่านั้น
+          const yearsData = result.data.salesByMonth
+            .map((item: any) => item.year)
+            .filter((year: any): year is number => typeof year === 'number' && !isNaN(year));
+          
+          // ใช้ Set เพื่อกำจัดค่าซ้ำและแปลงกลับเป็น array
+          const uniqueYears = Array.from(new Set(yearsData)) as number[];
+          setAvailableYears(uniqueYears);
+          
+          // ตั้งค่าปีล่าสุดที่มีข้อมูล ถ้ายังไม่มีปีที่เลือกในข้อมูล
+          if (uniqueYears.length > 0 && !uniqueYears.includes(selectedYear)) {
+            setSelectedYear(uniqueYears[uniqueYears.length - 1] as number);
+          }
+        }
+        
         setError('');
       } else {
         throw new Error(result.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลแดชบอร์ด');
@@ -322,6 +705,141 @@ export default function AdminDashboardClient() {
     } finally {
       setOrderLoading(false);
     }
+  };
+  
+  // ฟังก์ชัน filter ข้อมูลตามปีที่เลือก
+  const getFilteredSalesData = () => {
+    if (!stats?.salesByMonth) return [];
+    
+    return stats.salesByMonth.filter(item => item.year === selectedYear);
+  };
+  
+  // ฟังก์ชันเตรียมข้อมูลสำหรับกราฟยอดขายที่จะแสดงจำนวนเงินหรือจำนวนคำสั่งซื้อ
+  const prepareSalesChartDataByUnit = (salesData: MonthSales[]) => {
+    const gradientColors = {
+      amount: {
+        start: 'rgba(75, 192, 192, 0.8)',
+        end: 'rgba(75, 192, 192, 0.1)'
+      },
+      orders: {
+        start: 'rgba(54, 162, 235, 0.8)',
+        end: 'rgba(54, 162, 235, 0.1)'
+      }
+    };
+
+    // สีแท่งกราฟที่สวยงาม
+    const barColors = {
+      amount: {
+        backgroundColor: 'rgba(75, 192, 192, 0.7)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        hoverBackgroundColor: 'rgba(75, 192, 192, 0.9)',
+      },
+      orders: {
+        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        hoverBackgroundColor: 'rgba(54, 162, 235, 0.9)',
+      }
+    };
+
+    return {
+      labels: salesData.map(item => item.month),
+      datasets: [
+        {
+          label: showUnit === 'amount' ? 'ยอดขาย (บาท)' : 'จำนวนคำสั่งซื้อ (ชิ้น)',
+          data: salesData.map(item => showUnit === 'amount' ? item.sales : (item.numOrders || 0)),
+          backgroundColor: barColors[showUnit as keyof typeof barColors].backgroundColor,
+          borderColor: barColors[showUnit as keyof typeof barColors].borderColor,
+          hoverBackgroundColor: barColors[showUnit as keyof typeof barColors].hoverBackgroundColor,
+          borderWidth: 1,
+          borderRadius: 6,
+          barPercentage: 0.7,
+          categoryPercentage: 0.8
+        }
+      ]
+    };
+  };
+  
+  // ตัวเลือกสำหรับกราฟยอดขายที่แสดงจำนวนเงินหรือจำนวนคำสั่งซื้อ
+  const getSalesChartOptions = () => {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top' as const,
+          labels: {
+            font: {
+              family: 'Kanit, sans-serif'
+            }
+          }
+        },
+        title: {
+          display: false,
+          text: showUnit === 'amount' ? 'ยอดขายรายเดือน' : 'จำนวนคำสั่งซื้อรายเดือน',
+          font: {
+            family: 'Kanit, sans-serif',
+            size: 16
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context: any) {
+              let label = context.dataset.label || '';
+              if (label) {
+                label += ': ';
+              }
+              if (context.parsed.y !== null) {
+                if (showUnit === 'amount') {
+                  label += new Intl.NumberFormat('th-TH', {
+                    style: 'currency',
+                    currency: 'THB',
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                  }).format(context.parsed.y);
+                } else {
+                  label += `${context.parsed.y} ชิ้น`;
+                }
+              }
+              return label;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'category' as const,
+          grid: {
+            display: false
+          },
+          ticks: {
+            font: {
+              family: 'Kanit, sans-serif'
+            }
+          }
+        },
+        y: {
+          type: 'linear' as const,
+          beginAtZero: true,
+          ticks: {
+            font: {
+              family: 'Kanit, sans-serif'
+            },
+            callback: function(value: any) {
+              if (showUnit === 'amount') {
+                return new Intl.NumberFormat('th-TH', {
+                  style: 'currency',
+                  currency: 'THB',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0
+                }).format(value);
+              } else {
+                return value + ' ชิ้น';
+              }
+            }
+          }
+        }
+      }
+    };
   };
   
   // แสดงหน้าโหลดข้อมูล
@@ -766,9 +1284,9 @@ export default function AdminDashboardClient() {
           </Box>
           
           {/* แสดงข้อมูลแถวที่ 3 */}
-          <Box sx={{ display: 'flex', gap: 3 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
             {/* ยอดขายรายเดือน */}
-            <Box sx={{ flex: '1 1 100%' }}>
+            <Box sx={{ flex: '1 1 60%' }}>
               <Card 
                 elevation={0}
                 sx={{ 
@@ -781,55 +1299,113 @@ export default function AdminDashboardClient() {
                 <CardHeader 
                   title={
                     <Typography variant="h6" component="div">
-                      ยอดขายรายเดือน
+                      {showUnit === 'amount' ? 'ยอดขายรายเดือน' : 'จำนวนคำสั่งซื้อรายเดือน'}
                     </Typography>
                   }
                   action={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <UpdateIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
-                      <Typography variant="caption" color="text.secondary">
-                        อัปเดตล่าสุด: {new Date().toLocaleDateString('th-TH')}
-                      </Typography>
+                      <FormControl variant="outlined" size="small" sx={{ minWidth: 100 }}>
+                        <InputLabel>หน่วย</InputLabel>
+                        <Select
+                          value={showUnit}
+                          onChange={(e) => setShowUnit(e.target.value as string)}
+                          label="หน่วย"
+                        >
+                          <MenuItem value="amount">ยอดเงิน</MenuItem>
+                          <MenuItem value="orders">จำนวนชิ้น</MenuItem>
+                        </Select>
+                      </FormControl>
+                      
+                      <FormControl variant="outlined" size="small" sx={{ minWidth: 100 }}>
+                        <InputLabel>ปี</InputLabel>
+                        <Select
+                          value={selectedYear}
+                          onChange={(e) => setSelectedYear(Number(e.target.value))}
+                          label="ปี"
+                        >
+                          {availableYears.map(year => (
+                            <MenuItem key={year} value={year}>{year}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <UpdateIcon sx={{ fontSize: '1rem', color: 'text.secondary', mr: 0.5 }} />
+                        <Typography variant="caption" color="text.secondary">
+                          อัปเดตล่าสุด: {new Date().toLocaleDateString('th-TH')}
+                        </Typography>
+                      </Box>
                     </Box>
                   }
                 />
                 <Divider />
                 <CardContent>
-                  <Box sx={{ height: 250, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2, textAlign: 'center' }}>
-                      ข้อมูลกราฟแสดงยอดขายรายเดือนจะแสดงในที่นี้
+                  <Box sx={{ height: 300 }}>
+                    {stats?.salesByMonth && getFilteredSalesData().length > 0 ? (
+                      <Bar 
+                        ref={chartRef}
+                        data={prepareSalesChartDataByUnit(getFilteredSalesData())} 
+                        options={barOptions as any}
+                        height={300}
+                      />
+                    ) : (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        justifyContent: 'center', 
+                        alignItems: 'center', 
+                        height: '100%' 
+                      }}>
+                        <Typography variant="body2" color="text.secondary">
+                          ไม่มีข้อมูลยอดขายสำหรับปี {selectedYear}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </CardContent>
+              </Card>
+            </Box>
+            
+            {/* สินค้าขายดี 10 อันดับ */}
+            <Box sx={{ flex: '1 1 40%' }}>
+              <Card 
+                elevation={0}
+                sx={{ 
+                  borderRadius: 2,
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                  height: '100%',
+                  border: '1px solid rgba(0,0,0,0.05)'
+                }}
+              >
+                <CardHeader 
+                  title={
+                    <Typography variant="h6" component="div">
+                      สินค้าขายดี 10 อันดับ
                     </Typography>
-                    <Box sx={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-end',
-                      height: '100%',
-                      mt: 2
-                    }}>
-                      {stats.salesByMonth.map((item, index) => (
-                        <Box key={index} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: `${100 / stats.salesByMonth.length}%` }}>
-                          <Box 
-                            sx={{ 
-                              width: '75%', 
-                              bgcolor: 'primary.main',
-                              minHeight: 50,
-                              borderRadius: '4px 4px 0 0',
-                              height: `${(item.sales / Math.max(...stats.salesByMonth.map(i => i.sales))) * 100}%`,
-                              maxHeight: '80%',
-                              transition: 'height 0.3s ease',
-                              '&:hover': {
-                                bgcolor: 'primary.dark',
-                                transform: 'translateY(-4px)',
-                                boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
-                              }
-                            }} 
-                          />
-                          <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                            {item.month}
-                          </Typography>
-                        </Box>
-                      ))}
-                    </Box>
+                  }
+                />
+                <Divider />
+                <CardContent>
+                  <Box sx={{ height: 300 }}>
+                    {stats?.topSellingProducts && stats.topSellingProducts.length > 0 ? (
+                      <Doughnut 
+                        data={prepareTopProductsChartData(stats.topSellingProducts)} 
+                        options={doughnutOptions as any}
+                        height={300}
+                      />
+                    ) : (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        justifyContent: 'center', 
+                        alignItems: 'center', 
+                        height: '100%' 
+                      }}>
+                        <Typography variant="body2" color="text.secondary">
+                          ไม่มีข้อมูลสินค้าขายดี
+                        </Typography>
+                      </Box>
+                    )}
                   </Box>
                 </CardContent>
               </Card>
