@@ -5,6 +5,7 @@ import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import fs from 'fs';
+import sharp from 'sharp';
 
 /**
  * POST handler for uploading product images (admin only)
@@ -43,7 +44,7 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
       );
     }
     
-    // Generate a unique filename
+    // Convert file to buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     
@@ -72,18 +73,69 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
       fs.mkdirSync(publicPath, { recursive: true });
     }
     
-    // Create an empty file first (helps with file system synchronization)
     try {
-      fs.writeFileSync(filePath, '');
-      console.log('Empty file created successfully');
-    } catch (emptyFileError) {
-      console.error('Error creating empty file:', emptyFileError);
-    }
-    
-    // Write the file to disk
-    try {
-      await writeFile(filePath, buffer);
-      console.log('File written successfully');
+      console.log('Processing image with logo watermark...');
+
+      // กำหนดพาธของโลโก้
+      const logoPath = join(process.cwd(), 'public', 'images', 'logo.webp');
+      
+      // ตรวจสอบว่าไฟล์โลโก้มีอยู่จริง
+      if (!fs.existsSync(logoPath)) {
+        console.warn('Logo file not found, processing without watermark');
+        
+        // ถ้าไม่มีโลโก้ ให้ปรับขนาดรูปภาพโดยไม่ใส่ลายน้ำ
+        await sharp(buffer)
+          .resize(1000, null, { 
+            fit: 'inside', 
+            withoutEnlargement: true 
+          })
+          .toFile(filePath);
+      } else {
+        console.log('Adding logo watermark using padding and top-level gravity...');
+        
+        // สร้างพื้นที่ว่างรอบภาพ (padding) เพื่อให้มีพื้นที่สำหรับวางโลโก้
+        const mainImage = await sharp(buffer)
+          .resize(1000, null, { 
+            fit: 'inside', 
+            withoutEnlargement: true 
+          })
+          .toBuffer();
+        
+        // วัดขนาดของรูปภาพหลังจากปรับขนาด
+        const imageInfo = await sharp(mainImage).metadata();
+        console.log('Resized image dimensions:', imageInfo.width, 'x', imageInfo.height);
+        
+        // อ่านโลโก้และปรับขนาด/ความโปร่งใส
+        const logoBuffer = await sharp(logoPath)
+          .resize(150, null, { fit: 'inside' }) // ปรับขนาดโลโก้ให้พอดี
+          .ensureAlpha() // ตรวจสอบว่ามี alpha channel
+          .toBuffer();
+        
+        // สร้างข้อมูลโลโก้
+        const logoInfo = await sharp(logoBuffer).metadata();
+        console.log('Logo dimensions:', logoInfo.width, 'x', logoInfo.height);
+        
+        // คำนวณตำแหน่งของโลโก้ (มุมล่างขวา)
+        const logoX = (imageInfo.width || 1000) - (logoInfo.width || 150) - 40; // ห่างจากขอบขวา 40px
+        const logoY = (imageInfo.height || 1000) - (logoInfo.height || 150) - 40; // ห่างจากขอบล่าง 40px
+        
+        // วางโลโก้บนรูปภาพ
+        await sharp(mainImage)
+          .composite([
+            {
+              input: logoBuffer,
+              left: logoX > 0 ? logoX : 10,
+              top: logoY > 0 ? logoY : 10,
+              blend: 'over',
+              opacity: 0.2 // ความโปร่งใส 20%
+            }
+          ])
+          .toFile(filePath);
+        
+        console.log(`Logo placed at position: ${logoX}, ${logoY}`);
+      }
+      
+      console.log('Image processed with logo watermark and saved successfully');
       
       // Verify file was written
       if (!fs.existsSync(filePath)) {
@@ -96,16 +148,39 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
       if (stats.size === 0) {
         throw new Error('File was created but is empty');
       }
-    } catch (writeError) {
-      console.error('Error writing file:', writeError);
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: 'เกิดข้อผิดพลาดในการบันทึกไฟล์รูปภาพ',
-          error: writeError instanceof Error ? writeError.message : String(writeError)
-        },
-        { status: 500 }
-      );
+    } catch (error) {
+      console.error('Error processing image with watermark:', error);
+      
+      // ถ้า sharp ทำงานไม่ได้ ให้ลองปรับขนาดก่อนโดยไม่ใส่ลายน้ำ
+      try {
+        console.log('Fallback: Resizing image without watermark...');
+        await sharp(buffer)
+          .resize(1000, null, { 
+            fit: 'inside', 
+            withoutEnlargement: true 
+          })
+          .toFile(filePath);
+        console.log('Image resized without watermark');
+      } catch (resizeError) {
+        console.error('Resize fallback failed:', resizeError);
+        
+        // ถ้ายังไม่ได้ ให้เขียนไฟล์โดยตรง
+        try {
+          console.log('Fallback: Saving original image...');
+          await writeFile(filePath, buffer);
+          console.log('Original file saved successfully');
+        } catch (fallbackError) {
+          console.error('Fallback save failed:', fallbackError);
+          return NextResponse.json(
+            { 
+              success: false, 
+              message: 'เกิดข้อผิดพลาดในการบันทึกไฟล์รูปภาพ',
+              error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+            },
+            { status: 500 }
+          );
+        }
+      }
     }
     
     console.log('Starting cache revalidation...');
