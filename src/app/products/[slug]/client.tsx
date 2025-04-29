@@ -212,6 +212,11 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
   const hasDiscount = product && product.originalPrice && product.salesPrice && 
     parseFloat(String(product.originalPrice)) > parseFloat(String(product.salesPrice));
 
+  // ตรวจสอบว่าสินค้าสามารถสั่งซื้อได้หรือไม่
+  const isProductAvailable = product && 
+    (product.stockStatus === 'in_stock' || product.stockStatus === 'พร้อมส่ง') && 
+    (product.stock === undefined || product.stock === null || product.stock > 0);
+
   // ฟังก์ชันคำนวณเปอร์เซ็นต์ส่วนลด
   const calculateDiscount = () => {
     if (!product || !hasDiscount) return 0;
@@ -717,23 +722,39 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
             
             {/* ปุ่มเพิ่มสินค้าในตะกร้า */}
             <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-              <ActionButton 
-                variant="contained" 
-                color="primary" 
-                size="large"
-                onClick={handleAddToCart}
-                startIcon={<AddShoppingCartIcon />}
-                fullWidth
-                sx={{ 
-                  py: 1.5,
-                  backgroundColor: '#1D9679',
-                  '&:hover': {
-                    backgroundColor: '#17806A'
-                  }
-                }}
-              >
-                เพิ่มในตะกร้า
-              </ActionButton>
+              {isProductAvailable ? (
+                <ActionButton 
+                  variant="contained" 
+                  color="primary" 
+                  size="large"
+                  onClick={handleAddToCart}
+                  startIcon={<AddShoppingCartIcon />}
+                  fullWidth
+                  sx={{ 
+                    py: 1.5,
+                    backgroundColor: '#1D9679',
+                    '&:hover': {
+                      backgroundColor: '#17806A'
+                    }
+                  }}
+                >
+                  เพิ่มในตะกร้า
+                </ActionButton>
+              ) : (
+                <ActionButton 
+                  variant="contained" 
+                  color="error"
+                  size="large"
+                  disabled
+                  fullWidth
+                  sx={{ 
+                    py: 1.5,
+                    opacity: 0.7
+                  }}
+                >
+                  สินค้าหมด
+                </ActionButton>
+              )}
               
               <ActionButton
                 variant="outlined"

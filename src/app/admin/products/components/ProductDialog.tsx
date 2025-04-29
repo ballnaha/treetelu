@@ -25,7 +25,8 @@ import {
   FormControl,
   FormLabel,
   RadioGroup,
-  Radio
+  Radio,
+  Checkbox
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import SaveIcon from '@mui/icons-material/Save';
@@ -130,6 +131,7 @@ export default function ProductDialog({
   const [additionalImages, setAdditionalImages] = useState<ProductImage[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(-1);
   const [deletingImageIndex, setDeletingImageIndex] = useState<number>(-1);
+  const [addWatermark, setAddWatermark] = useState<boolean>(true);
   
   // Fetch categories when component mounts
   useEffect(() => {
@@ -450,14 +452,15 @@ export default function ProductDialog({
     
     // If we have a new image file, upload it first
     if (imageFile) {
-      const formData = new FormData();
-      formData.append('image', imageFile);
+      const formDataUpload = new FormData();
+      formDataUpload.append('image', imageFile);
+      formDataUpload.append('watermark', String(addWatermark));
       
       try {
         console.log('Uploading main product image...');
         const uploadResponse = await fetch('/api/admin/upload', {
           method: 'POST',
-          body: formData,
+          body: formDataUpload,
           credentials: 'include'
         });
         
@@ -494,14 +497,15 @@ export default function ProductDialog({
       
       for (const image of newImages) {
         if (image.file) {
-          const formData = new FormData();
-          formData.append('image', image.file);
+          const formDataUpload = new FormData();
+          formDataUpload.append('image', image.file);
+          formDataUpload.append('watermark', String(addWatermark));
           
           try {
             console.log(`Uploading additional image: ${image.imageName}...`);
             const uploadResponse = await fetch('/api/admin/upload', {
               method: 'POST',
-              body: formData,
+              body: formDataUpload,
               credentials: 'include'
             });
             
@@ -562,6 +566,11 @@ export default function ProductDialog({
     }
   };
   
+  // Handle Watermark Checkbox Change
+  const handleWatermarkChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setAddWatermark(event.target.checked);
+  };
+
   return (
     <>
       <Dialog
@@ -612,9 +621,9 @@ export default function ProductDialog({
         </Box>
         
         <DialogContent dividers sx={{ ...responsiveStyles.dialogContent, width: '100%', padding: { xs: '16px', sm: '24px' } }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%', maxWidth: '100%' }}>
-            {/* Basic Info */}
-            <Box sx={{ width: '100%', maxWidth: '100%' }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
+            {/* Left Column (Details) */}
+            <Box sx={{ flex: 1 }}>
               <Typography variant="subtitle1" sx={responsiveStyles.sectionTitle}>
                 ข้อมูลพื้นฐาน
               </Typography>
@@ -640,7 +649,7 @@ export default function ProductDialog({
                       onChange={handleInputChange}
                       helperText="รหัสสินค้าในรูปแบบ TTL + ปี 2 หลัก + เดือน 2 หลัก + running number 4 หลัก"
                       sx={fullWidthFieldStyle}
-                      disabled={isNewProduct} // Disable for new products as it's auto-generated
+                      disabled 
                     />
                   </Box>
                   
@@ -676,7 +685,7 @@ export default function ProductDialog({
                     </TextField>
                   </Box>
                   
-                  <Box sx={{ width: { xs: '100%', sm: 'calc(33.33% - 12px)' } }}>
+                  <Box sx={{ width: { xs: '100%', sm: 'calc(63% - 12px)' } }}>
                     <TextField
                       label="URL Slug"
                       name="slug"
@@ -690,7 +699,7 @@ export default function ProductDialog({
                     />
                   </Box>
                   
-                  <Box sx={{ width: { xs: '100%', sm: 'calc(66.67% - 12px)' } }}>
+                  <Box sx={{ width: { xs: '100%', sm: 'calc(96% - 12px)' } }}>
                     <TextField
                       multiline
                       rows={4}
@@ -831,28 +840,13 @@ export default function ProductDialog({
               </Paper>
             </Box>
             
-            {/* Image and Status */}
-            <Box sx={{ width: '100%', maxWidth: '100%' }}>
-              <Typography variant="subtitle1" sx={responsiveStyles.sectionTitle}>
-                รูปภาพสินค้า
-              </Typography>
-              
-              <Paper 
-                elevation={0} 
-                variant="outlined" 
-                sx={{ 
-                  p: 2, 
-                  mb: 3, 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  alignItems: 'center',
-                  width: '100%'
-                }}
-              >
-                <Typography variant="subtitle2" gutterBottom sx={responsiveStyles.sectionSubtitle}>
-                  รูปภาพหน้าปก
+            {/* Right Column (Images & Status) */}
+            <Box sx={{ width: { xs: '100%', md: 350 }, flexShrink: 0 }}>
+              {/* Product Image Section */}
+              <Paper elevation={1} sx={{ ...responsiveStyles.paper, p: 2 }}>
+                <Typography sx={responsiveStyles.sectionSubtitle} gutterBottom>
+                  รูปภาพหลัก
                 </Typography>
-                
                 <Box 
                   sx={{ 
                     ...responsiveStyles.imageContainer,
@@ -890,45 +884,28 @@ export default function ProductDialog({
                     </Stack>
                   )}
                 </Box>
-                
                 <Button
-                  variant="outlined"
                   component="label"
+                  variant="outlined"
                   startIcon={<UploadIcon />}
                   sx={responsiveStyles.button}
-                  size="small"
                 >
-                  อัปโหลดรูปภาพหน้าปก
+                  {imagePreview ? 'เปลี่ยนรูปภาพหลัก' : 'อัปโหลดรูปภาพหลัก'}
                   <input
                     type="file"
-                    accept="image/*"
                     hidden
+                    accept="image/*"
                     onChange={handleImageUpload}
                   />
                 </Button>
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                  แนะนำขนาด 800x800 พิกเซล
-                </Typography>
               </Paper>
-              
-              {/* Additional Images */}
-              <Paper 
-                elevation={0} 
-                variant="outlined" 
-                sx={{ 
-                  p: 2, 
-                  mb: 3, 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  width: '100%'
-                }}
-              >
-                <Typography variant="subtitle2" gutterBottom sx={responsiveStyles.sectionSubtitle}>
-                  รูปภาพเพิ่มเติม ({additionalImages.length})
+
+              {/* Additional Images Section */}
+              <Paper elevation={1} sx={{ ...responsiveStyles.paper, p: 2 }}>
+                <Typography sx={responsiveStyles.sectionSubtitle} gutterBottom>
+                  รูปภาพเพิ่มเติม
                 </Typography>
-                
-                {/* Image Grid */}
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, width: '100%', mt: 1 }}>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, width: '100%', mt: 1 , mb: 1 }}>
                   {additionalImages.map((image, index) => (
                     <Box sx={{ width: { xs: 'calc(33.33% - 8px)', sm: 'calc(32% - 8px)' } }} key={`img-${index}`}>
                       <Box
@@ -1000,65 +977,46 @@ export default function ProductDialog({
                     </Box>
                   ))}
                 </Box>
-                
-                {/* Selected Image Preview */}
-                {selectedImageIndex >= 0 && selectedImageIndex < additionalImages.length && (
-                  <Box 
-                    sx={{ 
-                      ...responsiveStyles.imageContainer,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      overflow: 'hidden',
-                      position: 'relative'
-                    }}
-                  >
-                    <Box
-                      component="img"
-                      src={additionalImages[selectedImageIndex].preview ? addNoCacheParam(additionalImages[selectedImageIndex].preview) : '/images/no-image.png'}
-                      alt="Selected product image"
-                      sx={{ 
-                        width: '100%', 
-                        height: '100%', 
-                        objectFit: 'contain'
-                      }}
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = '/images/no-image.png';
-                      }}
-                    />
-                  </Box>
-                )}
-                
                 <Button
-                  variant="outlined"
                   component="label"
-                  startIcon={<UploadIcon />}
-                  sx={responsiveStyles.button}
-                  size="small"
+                  variant="outlined"
+                  startIcon={<AddPhotoAlternateIcon />}
+                  sx={responsiveStyles.button}                 
                 >
-                  เพิ่มรูปภาพเพิ่มเติม
+                  อัปโหลดรูปภาพเพิ่มเติม
                   <input
                     type="file"
-                    accept="image/*"
                     hidden
                     multiple
+                    accept="image/*"
                     onChange={handleAdditionalImageUpload}
                   />
                 </Button>
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                  สามารถเพิ่มรูปภาพได้หลายรูป
-                </Typography>
               </Paper>
-              
-              <Typography variant="subtitle1" sx={responsiveStyles.sectionTitle}>
-                สถานะสินค้า
-              </Typography>
-              
-              <Paper elevation={0} variant="outlined" sx={{ p: 2, width: '100%' }}>
+
+              {/* Watermark Option Section */}
+              <Paper elevation={1} sx={{ ...responsiveStyles.paper, p: 2 }}>
+                <Typography sx={responsiveStyles.sectionSubtitle} gutterBottom>
+                  ตัวเลือกรูปภาพ
+                </Typography>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={addWatermark}
+                      onChange={handleWatermarkChange}
+                      name="addWatermark"
+                    />
+                  }
+                  label="ใส่ลายน้ำบนรูปภาพ"
+                  sx={{ mt: 1 }}
+                />
+              </Paper>
+
+              {/* Product Status Section */}
+              <Paper elevation={1} sx={{ ...responsiveStyles.paper, p: 2 }}>
+                <Typography variant="subtitle1" sx={responsiveStyles.sectionTitle}>
+                  สถานะสินค้า
+                </Typography>
                 <FormControlLabel
                   control={
                     <Switch

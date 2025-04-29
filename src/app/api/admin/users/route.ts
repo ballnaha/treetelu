@@ -87,6 +87,7 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
  */
 export const DELETE = withAdminAuth(async (req: NextRequest) => {
   try {
+    // แยกรหัสผู้ใช้จาก URL
     const url = new URL(req.url);
     const pathParts = url.pathname.split('/');
     const userId = pathParts[pathParts.length - 1];
@@ -98,9 +99,11 @@ export const DELETE = withAdminAuth(async (req: NextRequest) => {
       );
     }
     
+    const userIdNumber = parseInt(userId);
+    
     // ตรวจสอบว่าผู้ใช้มีอยู่จริง
     const user = await prisma.users.findUnique({
-      where: { id: parseInt(userId) }
+      where: { id: userIdNumber }
     });
     
     if (!user) {
@@ -110,40 +113,69 @@ export const DELETE = withAdminAuth(async (req: NextRequest) => {
       );
     }
     
-    // ตรวจสอบว่าไม่ใช่ผู้ใช้ที่กำลังใช้งานระบบอยู่
-    // TODO: เพิ่มการตรวจสอบว่าไม่ใช่ผู้ใช้ปัจจุบัน
-    
-    // ลบผู้ใช้
-    await prisma.users.delete({
-      where: { id: parseInt(userId) }
-    });
-    
-    return NextResponse.json({
-      success: true,
-      message: 'ลบผู้ใช้งานเรียบร้อยแล้ว'
-    });
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    
-    let errorMessage = 'เกิดข้อผิดพลาดในการลบผู้ใช้งาน';
-    let errorDetails = '';
-    
-    if (error instanceof Error) {
-      errorDetails = `${error.name}: ${error.message}`;
+    // ตรวจสอบว่าผู้ใช้มีคำสั่งซื้อที่เชื่อมโยงหรือไม่
+    try {
+      const relatedOrders = await prisma.order.count({
+        where: { userId: userIdNumber }
+      });
       
-      // จัดการกรณี foreign key constraint
-      if (error.message.includes('foreign key constraint')) {
-        errorMessage = 'ไม่สามารถลบผู้ใช้งานนี้ได้เนื่องจากมีข้อมูลที่เกี่ยวข้อง';
+      if (relatedOrders > 0) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            message: 'ไม่สามารถลบผู้ใช้งานนี้ได้เนื่องจากมีประวัติการสั่งซื้อ',
+            details: `ผู้ใช้งานนี้มีคำสั่งซื้อ ${relatedOrders} รายการ`
+          },
+          { status: 400 }
+        );
       }
-    } else {
-      errorDetails = String(error);
+    } catch (orderError) {
+      console.warn('Error checking related orders:', orderError);
+      // ถ้าตาราง order ไม่มีอยู่ หรือไม่มี field userId ให้ข้ามไป
     }
+    
+    // ลบผู้ใช้ด้วย Prisma client โดยตรง
+    try {
+      await prisma.users.delete({
+        where: { id: userIdNumber }
+      });
+      
+      return NextResponse.json({
+        success: true,
+        message: 'ลบผู้ใช้งานเรียบร้อยแล้ว'
+      });
+    } catch (deleteError: any) {
+      console.error('Error deleting user:', deleteError);
+      
+      // ถ้าเป็น Foreign key constraint error
+      if (deleteError.message && deleteError.message.includes('foreign key constraint')) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            message: 'ไม่สามารถลบผู้ใช้งานนี้ได้เนื่องจากมีข้อมูลที่เกี่ยวข้องอยู่ในระบบ',
+            details: 'กรุณาติดต่อผู้ดูแลระบบเพื่อลบข้อมูลที่เกี่ยวข้องก่อน'
+          },
+          { status: 400 }
+        );
+      }
+      
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'ไม่สามารถลบผู้ใช้งานได้',
+          error: deleteError.message || String(deleteError)
+        },
+        { status: 500 }
+      );
+    }
+  } catch (error: any) {
+    console.error('Error in DELETE user endpoint:', error);
     
     return NextResponse.json(
       { 
         success: false, 
-        message: errorMessage,
-        error: errorDetails
+        message: 'เกิดข้อผิดพลาดในการลบผู้ใช้งาน',
+        error: error.message || String(error)
       },
       { status: 500 }
     );

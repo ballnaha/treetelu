@@ -173,24 +173,49 @@ export default function UsersClient() {
         }
       });
       
-      if (!response.ok) {
-        throw new Error('ไม่สามารถลบผู้ใช้งานได้');
+      // เก็บค่า response text ก่อนเพื่อการดีบัก
+      const responseText = await response.text();
+      console.log('Response from server:', responseText);
+      
+      // พยายามแปลง response เป็น JSON
+      let data;
+      try {
+        // ถ้า response text เป็น JSON ที่ถูกต้อง
+        data = JSON.parse(responseText);
+      } catch (jsonError) {
+        console.error('Error parsing JSON:', jsonError, 'Response text:', responseText);
+        
+        // ถ้า response text ไม่ใช่ JSON ที่ถูกต้อง สร้าง object สำหรับแสดงข้อผิดพลาด
+        data = { 
+          success: false,
+          message: `ข้อมูลตอบกลับจากเซิร์ฟเวอร์ไม่ถูกต้อง (HTTP ${response.status})`,
+          responseText
+        };
       }
       
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || data.details || `ไม่สามารถลบผู้ใช้งานได้ (HTTP ${response.status})`);
+      }
       
       if (data.success) {
+        // ปิด dialog ยืนยันการลบเมื่อสำเร็จ
+        setDeleteConfirmOpen(false);
+        
         // อัปเดตรายการผู้ใช้
         fetchUsers();
+        setError('');
       } else {
         throw new Error(data.message || 'ไม่สามารถลบผู้ใช้งานได้');
       }
     } catch (err) {
       console.error('Error deleting user:', err);
-      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการลบผู้ใช้งาน');
+      let errorMessage = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการลบผู้ใช้งาน';
+      setError(errorMessage);
+      
+      // แสดงข้อผิดพลาดแต่ปิด dialog
+      setDeleteConfirmOpen(false);
     } finally {
       setLoading(false);
-      setDeleteConfirmOpen(false);
     }
   };
   
