@@ -221,7 +221,7 @@ export default function PrivacyPolicy() {
           </Box>
         </Paper>
       </Container>
-      <Footer />
+      
     </>
   );
 } 
