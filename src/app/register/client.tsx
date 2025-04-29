@@ -244,7 +244,9 @@ export default function RegisterClient() {
           lastName: '',
           email: '',
           password: '',
-          confirmPassword: ''
+          confirmPassword: '',
+          terms: '',
+          privacy: ''
         };
         
         data.errors.forEach((err: { path: string[], message: string }) => {
