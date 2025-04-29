@@ -14,7 +14,11 @@ import {
   Alert,
   Link as MuiLink,
   FormHelperText,
-  CircularProgress
+  CircularProgress,
+  FormControlLabel,
+  Checkbox,
+  FormControl,
+  FormGroup
 } from '@mui/material';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -93,6 +97,8 @@ export default function RegisterClient() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
   
   // Form validation states
   const [errors, setErrors] = useState({
@@ -101,6 +107,8 @@ export default function RegisterClient() {
     email: '',
     password: '',
     confirmPassword: '',
+    terms: '',
+    privacy: ''
   });
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,6 +125,28 @@ export default function RegisterClient() {
         ...errors,
         [name]: ''
       });
+    }
+  };
+  
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    
+    if (name === 'acceptTerms') {
+      setAcceptTerms(checked);
+      if (checked) {
+        setErrors({
+          ...errors,
+          terms: ''
+        });
+      }
+    } else if (name === 'acceptPrivacy') {
+      setAcceptPrivacy(checked);
+      if (checked) {
+        setErrors({
+          ...errors,
+          privacy: ''
+        });
+      }
     }
   };
   
@@ -163,6 +193,17 @@ export default function RegisterClient() {
       isValid = false;
     }
     
+    // Validate terms and privacy acceptance
+    if (!acceptTerms) {
+      newErrors.terms = 'คุณต้องยอมรับเงื่อนไขการให้บริการ';
+      isValid = false;
+    }
+    
+    if (!acceptPrivacy) {
+      newErrors.privacy = 'คุณต้องยอมรับเงื่อนไขความเป็นส่วนตัว';
+      isValid = false;
+    }
+    
     setErrors(newErrors);
     return isValid;
   };
@@ -188,7 +229,7 @@ export default function RegisterClient() {
           firstName: formData.firstName,
           lastName: formData.lastName,
           email: formData.email,
-          password: formData.password
+          password: formData.password,
         }),
       });
       
@@ -385,6 +426,66 @@ export default function RegisterClient() {
               ),
             }}
           />
+          
+          <FormControl 
+            component="fieldset" 
+            error={!!errors.terms || !!errors.privacy}
+            sx={{ mb: 3, width: '100%' }}
+          >
+            <FormGroup>
+              <FormControlLabel
+                control={
+                  <Checkbox 
+                    name="acceptTerms"
+                    checked={acceptTerms}
+                    onChange={handleCheckboxChange}
+                  />
+                }
+                label={
+                  <Typography variant="body2">
+                    ฉันยอมรับ{' '}
+                    <MuiLink 
+                      component={Link} 
+                      href="/terms-of-service" 
+                      target="_blank"
+                      color="primary"
+                    >
+                      เงื่อนไขการให้บริการ
+                    </MuiLink>
+                  </Typography>
+                }
+              />
+              {errors.terms && (
+                <FormHelperText error>{errors.terms}</FormHelperText>
+              )}
+              
+              <FormControlLabel
+                control={
+                  <Checkbox 
+                    name="acceptPrivacy"
+                    checked={acceptPrivacy}
+                    onChange={handleCheckboxChange}
+                  />
+                }
+                label={
+                  <Typography variant="body2">
+                    ฉันยอมรับ{' '}
+                    <MuiLink 
+                      component={Link} 
+                      href="/privacy-policy" 
+                      target="_blank"
+                      color="primary"
+                    >
+                      เงื่อนไขความเป็นส่วนตัว
+                    </MuiLink>
+                  </Typography>
+                }
+              />
+              {errors.privacy && (
+                <FormHelperText error>{errors.privacy}</FormHelperText>
+              )}
+            </FormGroup>
+          </FormControl>
           
           <StyledButton
             type="submit"
