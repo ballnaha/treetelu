@@ -109,6 +109,15 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
         const logoBuffer = await sharp(logoPath)
           .resize(150, null, { fit: 'inside' }) // ปรับขนาดโลโก้ให้พอดี
           .ensureAlpha() // ตรวจสอบว่ามี alpha channel
+          .modulate({ brightness: 0.8 }) // ลดความสว่างลงเล็กน้อย
+          .composite([
+            {
+              input: Buffer.from([255, 255, 255, 51]), // rgba(255,255,255,0.2)
+              raw: { width: 1, height: 1, channels: 4 },
+              tile: true,
+              blend: 'dest-in' // ปรับความโปร่งใสของโลโก้ให้เป็น 20%
+            }
+          ])
           .toBuffer();
         
         // สร้างข้อมูลโลโก้
@@ -126,8 +135,7 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
               input: logoBuffer,
               left: logoX > 0 ? logoX : 10,
               top: logoY > 0 ? logoY : 10,
-              blend: 'over',
-              opacity: 0.2 // ความโปร่งใส 20%
+              blend: 'over'
             }
           ])
           .toFile(filePath);
