@@ -239,7 +239,7 @@ export default function AdminLayout({
       >
         <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Typography variant="h6" component="div" sx={{ fontWeight: 600, color: 'primary.main' }}>
-            ระบบผู้ดูแล
+            Admin
           </Typography>
           <IconButton onClick={closeMobileMenu}>
             <CloseIcon />
