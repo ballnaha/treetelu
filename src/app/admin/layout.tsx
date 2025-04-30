@@ -34,7 +34,6 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import HomeIcon from '@mui/icons-material/Home';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import ArticleIcon from '@mui/icons-material/Article';
 
 // สร้าง styled component สำหรับ navigation
 const StyledNavButton = styled(Button)(({ theme }) => ({
@@ -50,10 +49,9 @@ const StyledNavButton = styled(Button)(({ theme }) => ({
 
 // ข้อมูลเมนู admin
 const adminMenuItems = [
-  { text: 'แดชบอร์ด', href: '/admin/dashboard1', icon: <DashboardIcon /> },
+  { text: 'แดชบอร์ด', href: '/admin/dashboard', icon: <DashboardIcon /> },
   { text: 'คำสั่งซื้อ', href: '/admin/orders', icon: <ShoppingCartIcon /> },
   { text: 'สินค้า', href: '/admin/products', icon: <InventoryIcon /> },
-  { text: 'บทความ', href: '/admin/blogs', icon: <ArticleIcon /> },
   { text: 'ผู้ใช้งาน', href: '/admin/users', icon: <PeopleIcon /> },
   
 ];
