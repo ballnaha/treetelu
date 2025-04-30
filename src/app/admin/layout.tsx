@@ -50,7 +50,7 @@ const StyledNavButton = styled(Button)(({ theme }) => ({
 
 // ข้อมูลเมนู admin
 const adminMenuItems = [
-  { text: 'แดชบอร์ด', href: '/admin/dashboard', icon: <DashboardIcon /> },
+  { text: 'แดชบอร์ด', href: '/admin/dashboard1', icon: <DashboardIcon /> },
   { text: 'คำสั่งซื้อ', href: '/admin/orders', icon: <ShoppingCartIcon /> },
   { text: 'สินค้า', href: '/admin/products', icon: <InventoryIcon /> },
   { text: 'บทความ', href: '/admin/blogs', icon: <ArticleIcon /> },
