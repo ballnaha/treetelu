@@ -61,6 +61,19 @@ const nextConfig = {
             }
           ]
         },
+        // เพิ่ม route สำหรับรูปภาพบทความ
+        {
+          source: '/images/blog/:path*',
+          destination: '/api/image/images/blog/:path*',
+          has: [
+            {
+              type: 'header',
+              key: 'x-middleware-rewrite',
+              value: '(?!.*)',
+              value_missing: true
+            }
+          ]
+        },
         {
           source: '/uploads/payment-slips/:path*',
           destination: '/api/image/uploads/payment-slips/:path*',

@@ -63,6 +63,35 @@ export async function middleware(request: NextRequest) {
     return NextResponse.rewrite(url);
   }
   
+  // ตรวจสอบว่าเป็นการเรียกไฟล์รูปภาพบทความหรือไม่
+  if (pathname.startsWith('/images/blog/')) {
+    console.log('Middleware: Handling blog image path:', pathname);
+    
+    // สร้าง URL ใหม่ที่ชี้ไปที่ API route
+    const url = request.nextUrl.clone();
+    
+    // แยกชื่อไฟล์และ query string
+    const segments = pathname.split('/');
+    const fileName = segments[segments.length - 1];
+    
+    // แก้ไข path และคงส่วน query string ไว้
+    url.pathname = `/api/image/${pathname.substring(1)}`;
+    
+    console.log('Middleware: Rewriting blog image to:', url.pathname);
+    
+    // ตรวจสอบว่าเป็นคำขอจาก browser ที่มี Cache-Control: no-cache หรือไม่
+    const cacheControl = request.headers.get('cache-control') || '';
+    const noCacheBrowser = cacheControl.includes('no-cache') || cacheControl.includes('max-age=0');
+    
+    // ถ้าเป็นคำขอที่ระบุให้ไม่ใช้ cache ก็เพิ่ม query parameter
+    if (noCacheBrowser) {
+      url.searchParams.set('no-cache', 'true');
+    }
+    
+    // ทำการ rewrite URL
+    return NextResponse.rewrite(url);
+  }
+  
   if (pathname.startsWith('/uploads/payment-slips/')) {
     console.log('Middleware: Handling payment slip path:', pathname);
     
@@ -146,6 +175,7 @@ export const config = {
     '/admin/:path*',
     '/login',
     '/images/product/:path*',
+    '/images/blog/:path*',
     '/uploads/payment-slips/:path*'
   ],
 };

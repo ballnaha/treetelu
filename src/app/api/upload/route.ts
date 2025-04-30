@@ -1,27 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import { promises as fs } from 'fs';
-import { v4 as uuidv4 } from 'uuid';
 import fs_sync from 'fs';
-
-// กำหนดพาธสำหรับบันทึกรูปภาพ
-const uploadDir = path.join(process.cwd(), 'public/images/blog');
-
-// ตรวจสอบว่ามีโฟลเดอร์สำหรับบันทึกรูปภาพหรือไม่ ถ้าไม่มีให้สร้างใหม่
-async function ensureUploadDirectory() {
-  try {
-    await fs.access(uploadDir);
-  } catch (error) {
-    await fs.mkdir(uploadDir, { recursive: true });
-  }
-}
+import { v4 as uuidv4 } from 'uuid';
+import { revalidatePath, revalidateTag } from 'next/cache';
 
 // API endpoint สำหรับอัปโหลดรูปภาพ
 export async function POST(req: NextRequest) {
   try {
-    // ตรวจสอบและสร้างโฟลเดอร์สำหรับบันทึกรูปภาพ
-    await ensureUploadDirectory();
-    
     // รับข้อมูลจาก FormData
     const formData = await req.formData();
     const file = formData.get('file') as File;
@@ -42,17 +28,81 @@ export async function POST(req: NextRequest) {
     const fileData = Buffer.from(fileBuffer);
     
     // สร้างชื่อไฟล์ใหม่ด้วย UUID เพื่อป้องกันการซ้ำกัน
-    const fileName = `${uuidv4()}_${file.name.replace(/\s+/g, '-').toLowerCase()}`;
+    const timestamp = Date.now();
+    const fileName = `${uuidv4()}_${timestamp}_${file.name.replace(/\s+/g, '-').toLowerCase()}`;
+    
+    // กำหนดพาธสำหรับบันทึกรูปภาพตามโหมดการทำงาน
+    const isProd = process.env.NODE_ENV === 'production';
+    
+    // กำหนดโฟลเดอร์ตามโหมดการทำงาน
+    const baseDir = isProd ? path.join(process.cwd(), 'uploads') : path.join(process.cwd(), 'public');
+    const uploadDir = path.join(baseDir, 'images', 'blog');
+    
+    console.log('ตรวจสอบและสร้างโฟลเดอร์:', uploadDir);
+    
+    // ตรวจสอบและสร้างโฟลเดอร์ถ้าไม่มี
+    try {
+      if (!fs_sync.existsSync(uploadDir)) {
+        fs_sync.mkdirSync(uploadDir, { recursive: true });
+        console.log('สร้างโฟลเดอร์สำเร็จ:', uploadDir);
+      }
+    } catch (dirError) {
+      console.error('เกิดข้อผิดพลาดในการสร้างโฟลเดอร์:', dirError);
+      return NextResponse.json({ 
+        error: 'Failed to create upload directory',
+        details: dirError instanceof Error ? dirError.message : 'Unknown error'
+      }, { status: 500 });
+    }
+    
     const filePath = path.join(uploadDir, fileName);
+    console.log('กำลังบันทึกไฟล์ไปที่:', filePath);
     
     // บันทึกไฟล์
-    await fs.writeFile(filePath, fileData);
+    try {
+      await fs.writeFile(filePath, fileData);
+      console.log('บันทึกไฟล์สำเร็จ:', filePath);
+      
+      // ตรวจสอบว่าไฟล์ถูกบันทึกสำเร็จหรือไม่
+      if (!fs_sync.existsSync(filePath)) {
+        throw new Error('File was not created successfully');
+      }
+      
+      const stats = fs_sync.statSync(filePath);
+      if (stats.size === 0) {
+        throw new Error('File was created but is empty');
+      }
+      
+      console.log('ข้อมูลไฟล์:', {
+        size: stats.size,
+        path: filePath,
+        name: fileName
+      });
+    } catch (fileError) {
+      console.error('เกิดข้อผิดพลาดในการบันทึกไฟล์:', fileError);
+      return NextResponse.json({ 
+        error: 'Failed to save file',
+        details: fileError instanceof Error ? fileError.message : 'Unknown error'
+      }, { status: 500 });
+    }
+    
+    // Revalidate cache
+    console.log('กำลัง revalidate cache...');
+    revalidatePath('/blog', 'layout');
+    revalidatePath('/images/blog', 'layout');
+    revalidatePath('/admin/blogs', 'layout');
     
     // ส่งข้อมูลกลับไป
     return NextResponse.json({
       success: true,
       fileName,
-      url: `/images/blog/${fileName}`
+      url: `/images/blog/${fileName}`,
+      timestamp
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
     });
     
   } catch (error) {
@@ -74,6 +124,13 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Filename is required' }, { status: 400 });
     }
     
+    // กำหนดพาธสำหรับลบรูปภาพตามโหมดการทำงาน
+    const isProd = process.env.NODE_ENV === 'production';
+    
+    // กำหนดโฟลเดอร์ตามโหมดการทำงาน
+    const baseDir = isProd ? path.join(process.cwd(), 'uploads') : path.join(process.cwd(), 'public');
+    const uploadDir = path.join(baseDir, 'images', 'blog');
+    
     // สร้างพาธของไฟล์
     const filePath = path.join(uploadDir, filename);
     
@@ -89,6 +146,11 @@ export async function DELETE(req: NextRequest) {
     try {
       fs_sync.unlinkSync(filePath);
       console.log('ลบไฟล์สำเร็จ:', filePath);
+      
+      // Revalidate cache
+      revalidatePath('/blog', 'layout');
+      revalidatePath('/images/blog', 'layout');
+      revalidatePath('/admin/blogs', 'layout');
       
       return NextResponse.json({
         success: true,
