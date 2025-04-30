@@ -21,7 +21,7 @@ const nextConfig = {
     formats: ['image/webp'], // แปลงรูปภาพเป็น WebP เพื่อให้ขนาดไฟล์เล็กลง
     deviceSizes: [640, 750, 828, 1080, 1200, 1920], // ขนาดของอุปกรณ์ที่จะใช้ในการสร้างรูปภาพ
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384], // ขนาดของรูปภาพที่จะถูกสร้าง
-    minimumCacheTTL: 3600, // ตั้งค่า cache รูปภาพขั้นต่ำเป็น 1 ชั่วโมง
+    minimumCacheTTL: 86400, // เพิ่มค่า cache รูปภาพขั้นต่ำเป็น 1 วัน (จากเดิม 1 ชั่วโมง)
   },
   // เพิ่ม config สำหรับ static files
   staticPageGenerationTimeout: 1000,
@@ -107,11 +107,15 @@ const nextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=3600, stale-while-revalidate=86400',
+            value: 'public, max-age=86400, stale-while-revalidate=604800, immutable',
           },
           {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
+          },
+          {
+            key: 'Expires',
+            value: new Date(Date.now() + 86400000).toUTCString(), // เพิ่ม expires header 1 วัน
           }
         ],
       },
@@ -121,11 +125,15 @@ const nextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=3600, stale-while-revalidate=86400',
+            value: 'public, max-age=86400, stale-while-revalidate=604800, immutable',
           },
           {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
+          },
+          {
+            key: 'Expires',
+            value: new Date(Date.now() + 86400000).toUTCString(), // เพิ่ม expires header 1 วัน
           }
         ],
       }

@@ -35,8 +35,10 @@ export async function middleware(request: NextRequest) {
   console.log('Middleware processing path:', pathname);
   
   // ตรวจสอบว่าเป็นการเรียกไฟล์รูปภาพสินค้าหรือไม่
-  if (pathname.startsWith('/images/product/')) {
-    console.log('Middleware: Handling image path:', pathname);
+  if (pathname.startsWith('/images/product/') || pathname.startsWith('/images/blog/')) {
+    // เลือกประเภทรูปภาพและกำหนด path prefix
+    const imageType = pathname.startsWith('/images/product/') ? 'product' : 'blog';
+    console.log(`Middleware: Handling ${imageType} image path:`, pathname);
     
     // สร้าง URL ใหม่ที่ชี้ไปที่ API route
     const url = request.nextUrl.clone();
@@ -45,51 +47,35 @@ export async function middleware(request: NextRequest) {
     const segments = pathname.split('/');
     const fileName = segments[segments.length - 1];
     
+    // ตรวจสอบว่าชื่อไฟล์มี timestamp หรือไม่ และใช้ประโยชน์จากมัน
+    const hasTimestamp = fileName.includes('_') && !isNaN(Number(fileName.split('_')[1]));
+    
     // แก้ไข path และคงส่วน query string ไว้
     url.pathname = `/api/image/${pathname.substring(1)}`;
     
-    console.log('Middleware: Rewriting to:', url.pathname);
+    console.log(`Middleware: Rewriting ${imageType} image to:`, url.pathname);
     
     // ตรวจสอบว่าเป็นคำขอจาก browser ที่มี Cache-Control: no-cache หรือไม่
     const cacheControl = request.headers.get('cache-control') || '';
     const noCacheBrowser = cacheControl.includes('no-cache') || cacheControl.includes('max-age=0');
     
-    // ถ้าเป็นคำขอที่ระบุให้ไม่ใช้ cache ก็เพิ่ม query parameter
-    if (noCacheBrowser) {
+    // เพิ่ม Cache-Control header ถ้าไฟล์มี timestamp (immutable)
+    const headers = new Headers();
+    
+    if (hasTimestamp && !noCacheBrowser) {
+      // รูปภาพที่มี timestamp ถือว่าเป็น immutable (ไม่เปลี่ยนแปลง)
+      headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (noCacheBrowser) {
+      // ถ้าเป็นคำขอที่ระบุให้ไม่ใช้ cache
       url.searchParams.set('no-cache', 'true');
+      headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    } else {
+      // รูปภาพทั่วไป
+      headers.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
     }
     
-    // ทำการ rewrite URL
-    return NextResponse.rewrite(url);
-  }
-  
-  // ตรวจสอบว่าเป็นการเรียกไฟล์รูปภาพบทความหรือไม่
-  if (pathname.startsWith('/images/blog/')) {
-    console.log('Middleware: Handling blog image path:', pathname);
-    
-    // สร้าง URL ใหม่ที่ชี้ไปที่ API route
-    const url = request.nextUrl.clone();
-    
-    // แยกชื่อไฟล์และ query string
-    const segments = pathname.split('/');
-    const fileName = segments[segments.length - 1];
-    
-    // แก้ไข path และคงส่วน query string ไว้
-    url.pathname = `/api/image/${pathname.substring(1)}`;
-    
-    console.log('Middleware: Rewriting blog image to:', url.pathname);
-    
-    // ตรวจสอบว่าเป็นคำขอจาก browser ที่มี Cache-Control: no-cache หรือไม่
-    const cacheControl = request.headers.get('cache-control') || '';
-    const noCacheBrowser = cacheControl.includes('no-cache') || cacheControl.includes('max-age=0');
-    
-    // ถ้าเป็นคำขอที่ระบุให้ไม่ใช้ cache ก็เพิ่ม query parameter
-    if (noCacheBrowser) {
-      url.searchParams.set('no-cache', 'true');
-    }
-    
-    // ทำการ rewrite URL
-    return NextResponse.rewrite(url);
+    // ทำการ rewrite URL พร้อม header
+    return NextResponse.rewrite(url, { headers });
   }
   
   if (pathname.startsWith('/uploads/payment-slips/')) {
