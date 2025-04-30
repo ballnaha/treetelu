@@ -1,0 +1,6 @@
+# This is an empty Prisma Migrate migration metadata file
+#
+# This migration is manually created and can be applied using 'prisma migrate deploy' or 'prisma db push'
+
+# migration directory name is automatically used as the migration name
+migration_name = "20250429001_add_blogs_table" 

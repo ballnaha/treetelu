@@ -4,104 +4,65 @@ import {
   Container, 
   Typography, 
   Box, 
-  Card, 
-  CardContent, 
-  Link as MuiLink, 
   Breadcrumbs,
-  Divider,
   Chip,
-  Button
+  Button,
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import Footer from '@/components/Footer';
-
-const blogPosts = [
-  {
-    id: 1,
-    title: 'ต้นไม้มงคลตามทิศเหนือ',
-    excerpt: 'เรียนรู้เกี่ยวกับต้นไม้มงคลที่เหมาะสำหรับทิศเหนือ ตามหลักฮวงจุ้ย',
-    image: '/images/blog/north.jpg',
-    slug: 'ต้นไม้มงคลตามทิศเหนือ',
-    date: '20 มีนาคม 2024',
-    category: 'ฮวงจุ้ย'
-  },
-  {
-    id: 2,
-    title: 'ต้นไม้เสริมดวงตามทิศตะวันออก',
-    excerpt: 'แนะนำต้นไม้เสริมดวงที่เหมาะสำหรับทิศตะวันออก',
-    image: '/images/blog/east.jpg',
-    slug: 'ต้นไม้เสริมดวงตามทิศตะวันออก',
-    date: '19 มีนาคม 2024',
-    category: 'ฮวงจุ้ย'
-  },
-  {
-    id: 3,
-    title: 'ต้นไม้เสริมโชคลาภทิศใต้',
-    excerpt: 'ต้นไม้เสริมโชคลาภที่เหมาะสำหรับทิศใต้',
-    image: '/images/blog/south.jpg',
-    slug: 'ต้นไม้เสริมโชคลาภทิศใต้',
-    date: '18 มีนาคม 2024',
-    category: 'ฮวงจุ้ย'
-  },
-  {
-    id: 4,
-    title: 'ต้นไม้เสริมความรักทิศตะวันตก',
-    excerpt: 'ต้นไม้เสริมความรักที่เหมาะสำหรับทิศตะวันตก',
-    image: '/images/blog/west.jpg',
-    slug: 'ต้นไม้เสริมความรักทิศตะวันตก',
-    date: '17 มีนาคม 2024',
-    category: 'ฮวงจุ้ย'
-  },
-  {
-    id: 5,
-    title: '5 ต้นไม้มงคลที่ช่วยเสริมโชคลาภการเงิน',
-    excerpt: '5 ต้นไม้มงคลที่ช่วยเสริมโชคลาภการเงิน',
-    image: '/images/blog/money-tree.jpg',
-    slug: '5-ต้นไม้มงคลที่ช่วยเสริมโชคลาภการเงิน',
-    date: '16 มีนาคม 2024',
-    category: 'ความเชื่อ'
-  },
-  {
-    id: 6,
-    title: 'ต้นไม้ดูดพลังงานลบและวิธีดูแลให้ถูกต้อง',
-    excerpt: 'ต้นไม้ดูดพลังงานลบและวิธีดูแลให้ถูกต้อง',
-    image: '/images/blog/negative-energy.jpg',
-    slug: 'ต้นไม้ดูดพลังงานลบและวิธีดูแลให้ถูกต้อง',
-    date: '15 มีนาคม 2024',
-    category: 'ความเชื่อ'
-  },
-  {
-    id: 7,
-    title: '5 ต้นไม้เสริมการทำงาน เพิ่มประสิทธิภาพและความคิดสร้างสรรค์',
-    excerpt: 'แนะนำต้นไม้ที่ช่วยเสริมการทำงาน เพิ่มประสิทธิภาพและความคิดสร้างสรรค์',
-    image: '/images/blog/work.jpg',
-    slug: '5-ต้นไม้เสริมการทำงาน-เพิ่มประสิทธิภาพและความคิดสร้างสรรค์',
-    date: '23 มีนาคม 2024',
-    category: 'ความเชื่อ'
-  },
-];
+import { useState, useEffect } from 'react';
+import { BlogPost } from '@/types/blog';
 
 export default function BlogPage() {
   const theme = useTheme();
   const [mounted, setMounted] = useState(false);
-  // ดึงหมวดหมู่ทั้งหมด
-  const allCategories = ['ทั้งหมด', ...Array.from(new Set(blogPosts.map(post => post.category)))];
+  const [loading, setLoading] = useState(true);
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [allCategories, setAllCategories] = useState<string[]>(['ทั้งหมด']);
   const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด');
+  const [error, setError] = useState('');
 
   // กรองบทความตามหมวดหมู่
   const filteredPosts = blogPosts.filter(post => 
     selectedCategory === 'ทั้งหมด' || post.category === selectedCategory
   );
 
-  // เลือกเฉพาะบทความแรกเพื่อแสดงในส่วน featured
-  const featuredPost = blogPosts[0];
-  const remainingPosts = blogPosts.slice(1);
-
+  // โหลดข้อมูลบทความและหมวดหมู่
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // ดึงข้อมูลบทความทั้งหมดจาก API
+        const response = await fetch('/api/blogs');
+        if (!response.ok) {
+          throw new Error('ไม่สามารถโหลดข้อมูลบทความได้');
+        }
+        const blogs = await response.json() as BlogPost[];
+        setBlogPosts(blogs);
+        
+        // สร้างรายการหมวดหมู่ที่ไม่ซ้ำกัน
+        const categorySet = new Set<string>();
+        blogs.forEach(blog => {
+          if (blog.category) {
+            categorySet.add(blog.category);
+          }
+        });
+        setAllCategories(['ทั้งหมด', ...Array.from(categorySet)]);
+        
+        setError('');
+      } catch (err: any) {
+        console.error('Error fetching blog data:', err);
+        setError(err.message || 'ไม่สามารถโหลดข้อมูลบทความได้ กรุณาลองใหม่อีกครั้ง');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
     setMounted(true);
   }, []);
 
@@ -117,35 +78,35 @@ export default function BlogPage() {
       bgcolor: 'background.default',
       color: 'text.primary'
     }}>
-    <Container maxWidth={false} sx={{ 
-      py: 4, 
-      px: { xs: 2, sm: 3, lg: 4, xl: 5 }, 
-      maxWidth: { xs: '100%', sm: '100%', md: '1200px', xl: '1200px' }, 
-      mx: 'auto',
-    }}>
-      {/* Breadcrumbs */}
-      <Breadcrumbs separator="›" aria-label="breadcrumb" sx={{ mb: 3 }}>
-        <Box 
-          component={Link} 
-          href="/" 
-          sx={{ 
-            textDecoration: 'none', 
-            color: theme.palette.primary.main,
-            fontFamily: theme.typography.fontFamily,
-            '&:hover': {
-              textDecoration: 'underline'
-            }
-          }}
-        >
-          หน้าหลัก
-        </Box>
-        <Typography sx={{ 
-          color: theme.palette.text.secondary,
-          fontFamily: theme.typography.fontFamily
-        }}>
-          บทความ
-        </Typography>
-      </Breadcrumbs>
+      <Container maxWidth={false} sx={{ 
+        py: 4, 
+        px: { xs: 2, sm: 3, lg: 4, xl: 5 }, 
+        maxWidth: { xs: '100%', sm: '100%', md: '1200px', xl: '1200px' }, 
+        mx: 'auto',
+      }}>
+        {/* Breadcrumbs */}
+        <Breadcrumbs separator="›" aria-label="breadcrumb" sx={{ mb: 3 }}>
+          <Box 
+            component={Link} 
+            href="/" 
+            sx={{ 
+              textDecoration: 'none', 
+              color: theme.palette.primary.main,
+              fontFamily: theme.typography.fontFamily,
+              '&:hover': {
+                textDecoration: 'underline'
+              }
+            }}
+          >
+            หน้าหลัก
+          </Box>
+          <Typography sx={{ 
+            color: theme.palette.text.secondary,
+            fontFamily: theme.typography.fontFamily
+          }}>
+            บทความ
+          </Typography>
+        </Breadcrumbs>
 
         <Typography 
           variant="h4" 
@@ -194,98 +155,156 @@ export default function BlogPage() {
           ))}
         </Box>
 
- 
+        {/* แสดงสถานะโหลดข้อมูล */}
+        {loading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress size={40} />
+          </Box>
+        )}
+
+        {/* แสดงข้อความเมื่อมีข้อผิดพลาด */}
+        {error && (
+          <Box sx={{ textAlign: 'center', py: 8 }}>
+            <Typography variant="body1" color="error" gutterBottom>
+              {error}
+            </Typography>
+            <Button 
+              variant="outlined" 
+              color="primary" 
+              onClick={() => window.location.reload()}
+              sx={{ mt: 2 }}
+            >
+              ลองใหม่อีกครั้ง
+            </Button>
+          </Box>
+        )}
+
+        {/* แสดงข้อความเมื่อไม่มีบทความ */}
+        {!loading && !error && filteredPosts.length === 0 && (
+          <Box sx={{ textAlign: 'center', py: 8 }}>
+            <Typography variant="body1" color="text.secondary">
+              ไม่พบบทความในหมวดหมู่ {selectedCategory}
+            </Typography>
+            {selectedCategory !== 'ทั้งหมด' && (
+              <Button 
+                variant="text" 
+                color="primary" 
+                onClick={() => setSelectedCategory('ทั้งหมด')}
+                sx={{ mt: 2 }}
+              >
+                ดูบทความทั้งหมด
+              </Button>
+            )}
+          </Box>
+        )}
 
         {/* บทความทั้งหมด */}
-        <Box 
-          sx={{ 
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-            columnGap: 6,
-            rowGap: 6
-          }}
-        >
-          {filteredPosts.map((post) => (
-            <Box 
-              key={post.id}
-              component={Link}
-              href={`/blog/${post.slug}`}
-              sx={{ 
-                textDecoration: 'none',
-                color: 'inherit',
-                display: 'block',
-                transition: 'all 0.2s ease',
-                '&:hover img': {
-                  transform: 'scale(1.05)'
-                },
-                '&:hover h3': {
-                  color: theme.palette.primary.main
-                }
-              }}
-            >
+        {!loading && !error && filteredPosts.length > 0 && (
+          <Box 
+            sx={{ 
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+              columnGap: 6,
+              rowGap: 6
+            }}
+          >
+            {filteredPosts.map((post) => (
               <Box 
+                key={post.id}
+                component={Link}
+                href={`/blog/${post.slug}`}
                 sx={{ 
-                  display: 'flex',
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  gap: 3,
-                  height: '100%'
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  display: 'block',
+                  transition: 'all 0.2s ease',
+                  '&:hover img': {
+                    transform: 'scale(1.05)'
+                  },
+                  '&:hover h3': {
+                    color: theme.palette.primary.main
+                  }
                 }}
               >
                 <Box 
                   sx={{ 
-                    position: 'relative',
-                    width: { xs: '100%', sm: 120 },
-                    height: { xs: 200, sm: 120 },
-                    overflow: 'hidden',
-                    flexShrink: 0
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    gap: 3,
+                    height: '100%'
                   }}
                 >
-                  <Image
-                    src={post.image}
-                    alt={post.title}
-                    fill
-                    style={{ 
-                      objectFit: 'cover',
-                      transition: 'transform 0.5s ease'
-                    }}
-                  />
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                    {post.date} · {post.category}
-                  </Typography>
-                  <Typography 
-                    variant="h6" 
-                    component="h3" 
+                  <Box 
                     sx={{ 
-                      fontWeight: 600,
-                      mb: 1,
-                      transition: 'color 0.2s ease',
-                      lineHeight: 1.4
-                    }}
-                  >
-                    {post.title}
-                  </Typography>
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary"
-                    sx={{
-                      display: { xs: 'none', sm: '-webkit-box' },
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
+                      position: 'relative',
+                      width: { xs: '100%', sm: 120 },
+                      height: { xs: 200, sm: 120 },
                       overflow: 'hidden',
-                      lineHeight: 1.6
+                      flexShrink: 0
                     }}
                   >
-                    {post.excerpt}
-                  </Typography>
+                    <Image
+                      src={post.image}
+                      alt={post.title}
+                      fill
+                      style={{ 
+                        objectFit: 'cover',
+                        transition: 'transform 0.5s ease'
+                      }}
+                    />
+                  </Box>
+                  <Box>
+                    <Typography 
+                      variant="caption" 
+                      color="text.secondary"
+                      sx={{ display: 'block', mb: 1 }}
+                    >
+                      {post.date}
+                    </Typography>
+                    <Typography 
+                      variant="h6"
+                      component="h3"
+                      gutterBottom
+                      sx={{ 
+                        fontWeight: 500,
+                        fontSize: '1.1rem',
+                        transition: 'color 0.2s ease',
+                        lineHeight: 1.3
+                      }}
+                    >
+                      {post.title}
+                    </Typography>
+                    <Typography 
+                      variant="body2" 
+                      color="text.secondary"
+                      sx={{ 
+                        display: '-webkit-box',
+                        overflow: 'hidden',
+                        WebkitBoxOrient: 'vertical',
+                        WebkitLineClamp: 3,
+                      }}
+                    >
+                      {post.excerpt}
+                    </Typography>
+                    <Typography 
+                      component="span" 
+                      variant="body2" 
+                      sx={{ 
+                        display: 'inline-block',
+                        mt: 1,
+                        color: theme.palette.primary.main,
+                        fontWeight: 500
+                      }}
+                    >
+                      อ่านเพิ่มเติม
+                    </Typography>
+                  </Box>
                 </Box>
               </Box>
-            </Box>
-          ))}
-        </Box>
+            ))}
+          </Box>
+        )}
       </Container>
-      
     </Box>
   );
-}
+} 

@@ -271,3 +271,22 @@ enum users_isAdmin {
   true
   false
 }
+
+model Blog {
+  id        Int       @id @default(autoincrement())
+  title     String    @db.VarChar(255)
+  slug      String    @unique @db.VarChar(255)
+  excerpt   String    @db.VarChar(500)
+  content   String    @db.LongText
+  image     String    @db.VarChar(255)
+  category  String    @db.VarChar(100)
+  date      String    @db.VarChar(100)
+  published Boolean   @default(true)
+  userId    Int?      @db.UnsignedInt
+  createdAt DateTime  @default(now()) @db.DateTime(0)
+  updatedAt DateTime  @updatedAt @db.DateTime(0)
+
+  @@index([slug], map: "blog_slug_index")
+  @@index([category], map: "blog_category_index")
+  @@map("blogs")
+}
