@@ -1748,7 +1748,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                 เราเป็นร้านต้นไม้ออนไลน์ที่รวบรวม ต้นไม้มงคล เพิ่มโชคลาภ, ไม้อวบน้ำ สุดน่ารักดูแลง่าย, ไม้ฟอกอากาศ เพื่อสุขภาพที่ดี, ช่อดอกไม้จัดสวย สำหรับทุกโอกาส และ หรีดต้นไม้ ที่ให้ทั้งความอาลัยและการเติบโตต่อไปอย่างยั่งยืน — ทุกต้น ทุกช่อ เราคัดสรรด้วยความใส่ใจ เพื่อส่งมอบความงามและความหมายถึงมือคุณ
                 </Typography>
                 <Stack direction="row" spacing={2}>
-                  <IconButton sx={{ color: "white", bgcolor: "rgba(255,255,255,0.1)", "&:hover": { bgcolor: "rgba(255,255,255,0.2)" } }}>
+                  <IconButton sx={{ color: "white", bgcolor: "rgba(255,255,255,0.1)", "&:hover": { bgcolor: "rgba(255,255,255,0.2)" } }} href="https://facebook.com/treetelu191" target="_blank" rel="noopener noreferrer" >
                     <FacebookIcon />
                   </IconButton>
                   <IconButton sx={{ color: "white", bgcolor: "rgba(255,255,255,0.1)", "&:hover": { bgcolor: "rgba(255,255,255,0.2)" } }}>
