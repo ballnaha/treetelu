@@ -17,6 +17,13 @@ const nextConfig = {
   serverExternalPackages: ['fs', 'path'],
   images: {
     domains: ['localhost', '168.231.118.94'],
+    // รองรับการแสดงรูปภาพจากแหล่งภายนอก
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
     unoptimized: false, // เปิดใช้งานการ optimize รูปภาพของ Next.js เพื่อให้รูปภาพโหลดเร็วขึ้น
     formats: ['image/webp'], // แปลงรูปภาพเป็น WebP เพื่อให้ขนาดไฟล์เล็กลง
     deviceSizes: [640, 750, 828, 1080, 1200, 1920], // ขนาดของอุปกรณ์ที่จะใช้ในการสร้างรูปภาพ
@@ -89,7 +96,7 @@ const nextConfig = {
       ]
     }
   },
-  // แก้ไขการตั้งค่า headers เพื่อให้สามารถ cache รูปภาพได้
+  // แก้ไขการตั้งค่า headers เพื่อเน้นไม่ให้มีการ cache สำหรับทุกเส้นทาง
   headers: async () => {
     return [
       {
@@ -97,7 +104,15 @@ const nextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value: 'no-store, must-revalidate',
+            value: 'no-store, no-cache, must-revalidate',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'Expires',
+            value: '0',
           }
         ],
       },
