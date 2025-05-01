@@ -180,7 +180,7 @@ export default function ContactPage() {
                   <Box>
                     <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5, color: 'text.primary' }}>โทรศัพท์</Typography>
                     <Typography variant="body2" sx={{ mb: 0.5 }}>
-                      <Link href="tel:+66812345678" style={{ color: 'inherit', textDecoration: 'none', borderBottom: '1px dotted #ccc' }}>
+                      <Link href="tel:+66862061354" style={{ color: 'inherit', textDecoration: 'none', borderBottom: '1px dotted #ccc' }}>
                         086-206-1354
                       </Link>
                     </Typography>
