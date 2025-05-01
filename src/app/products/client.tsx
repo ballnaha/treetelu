@@ -72,6 +72,7 @@ const getCategoryThaiName = (englishName: string): string => {
     'bouquet': 'ช่อดอกไม้',
     'wreath': 'หรีดต้นไม้',
     'souvenir': 'ของชำร่วย',
+    'basket': 'ตะกร้าผลไม้'
     // เพิ่มการแปลชื่อหมวดหมู่อื่นๆ ตามต้องการ
   };
   
