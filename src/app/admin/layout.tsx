@@ -53,7 +53,7 @@ const adminMenuItems = [
   { text: 'แดชบอร์ด', href: '/admin/dashboard', icon: <DashboardIcon /> },
   { text: 'คำสั่งซื้อ', href: '/admin/orders', icon: <ShoppingCartIcon /> },
   { text: 'สินค้า', href: '/admin/products', icon: <InventoryIcon /> },
-  { text: 'บทความ', href: '/admin/blogs', icon: <ArticleIcon /> },
+  { text: 'บทความ', href: '/admin/blog', icon: <ArticleIcon /> },
   { text: 'ผู้ใช้งาน', href: '/admin/users', icon: <PeopleIcon /> },
   
 ];

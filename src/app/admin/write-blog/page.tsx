@@ -268,8 +268,8 @@ export default function WriteBlogPage() {
       
       // รอสักครู่แล้วไปยังหน้ารายการบทความ
       setTimeout(() => {
-        router.push('/admin/blogs');
-      }, 2000);
+        router.push('/admin/blog');
+      }, 1500);
       
     } catch (err: any) {
       console.error('Error saving blog post:', err);
@@ -509,11 +509,17 @@ export default function WriteBlogPage() {
             
             {/* ปุ่มบันทึก */}
             <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
-              <Button 
-                type="button" 
-                variant="outlined" 
-                sx={{ mr: 2 }}
-                onClick={() => router.push('/admin/blogs')}
+              <Button
+                variant="outlined"
+                color="secondary"
+                size="large"
+                onClick={() => router.push('/admin/blog')}
+                sx={{
+                  minWidth: 110,
+                  mr: 2,
+                  borderRadius: '8px',
+                }}
+                disabled={loading}
               >
                 ยกเลิก
               </Button>

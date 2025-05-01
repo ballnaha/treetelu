@@ -322,19 +322,16 @@ export default function EditBlogPage() {
         throw new Error(errorData.error || 'เกิดข้อผิดพลาดในการอัปเดตบทความ');
       }
       
-      // แสดงข้อความสำเร็จ
+      // ถ้าบันทึกสำเร็จ ให้กลับไปที่หน้ารายการบทความ
+      setSaving(false);
       setSuccess(true);
-      
-      // รอสักครู่แล้วไปยังหน้ารายการบทความ
       setTimeout(() => {
-        router.push('/admin/blogs');
-      }, 2000);
+        router.push('/admin/blog');
+      }, 1500);
       
     } catch (err: any) {
       console.error('Error updating blog post:', err);
       setError(err.message || 'เกิดข้อผิดพลาดในการอัปเดตบทความ');
-    } finally {
-      setSaving(false);
     }
   };
   
@@ -553,11 +550,16 @@ export default function EditBlogPage() {
             
             {/* ปุ่มบันทึก */}
             <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
-              <Button 
-                type="button" 
-                variant="outlined" 
-                sx={{ mr: 2 }}
-                onClick={() => router.push('/admin/blogs')}
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={() => router.push('/admin/blog')}
+                sx={{
+                  minWidth: 110,
+                  mr: 2,
+                  borderRadius: '8px'
+                }}
+                disabled={saving}
               >
                 ยกเลิก
               </Button>

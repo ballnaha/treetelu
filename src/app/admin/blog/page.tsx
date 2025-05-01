@@ -29,7 +29,8 @@ import {
   CardActions,
   Grid,
   useMediaQuery,
-  useTheme
+  useTheme,
+  Stack
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -176,30 +177,51 @@ export default function AdminBlogsPage() {
                 /{blog.slug}
               </Typography>
             </CardContent>
-            <CardActions>
-              <IconButton
-                component={Link}
-                href={`/blog/${blog.slug}`}
-                target="_blank"
-                size="small"
-              >
-                <VisibilityIcon fontSize="small" />
-              </IconButton>
-              <IconButton
-                onClick={() => handleEditClick(blog.id)}
-                color="primary"
-                size="small"
-              >
-                <EditIcon fontSize="small" />
-              </IconButton>
-              <IconButton
-                onClick={() => handleDeleteClick(blog)}
-                color="error"
-                size="small"
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </CardActions>
+            <Divider />
+            <Box sx={{ p: 2 }}>
+              <Stack direction="row" spacing={1} justifyContent="space-between">
+                <Button
+                  component={Link}
+                  href={`/blog/${blog.slug}`}
+                  target="_blank"
+                  size="small"
+                  variant="outlined"
+                  startIcon={<VisibilityIcon />}
+                  sx={{ 
+                    flex: 1,
+                    borderRadius: 2
+                  }}
+                >
+                  ดู
+                </Button>
+                <Button
+                  onClick={() => handleEditClick(blog.id)}
+                  color="primary"
+                  size="small"
+                  variant="outlined"
+                  startIcon={<EditIcon />}
+                  sx={{ 
+                    flex: 1,
+                    borderRadius: 2
+                  }}
+                >
+                  แก้ไข
+                </Button>
+                <Button
+                  onClick={() => handleDeleteClick(blog)}
+                  color="error"
+                  size="small"
+                  variant="outlined"
+                  startIcon={<DeleteIcon />}
+                  sx={{ 
+                    flex: 1,
+                    borderRadius: 2
+                  }}
+                >
+                  ลบ
+                </Button>
+              </Stack>
+            </Box>
           </Card>
         </Box>
       ))}
@@ -274,68 +296,67 @@ export default function AdminBlogsPage() {
   );
   
   return (
-    <Box sx={{ py: 5, minHeight: '100vh' }}>
+    <Box sx={{ 
+      minHeight: '100vh',
+      pt: { xs: 8, sm: 9 },
+      pb: 6
+    }}>
       <Container maxWidth="lg">
-        <Paper sx={{ p: { xs: 2, md: 4 }, mb: 4 }}>
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: { xs: 'column', sm: 'row' }, 
-            justifyContent: 'space-between', 
-            alignItems: { xs: 'flex-start', sm: 'center' }, 
-            mb: 3, 
-            gap: 2 
-          }}>
-            <Typography variant="h5" component="h1">
-              จัดการบทความ
+        <Paper sx={{ p: 3, mb: 4, borderRadius: 2, boxShadow: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h5" component="h1" fontWeight={600}>
+              จัดการบทความสายมู
             </Typography>
             <Button
               variant="contained"
               color="primary"
+              size="medium"
               startIcon={<AddIcon />}
               onClick={() => router.push('/admin/write-blog')}
-              fullWidth={isMobile}
+              sx={{ borderRadius: 2 }}
             >
               เขียนบทความใหม่
             </Button>
           </Box>
-          <Divider sx={{ mb: 3 }} />
           
           {blogs.length === 0 ? (
-            <Box sx={{ textAlign: 'center', py: 5 }}>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                ยังไม่มีบทความในระบบ
+            <Box sx={{ py: 6, textAlign: 'center' }}>
+              <Typography color="text.secondary" sx={{ mb: 2 }}>
+                ยังไม่มีบทความ
               </Typography>
               <Button
                 variant="outlined"
-                onClick={() => router.push('/admin/write-blog')}
                 startIcon={<AddIcon />}
+                onClick={() => router.push('/admin/write-blog')}
               >
-                เริ่มเขียนบทความแรก
+                เขียนบทความใหม่
               </Button>
             </Box>
           ) : (
             <>
-              {/* แสดงผลตามขนาดหน้าจอ */}
-              {isMobile ? renderBlogCards() : renderBlogTable()}
+              {/* แสดงตารางสำหรับจอขนาดใหญ่ */}
+              <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                {renderBlogTable()}
+              </Box>
+              
+              {/* แสดงการ์ดสำหรับมือถือ */}
+              <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+                {renderBlogCards()}
+              </Box>
             </>
           )}
         </Paper>
       </Container>
       
-      {/* Dialog ยืนยันการลบ */}
+      {/* Dialog ยืนยันการลบบทความ */}
       <Dialog
         open={deleteDialogOpen}
         onClose={handleCloseDeleteDialog}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
       >
-        <DialogTitle id="alert-dialog-title">
-          ยืนยันการลบบทความ
-        </DialogTitle>
+        <DialogTitle>ยืนยันการลบบทความ</DialogTitle>
         <DialogContent>
-          <DialogContentText id="alert-dialog-description">
-            คุณต้องการลบบทความ &quot;{blogToDelete?.title}&quot; ใช่หรือไม่?
-            <br />การกระทำนี้ไม่สามารถเรียกคืนได้
+          <DialogContentText>
+            คุณต้องการลบบทความ "{blogToDelete?.title}" ใช่หรือไม่? การกระทำนี้ไม่สามารถยกเลิกได้
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -345,15 +366,15 @@ export default function AdminBlogsPage() {
           <Button 
             onClick={handleConfirmDelete} 
             color="error" 
-            disabled={deleteLoading} 
-            autoFocus
+            disabled={deleteLoading}
+            startIcon={deleteLoading ? <CircularProgress size={20} /> : undefined}
           >
-            {deleteLoading ? <CircularProgress size={24} /> : 'ลบบทความ'}
+            {deleteLoading ? 'กำลังลบ...' : 'ลบบทความ'}
           </Button>
         </DialogActions>
       </Dialog>
       
-      {/* แสดงข้อความแจ้งเตือน */}
+      {/* แสดงการแจ้งเตือน */}
       <Snackbar open={!!success || !!error} autoHideDuration={6000} onClose={handleCloseAlert}>
         <Alert 
           onClose={handleCloseAlert} 
