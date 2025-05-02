@@ -100,8 +100,8 @@ export const OrderConfirmationEmail = ({
             </Text>
             <Text style={bankInfo}>
               ธนาคารไทยพาณิชย์ (SCB)<br />
-              เลขที่บัญชี: 123-4-56789-0<br />
-              ชื่อบัญชี: บริษัท ทรีเทลู จำกัด<br />
+              เลขที่บัญชี: 264-221037-2<br />
+              ชื่อบัญชี: นาย ธัญญา รัตนาวงศ์ไชยา<br />
               
             </Text>
             <Text style={text}>

@@ -160,7 +160,7 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
             <h3 style="margin-top: 0; color: #24B493;">ข้อมูลการชำระเงิน</h3>
             <p style="margin: 0;">
               ธนาคารไทยพาณิชย์ (SCB)<br>
-              เลขที่บัญชี: 123-4-56789-0<br>
+              เลขที่บัญชี: 264-221037-2<br>
               ชื่อบัญชี: นายธัญญา รัตนาวงศ์ไชยา<br>
               
             </p>

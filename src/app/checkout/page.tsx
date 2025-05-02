@@ -1210,11 +1210,11 @@ export default function Checkout() {
                                       <Stack spacing={1}>
                                         <Stack direction="row" justifyContent="space-between">
                                           <Typography variant="body2" color="text.secondary">ชื่อบัญชี: </Typography>
-                                          <Typography variant="body2">นายธัญญา รัตนาวงศ์ไชยา</Typography>
+                                          <Typography variant="body2">นาย ธัญญา รัตนาวงศ์ไชยา</Typography>
                                         </Stack>
                                         <Stack direction="row" justifyContent="space-between">
                                           <Typography variant="body2" color="text.secondary">เลขที่บัญชี:</Typography>
-                                          <Typography variant="body2">123-4-56789-0</Typography>
+                                          <Typography variant="body2">264-221037-2</Typography>
                                         </Stack>
                                         
                                       </Stack>

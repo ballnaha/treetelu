@@ -596,12 +596,12 @@ function PaymentConfirmationClient() {
                   <Stack spacing={1.5} sx={{ mb: 1 }}>
                     <Stack direction="row" justifyContent="space-between">
                       <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.95rem' }}>ชื่อบัญชี:</Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 500, fontSize: '1rem' }}>บริษัท ทรีเทลู จำกัด</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 500, fontSize: '1rem' }}>นาย ธัญญา รัตนาวงศ์ไชยา</Typography>
                     </Stack>
                     
                     <Stack direction="row" justifyContent="space-between">
                       <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.95rem' }}>เลขที่บัญชี:</Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 500, fontSize: '1rem' }}>123-4-56789-0</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 500, fontSize: '1rem' }}>264-221037-2</Typography>
                     </Stack>
                   
                   </Stack>
