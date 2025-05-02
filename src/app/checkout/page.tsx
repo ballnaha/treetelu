@@ -52,6 +52,7 @@ import thLocale from 'date-fns/locale/th';
 import { format } from 'date-fns';
 import { validateEmail, validateThaiPhone, validateZipCode } from '@/utils/validationUtils';
 
+
 // สร้าง styled components
 const ProductImageWrapper = styled(Box)(({ theme }) => ({
   width: 80,
@@ -198,6 +199,11 @@ export default function Checkout() {
     return !cartItems || cartItems.length === 0;
   }, [cartItems]);
 
+    // เลื่อนหน้าไปด้านบนสุดเมื่อคอมโพเนนต์โหลด
+    useEffect(() => {
+      window.scrollTo(0, 0);
+    }, []);
+    
   // ใช้ useEffect เพื่อตรวจสอบตะกร้าสินค้าเมื่อ component mount เท่านั้น
   useEffect(() => {
     if (initialRenderRef.current) {

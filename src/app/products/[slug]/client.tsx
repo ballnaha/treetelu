@@ -105,6 +105,11 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
+  // เลื่อนหน้าไปด้านบนสุดเมื่อคอมโพเนนต์โหลด
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   useEffect(() => {
     async function fetchProductDetail() {
       try {
