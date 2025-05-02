@@ -22,7 +22,9 @@ import {
   Backdrop,
   useTheme,
   Breadcrumbs,
-  Stack
+  Stack,
+  Dialog,
+  IconButton
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import dynamic from 'next/dynamic';
@@ -34,6 +36,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import HomeIcon from '@mui/icons-material/Home';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+import CloseIcon from '@mui/icons-material/Close';
 import Footer from '@/components/Footer';
 
 // Import ClientOnly component แบบ dynamic เพื่อป้องกัน hydration error
@@ -168,6 +171,7 @@ function PaymentConfirmationClient() {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmedOrderNumber, setConfirmedOrderNumber] = useState('');
+  const [openQRDialog, setOpenQRDialog] = useState(false);
 
   // จัดการการเปลี่ยนแปลงหมายเลขคำสั่งซื้อ
   const handleOrderNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -299,6 +303,16 @@ function PaymentConfirmationClient() {
     setOpenSnackbar(false);
   };
 
+  // เปิด Dialog QR Code
+  const handleOpenQRDialog = () => {
+    setOpenQRDialog(true);
+  };
+
+  // ปิด Dialog QR Code
+  const handleCloseQRDialog = () => {
+    setOpenQRDialog(false);
+  };
+
   // ถ้าส่งข้อมูลสำเร็จ แสดงหน้ายืนยัน
   if (success) {
     return (
@@ -386,6 +400,46 @@ function PaymentConfirmationClient() {
       flexDirection: 'column',
       minHeight: '100vh'
     }}>
+      {/* QR Code Dialog */}
+      <Dialog
+        open={openQRDialog}
+        onClose={handleCloseQRDialog}
+        maxWidth="md"
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            p: 1,
+            backgroundColor: '#fff'
+          }
+        }}
+      >
+        <Box sx={{ position: 'relative', width: { xs: 300, sm: 400, md: 600 }, height: { xs: 300, sm: 400, md: 600 } }}>
+          <Image
+            src="/images/qr_scb.jpg"
+            alt="QR Code สำหรับชำระเงิน"
+            fill
+            style={{ objectFit: 'contain' }}
+            quality={90}
+          />
+        </Box>
+        <IconButton
+          onClick={handleCloseQRDialog}
+          sx={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            color: 'grey.700',
+            bgcolor: 'white',
+            '&:hover': {
+              bgcolor: 'grey.100'
+            },
+            boxShadow: 1
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </Dialog>
+      
       <Box 
         sx={{ 
           flex: 1,
@@ -603,8 +657,59 @@ function PaymentConfirmationClient() {
                       <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.95rem' }}>เลขที่บัญชี:</Typography>
                       <Typography variant="body1" sx={{ fontWeight: 500, fontSize: '1rem' }}>264-221037-2</Typography>
                     </Stack>
-                  
+                    
                   </Stack>
+                  
+                  {/* QR Code สำหรับการสแกนจ่ายเงิน */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'center', 
+                    flexDirection: 'column',
+                    mt: 3,
+                    mb: 3
+                  }}>
+                    <Typography variant="subtitle2" gutterBottom sx={{ color: 'primary.main', fontWeight: 600 }}>
+                      สแกนเพื่อชำระเงิน
+                    </Typography>
+                    <Box 
+                      sx={{ 
+                        position: 'relative', 
+                        width: 200, 
+                        height: 200, 
+                        border: '1px solid #eee',
+                        borderRadius: 2,
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        '&:hover': {
+                          opacity: 0.9,
+                          boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                        },
+                        transition: 'all 0.2s ease'
+                      }}
+                      onClick={handleOpenQRDialog}
+                    >
+                      <Image
+                        src="/images/qr_scb.jpg"
+                        alt="QR Code สำหรับชำระเงิน (คลิกเพื่อขยาย)"
+                        fill
+                        style={{ objectFit: 'contain' }}
+                      />
+                      <Box sx={{ 
+                        position: 'absolute', 
+                        bottom: 0, 
+                        left: 0, 
+                        right: 0, 
+                        bgcolor: 'rgba(255,255,255,0.8)', 
+                        py: 0.5,
+                        textAlign: 'center'
+                      }}>
+                        <Typography variant="caption" sx={{ color: 'primary.main' }}>
+                          คลิกเพื่อขยาย
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
                 </Box>
                 
                 <Alert severity="info" variant="outlined" sx={{ mt: 2 }}>

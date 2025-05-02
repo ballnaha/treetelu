@@ -28,7 +28,9 @@ import {
   TextField,
   Tab,
   Tabs,
-  Stack
+  Stack,
+  Dialog,
+  DialogContent
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import { styled } from '@mui/material/styles';
@@ -42,6 +44,7 @@ import AddressForm from '@/components/AddressForm';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import CloseIcon from '@mui/icons-material/Close';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -136,9 +139,19 @@ export default function Checkout() {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [isMounted, setIsMounted] = useState(false);
+  const [openQRDialog, setOpenQRDialog] = useState(false);
   
   // ใช้ useRef เพื่อป้องกันการเรียก setState ซ้ำซ้อน
   const initialRenderRef = useRef(true);
+  
+  // เปิด-ปิด Dialog QR Code
+  const handleOpenQRDialog = () => {
+    setOpenQRDialog(true);
+  };
+  
+  const handleCloseQRDialog = () => {
+    setOpenQRDialog(false);
+  };
   
   // ข้อมูลผู้สั่ง
   const [customerInfo, setCustomerInfo] = useState({
@@ -203,7 +216,7 @@ export default function Checkout() {
     useEffect(() => {
       window.scrollTo(0, 0);
     }, []);
-    
+
   // ใช้ useEffect เพื่อตรวจสอบตะกร้าสินค้าเมื่อ component mount เท่านั้น
   useEffect(() => {
     if (initialRenderRef.current) {
@@ -687,6 +700,54 @@ export default function Checkout() {
   // แสดงหน้าชำระเงินปกติ
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
+      {/* QR Code Dialog */}
+      <Dialog
+        open={openQRDialog}
+        onClose={handleCloseQRDialog}
+        maxWidth="md"
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            p: 1,
+            backgroundColor: '#fff',
+            position: 'relative'
+          }
+        }}
+      >
+        <IconButton
+          onClick={handleCloseQRDialog}
+          sx={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            color: 'grey.700',
+            bgcolor: 'rgba(255, 255, 255, 0.8)',
+            '&:hover': {
+              bgcolor: 'white',
+              boxShadow: '0 0 8px rgba(0,0,0,0.1)'
+            },
+            zIndex: 10,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+        <DialogContent sx={{ p: 2 }}>
+          <Box sx={{ position: 'relative', width: { xs: 300, sm: 400, md: 600 }, height: { xs: 300, sm: 400, md: 600 }, mx: 'auto' }}>
+            <Image
+              src="/images/qr_scb.jpg"
+              alt="QR Code สำหรับชำระเงิน"
+              fill
+              style={{ objectFit: 'contain' }}
+              quality={90}
+            />
+          </Box>
+          <Typography variant="body2" color="primary.main" align="center" sx={{ mt: 2, fontWeight: 500 }}>
+            สแกน QR Code นี้เพื่อชำระเงิน
+          </Typography>
+        </DialogContent>
+      </Dialog>
+      
       <PageTitle variant="h5">ชำระเงิน</PageTitle>
       
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, mt: 4, gap: 4 }}>
@@ -1222,6 +1283,57 @@ export default function Checkout() {
                                           <Typography variant="body2" color="text.secondary">เลขที่บัญชี:</Typography>
                                           <Typography variant="body2">264-221037-2</Typography>
                                         </Stack>
+                                        
+                                        {/* QR Code สำหรับสแกนชำระเงิน */}
+                                        <Box sx={{ 
+                                          display: 'flex', 
+                                          justifyContent: 'center', 
+                                          alignItems: 'center', 
+                                          mt: 2, 
+                                          flexDirection: 'column'
+                                        }}>
+                                          <Typography variant="caption" color="primary.main" sx={{ mb: 1, fontWeight: 600 }}>
+                                            สแกนเพื่อชำระเงิน
+                                          </Typography>
+                                          <Box 
+                                            sx={{ 
+                                              position: 'relative', 
+                                              width: 140, 
+                                              height: 140, 
+                                              border: '1px solid #eee',
+                                              borderRadius: 1,
+                                              overflow: 'hidden',
+                                              boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                              cursor: 'pointer',
+                                              transition: 'all 0.2s ease',
+                                              '&:hover': {
+                                                boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                                                transform: 'scale(1.02)'
+                                              }
+                                            }}
+                                            onClick={handleOpenQRDialog}
+                                          >
+                                            <Image
+                                              src="/images/qr_scb.jpg"
+                                              alt="QR Code สำหรับชำระเงิน (คลิกเพื่อขยาย)"
+                                              fill
+                                              style={{ objectFit: 'contain' }}
+                                            />
+                                            <Box sx={{ 
+                                              position: 'absolute', 
+                                              bottom: 0, 
+                                              left: 0, 
+                                              right: 0, 
+                                              bgcolor: 'rgba(255,255,255,0.8)', 
+                                              py: 0.5,
+                                              textAlign: 'center'
+                                            }}>
+                                              <Typography variant="caption">
+                                                คลิกเพื่อขยาย
+                                              </Typography>
+                                            </Box>
+                                          </Box>
+                                        </Box>
                                         
                                       </Stack>
                                     </Box>
