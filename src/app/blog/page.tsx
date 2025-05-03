@@ -79,7 +79,7 @@ export default function BlogPage() {
       color: 'text.primary'
     }}>
       <Container maxWidth={false} sx={{ 
-        py: 4, 
+        py: 0, 
         px: { xs: 2, sm: 3, lg: 4, xl: 5 }, 
         maxWidth: { xs: '100%', sm: '100%', md: '1200px', xl: '1200px' }, 
         mx: 'auto',

@@ -443,7 +443,7 @@ function PaymentConfirmationClient() {
       <Box 
         sx={{ 
           flex: 1,
-          py: { xs: 4, md: 4, lg: 4 },
+          py: { xs: 0, md: 0, lg: 0 },
           backgroundColor: 'white', 
         }}
       >

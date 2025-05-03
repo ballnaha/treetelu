@@ -717,9 +717,7 @@ export default function Checkout() {
           <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
             ขอบคุณสำหรับการสั่งซื้อ เราจะดำเนินการจัดส่งสินค้าให้คุณโดยเร็วที่สุด
           </Typography>
-          <Typography variant="body2" color="text.secondary" paragraph>
-            เลขที่คำสั่งซื้อ: {orderNumber}
-          </Typography>
+          
           <Button
             variant="contained"
             component={Link}

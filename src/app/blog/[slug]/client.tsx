@@ -210,7 +210,7 @@ export default function BlogDetailClient({ slug }: BlogDetailClientProps) {
   };
 
   return (
-    <Container maxWidth={false} sx={{ maxWidth: '1200px', py: 8 }}>
+    <Container maxWidth={false} sx={{ maxWidth: '1200px', py: 0 }}>
       <BlogHeader>
         <Link href="/blog" style={{ textDecoration: 'none', color: 'inherit', fontSize: '0.9rem', display: 'inline-block', marginBottom: 2 }}>
           ← กลับไปยังบทความทั้งหมด
