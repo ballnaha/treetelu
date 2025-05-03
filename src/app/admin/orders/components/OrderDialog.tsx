@@ -45,6 +45,7 @@ export interface Order {
   totalAmount: number;
   shippingCost: number;
   discount: number;
+  discountCode?: string | null;
   finalAmount: number;
   createdAt: string;
   updatedAt: string;
@@ -319,13 +320,16 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
                   <Typography variant="body2">฿{(order.shippingCost || 0).toLocaleString()}</Typography>
                 </TableCell>
               </TableRow>
+              {/* ส่วนลด */}
               {order.discount > 0 && (
                 <TableRow>
                   <TableCell colSpan={3} align="right">
-                    <Typography variant="body2">ส่วนลด:</Typography>
+                    <Typography variant="body2">
+                      ส่วนลด {order.discountCode && `(${order.discountCode})`}:
+                    </Typography>
                   </TableCell>
                   <TableCell align="right">
-                    <Typography variant="body2" color="error.main">-฿{(order.discount || 0).toLocaleString()}</Typography>
+                    <Typography variant="body2" color="error.main">-฿{order.discount.toLocaleString()}</Typography>
                   </TableCell>
                 </TableRow>
               )}

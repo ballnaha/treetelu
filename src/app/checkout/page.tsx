@@ -54,6 +54,7 @@ import { MobileTimePicker } from '@mui/x-date-pickers/MobileTimePicker';
 import thLocale from 'date-fns/locale/th';
 import { format } from 'date-fns';
 import { validateEmail, validateThaiPhone, validateZipCode } from '@/utils/validationUtils';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 
 
 // สร้าง styled components
@@ -141,6 +142,13 @@ export default function Checkout() {
   const [isMounted, setIsMounted] = useState(false);
   const [openQRDialog, setOpenQRDialog] = useState(false);
   
+  // เพิ่ม state สำหรับส่วนลด
+  const [discountCode, setDiscountCode] = useState('');
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [hasDiscountError, setHasDiscountError] = useState(false);
+  const [discountErrorMsg, setDiscountErrorMsg] = useState('');
+  const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
+  
   // ใช้ useRef เพื่อป้องกันการเรียก setState ซ้ำซ้อน
   const initialRenderRef = useRef(true);
   
@@ -192,20 +200,74 @@ export default function Checkout() {
     tambonName?: string;
     zipCode?: string;
     addressLine?: string;
+    addressLine2?: string;
   }>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string>('');
 
+  // จำนวนสินค้า (ใช้ useMemo เพื่อป้องกันการคำนวณซ้ำ)
+  const totalItems = useMemo(() => {
+    return getTotalItems();
+  }, [getTotalItems]);
+
   // คำนวณราคารวมโดยใช้ useMemo เพื่อป้องกันการคำนวณซ้ำโดยไม่จำเป็น
   const prices = useMemo(() => {
-    if (!isMounted) return { subtotal: 0, shippingCost: 0, totalPrice: 0 };
+    if (!isMounted) return { subtotal: 0, shippingCost: 0, discount: 0, totalPrice: 0 };
     
     const subtotal = getTotalPrice();
     // ฟรีค่าจัดส่งเมื่อซื้อสินค้ามากกว่าหรือเท่ากับ 1,500 บาท
     const shippingCost = subtotal >= 1500 ? 0 : 100;
-    const totalPrice = subtotal + shippingCost;
-    return { subtotal, shippingCost, totalPrice };
-  }, [getTotalPrice, isMounted]);
+    const totalBeforeDiscount = subtotal + shippingCost;
+    const totalPrice = totalBeforeDiscount - discountAmount;
+    
+    return { subtotal, shippingCost, discount: discountAmount, totalPrice };
+  }, [getTotalPrice, isMounted, discountAmount]);
+
+  // เพิ่มฟังก์ชันล้างโค้ดส่วนลด
+  const handleClearDiscount = useCallback(() => {
+    setDiscountCode('');
+    setDiscountAmount(0);
+    setHasDiscountError(false);
+    setDiscountErrorMsg('');
+  }, []);
+
+  // เพิ่ม useEffect เพื่อตรวจสอบส่วนลดซ้ำเมื่อมีการเปลี่ยนแปลงในตะกร้าสินค้า
+  useEffect(() => {
+    // ถ้ามีรหัสส่วนลดและมีการเปลี่ยนแปลงในตะกร้าสินค้า ให้ตรวจสอบส่วนลดใหม่
+    if (discountAmount > 0 && discountCode) {
+      (async () => {
+        try {
+          // เรียกใช้ API เพื่อตรวจสอบและคำนวณส่วนลดใหม่
+          const response = await fetch('/api/discount/validate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+              code: discountCode,
+              cartTotal: prices.subtotal
+            }),
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            // อัพเดตส่วนลด ถ้ามีการเปลี่ยนแปลง
+            if (data.discountAmount !== discountAmount) {
+              setDiscountAmount(data.discountAmount);
+            }
+          } else {
+            // ถ้าส่วนลดไม่ถูกต้องอีกต่อไป (เช่น ยอดต่ำกว่ายอดขั้นต่ำในการใช้โค้ด)
+            handleClearDiscount();
+            setHasDiscountError(true);
+            setDiscountErrorMsg(data.message || 'รหัสส่วนลดไม่สามารถใช้ได้กับยอดสั่งซื้อปัจจุบัน');
+          }
+        } catch (error) {
+          console.error('Error revalidating discount code:', error);
+        }
+      })();
+    }
+  }, [prices.subtotal, discountCode, discountAmount, handleClearDiscount, cartItems]);
 
   // ตรวจสอบว่าตะกร้าว่างเปล่าหรือไม่
   const isCartEmpty = useMemo(() => {
@@ -237,6 +299,7 @@ export default function Checkout() {
     tambonName?: string;
     zipCode?: string;
     addressLine?: string;
+    addressLine2?: string;
   }) => {
     // ถ้าเป็นการจัดส่งให้ตัวเอง ให้ใช้ชื่อจากข้อมูลผู้สั่ง
     if (shippingTab === 0) {
@@ -325,6 +388,52 @@ export default function Checkout() {
       }
     }
   };
+
+  // ฟังก์ชันสำหรับตรวจสอบและใช้โค้ดส่วนลด
+  // ฟังก์ชันสำหรับตรวจสอบและใช้โค้ดส่วนลด
+  const handleApplyDiscount = useCallback(async () => {
+    if (!discountCode.trim()) {
+      setHasDiscountError(true);
+      setDiscountErrorMsg('กรุณากรอกรหัสส่วนลด');
+      return;
+    }
+    
+    setIsApplyingDiscount(true);
+    setHasDiscountError(false);
+    
+    try {
+      // เรียกใช้ API เพื่อตรวจสอบและคำนวณส่วนลด
+      const response = await fetch('/api/discount/validate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          code: discountCode,
+          cartTotal: prices.subtotal
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setDiscountAmount(data.discountAmount);
+        setHasDiscountError(false);
+        setDiscountErrorMsg('');
+      } else {
+        setHasDiscountError(true);
+        setDiscountErrorMsg(data.message || 'รหัสส่วนลดไม่ถูกต้อง');
+        setDiscountAmount(0);
+      }
+    } catch (error) {
+      console.error('Error validating discount code:', error);
+      setHasDiscountError(true);
+      setDiscountErrorMsg('เกิดข้อผิดพลาดในการตรวจสอบรหัสส่วนลด');
+      setDiscountAmount(0);
+    } finally {
+      setIsApplyingDiscount(false);
+    }
+  }, [discountCode, prices.subtotal, handleClearDiscount]);
 
   const handleNext = () => {
     if (activeStep === 0) {
@@ -499,82 +608,62 @@ export default function Checkout() {
         throw new Error('กรุณาเลือกวิธีการชำระเงิน');
       }
       
-      // เตรียมข้อมูลสำหรับส่งไป API
-      const orderData: any = {
+      // เตรียมข้อมูลสำหรับส่งไปยัง API
+      const orderData = {
+        userId: user?.id,
         customerInfo: {
           firstName: customerInfo.firstName,
           lastName: customerInfo.lastName,
           email: customerInfo.email,
           phone: customerInfo.phone,
-          note: additionalMessage || '',
+          note: additionalMessage || undefined
         },
-        shippingInfo: {},
+        shippingInfo: shippingTab === 0 
+          ? {
+              receiverName: customerInfo.firstName,
+              receiverLastname: customerInfo.lastName,
+              receiverPhone: customerInfo.phone,
+              addressLine: shippingInfo.addressLine,
+              addressLine2: shippingInfo.addressLine2,
+              provinceId: shippingInfo.provinceId,
+              provinceName: shippingInfo.provinceName,
+              amphureId: shippingInfo.amphureId,
+              amphureName: shippingInfo.amphureName,
+              tambonId: shippingInfo.tambonId,
+              tambonName: shippingInfo.tambonName,
+              zipCode: shippingInfo.zipCode
+            }
+          : {
+              receiverName: receiverInfo.firstName,
+              receiverLastname: receiverInfo.lastName,
+              receiverPhone: receiverInfo.phone,
+              addressLine: receiverInfo.address,
+              provinceId: 0, // จัดส่งให้ผู้อื่น
+              provinceName: "จัดส่งให้ผู้รับโดยตรง",
+              amphureId: 0,
+              amphureName: "จัดส่งให้ผู้รับโดยตรง",
+              tambonId: 0,
+              tambonName: "จัดส่งให้ผู้รับโดยตรง",
+              zipCode: "10200",
+              deliveryDate: deliveryDate ? format(deliveryDate, 'yyyy-MM-dd') : undefined,
+              deliveryTime: deliveryTime ? format(deliveryTime, 'HH:mm') : undefined,
+              cardMessage: cardMessage || undefined
+            },
         items: cartItems.map(item => ({
-          productId: parseInt(item.id),
-          productName: item.productName || item.name || '',
-          productImg: item.productImg || item.image || '',
+          productId: item.id,
+          productName: item.productName || item.name || `สินค้ารหัส ${item.id || item.sku || ''}`,
+          productImg: item.productImg || item.image || undefined,
           quantity: item.quantity,
-          unitPrice: parseFloat(String(item.salesPrice || '0')),
+          unitPrice: parseFloat(String(item.salesPrice || item.price || 0))
         })),
-        paymentMethod: paymentMethod.toUpperCase() as 'BANK_TRANSFER' | 'CREDIT_CARD' | 'PROMPTPAY' | 'COD',
-        // เพิ่ม userId ถ้าผู้ใช้ล็อกอินอยู่
-        userId: user && user.isLoggedIn === true && user.id ? Number(user.id) : undefined,
+        paymentMethod: paymentMethod === 'bank_transfer' ? 'BANK_TRANSFER' : 
+                      paymentMethod === 'credit_card' ? 'CREDIT_CARD' : 
+                      paymentMethod === 'promptpay' ? 'PROMPTPAY' : 'COD',
+        discount: prices.discount,
+        discountCode: discountAmount > 0 ? discountCode : undefined
       };
       
-      // Debug log for order data with userId
-      // console.log('Order data with userId:', {
-      //   userId: orderData.userId,
-      //   userLoggedIn: user?.isLoggedIn,
-      //   userId_raw: user?.id,
-      //   userId_converted: user?.id ? Number(user.id) : undefined
-      // });
-      
-      // ถ้าเป็นการจัดส่งให้ตัวเอง
-      if (shippingTab === 0) {
-        orderData.shippingInfo = {
-          receiverName: customerInfo.firstName,
-          receiverLastname: customerInfo.lastName,
-          receiverPhone: customerInfo.phone,
-          addressLine: shippingInfo.addressLine || '',
-          addressLine2: '',
-          provinceId: shippingInfo.provinceId || 1,
-          provinceName: shippingInfo.provinceName || 'กรุงเทพมหานคร', 
-          amphureId: shippingInfo.amphureId || 1,
-          amphureName: shippingInfo.amphureName || 'เขตพระนคร', 
-          tambonId: shippingInfo.tambonId || 1,
-          tambonName: shippingInfo.tambonName || 'พระบรมมหาราชวัง',
-          zipCode: shippingInfo.zipCode || '10200',
-          deliveryDate: undefined,
-          deliveryTime: '',
-          cardMessage: '',
-          additionalNote: additionalMessage || '',
-        };
-      } else {
-        // ถ้าเป็นการจัดส่งให้ผู้อื่น
-        orderData.shippingInfo = {
-          receiverName: receiverInfo.firstName,
-          receiverLastname: receiverInfo.lastName,
-          receiverPhone: receiverInfo.phone,
-          addressLine: receiverInfo.address || '',
-          addressLine2: '',
-          // กำหนดค่าเป็น 0 ชัดเจนเพื่อให้รู้ว่าเป็นการจัดส่งให้ผู้อื่น
-          provinceId: 0,
-          provinceName: 'จัดส่งให้ผู้รับโดยตรง',
-          amphureId: 0,
-          amphureName: 'จัดส่งให้ผู้รับโดยตรง',
-          tambonId: 0,
-          tambonName: 'จัดส่งให้ผู้รับโดยตรง',
-          zipCode: '10200', // ค่าเริ่มต้นสำหรับกรุงเทพฯ
-          deliveryDate: deliveryDate ? new Date(deliveryDate) : undefined,
-          deliveryTime: deliveryTime ? format(deliveryTime, 'HH:mm') : '',
-          cardMessage: cardMessage || '',
-          additionalNote: additionalMessage || '',
-        };
-      }
-      
-      //console.log('Sending order data:', JSON.stringify(orderData, null, 2));
-
-      // ส่งข้อมูลไปยัง API
+      // ส่งข้อมูลการสั่งซื้อไปยัง API
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: {
@@ -582,52 +671,25 @@ export default function Checkout() {
         },
         body: JSON.stringify(orderData),
       });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        // แสดงข้อผิดพลาดอย่างละเอียด
-        if (result.errors && Array.isArray(result.errors)) {
-          // กรณี Zod validation errors
-          const errorMessage = result.errors.map((err: any) => 
-            `${Array.isArray(err.path) ? err.path.join('.') : err.path}: ${err.message}`
-          ).join('\n');
-          throw new Error(`${result.message}\n${errorMessage}`);
-        } else {
-          throw new Error(result.message || 'เกิดข้อผิดพลาดในการสั่งซื้อ');
-        }
-      }
-
-      // บันทึกเลขที่คำสั่งซื้อสำหรับแสดงในหน้ายืนยัน
-      setOrderNumber(result.order.orderNumber);
-      setIsProcessing(false);
-      setOrderComplete(true);
-      setActiveStep(3);
-      clearCart();
-
-      // ตอนสร้างคำสั่งซื้อเสร็จ
-      localStorage.setItem('orderSession', JSON.stringify({
-        orderNumber: result.order.orderNumber,
-        timestamp: new Date().getTime(), 
-        email: customerInfo.email
-      }));
-    } catch (error) {
-      console.error('Error placing order:', error);
-      setIsProcessing(false);
-      setShowAlert(true);
       
-      if (error instanceof Error) {
-        // ถ้ามีการแบ่งบรรทัดด้วย \n ให้แสดงเฉพาะบรรทัดแรก
-        const errorLines = error.message.split('\n');
-        setAlertMessage(errorLines[0]);
-        
-        // ถ้ามีหลายบรรทัด ให้แสดงในคอนโซล
-        if (errorLines.length > 1) {
-          console.error("Additional error details:", errorLines.slice(1).join('\n'));
-        }
+      const result = await response.json();
+      
+      if (result.success) {
+        // การสั่งซื้อสำเร็จ
+        setOrderNumber(result.orderNumber);
+        clearCart(); // ล้างตะกร้าสินค้า
+        setOrderComplete(true);
       } else {
-        setAlertMessage('เกิดข้อผิดพลาดในการสั่งซื้อ กรุณาลองใหม่อีกครั้ง');
+        // มีข้อผิดพลาดเกิดขึ้น
+        throw new Error(result.message || 'เกิดข้อผิดพลาดในการสั่งซื้อ');
       }
+    } catch (error) {
+      console.error('Order error:', error);
+      setShowAlert(true);
+      setAlertMessage(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการดำเนินการ');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -892,6 +954,61 @@ export default function Checkout() {
             
             <Divider sx={{ my: 2 }} />
             
+            {/* เพิ่มส่วนกรอกรหัสส่วนลด */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                รหัสส่วนลด
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField 
+                  fullWidth
+                  size="small"
+                  placeholder="กรอกรหัสส่วนลด"
+                  value={discountCode}
+                  onChange={(e) => setDiscountCode(e.target.value)}
+                  error={hasDiscountError}
+                  helperText={hasDiscountError ? discountErrorMsg : ''}
+                  disabled={isApplyingDiscount || discountAmount > 0}
+                  InputProps={{
+                    startAdornment: (
+                      <Box component="span" sx={{ display: 'flex', color: 'primary.main', mr: 0.5 }}>
+                        <LocalOfferIcon fontSize="small" />
+                      </Box>
+                    ),
+                  }}
+                />
+                {discountAmount > 0 ? (
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size="small"
+                    onClick={handleClearDiscount}
+                    sx={{ whiteSpace: 'nowrap', minWidth: '80px' }}
+                  >
+                    ยกเลิก
+                  </Button>
+                ) : (
+                  <LoadingButton
+                    variant="contained"
+                    color="primary"
+                    size="small"
+                    onClick={handleApplyDiscount}
+                    loading={isApplyingDiscount}
+                    sx={{ whiteSpace: 'nowrap', minWidth: '80px' }}
+                  >
+                    ใช้งาน
+                  </LoadingButton>
+                )}
+              </Box>
+              {discountAmount > 0 && (
+                <Alert severity="success" sx={{ mt: 1 }} icon={false}>
+                  <Typography variant="body2" fontWeight={500}>
+                    ✓ ใช้รหัสส่วนลด {discountCode} สำเร็จ!
+                  </Typography>
+                </Alert>
+              )}
+            </Box>
+            
             <Box sx={{ mt: 2 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="body1">ยอดรวม</Typography>
@@ -903,6 +1020,18 @@ export default function Checkout() {
                   {prices.shippingCost < 1 ? 'ฟรี' : `฿${prices.shippingCost.toLocaleString()}`}
                 </Typography>
               </Box>
+              
+              {/* แสดงส่วนลดเมื่อมีการใช้โค้ด */}
+              {prices.discount > 0 && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body1" color="error.main" sx={{ display: 'flex', alignItems: 'center' }}>
+                    <LocalOfferIcon fontSize="small" sx={{ mr: 0.5 }} />
+                    ส่วนลด {discountCode && `(${discountCode})`}
+                  </Typography>
+                  <Typography variant="body1" color="error.main">-฿{prices.discount.toLocaleString()}</Typography>
+                </Box>
+              )}
+              
               <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 2, borderTop: '1px solid rgba(0, 0, 0, 0.12)' }}>
                 <Typography variant="subtitle1" fontWeight={600}>
                   รวมทั้งสิ้น
@@ -1647,6 +1776,61 @@ export default function Checkout() {
             
             <Divider sx={{ my: 2 }} />
             
+            {/* เพิ่มส่วนกรอกรหัสส่วนลด */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                รหัสส่วนลด
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField 
+                  fullWidth
+                  size="small"
+                  placeholder="กรอกรหัสส่วนลด"
+                  value={discountCode}
+                  onChange={(e) => setDiscountCode(e.target.value)}
+                  error={hasDiscountError}
+                  helperText={hasDiscountError ? discountErrorMsg : ''}
+                  disabled={isApplyingDiscount || discountAmount > 0}
+                  InputProps={{
+                    startAdornment: (
+                      <Box component="span" sx={{ display: 'flex', color: 'primary.main', mr: 0.5 }}>
+                        <LocalOfferIcon fontSize="small" />
+                      </Box>
+                    ),
+                  }}
+                />
+                {discountAmount > 0 ? (
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size="small"
+                    onClick={handleClearDiscount}
+                    sx={{ whiteSpace: 'nowrap', minWidth: '80px' }}
+                  >
+                    ยกเลิก
+                  </Button>
+                ) : (
+                  <LoadingButton
+                    variant="contained"
+                    color="primary"
+                    size="small"
+                    onClick={handleApplyDiscount}
+                    loading={isApplyingDiscount}
+                    sx={{ whiteSpace: 'nowrap', minWidth: '80px' }}
+                  >
+                    ใช้งาน
+                  </LoadingButton>
+                )}
+              </Box>
+              {discountAmount > 0 && (
+                <Alert severity="success" sx={{ mt: 1 }} icon={false}>
+                  <Typography variant="body2" fontWeight={500}>
+                    ✓ ใช้รหัสส่วนลด {discountCode} สำเร็จ!
+                  </Typography>
+                </Alert>
+              )}
+            </Box>
+            
             <Box sx={{ mt: 2 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="body1">ยอดรวม</Typography>
@@ -1658,6 +1842,18 @@ export default function Checkout() {
                   {prices.shippingCost < 1 ? 'ฟรี' : `฿${prices.shippingCost.toLocaleString()}`}
                 </Typography>
               </Box>
+              
+              {/* แสดงส่วนลดเมื่อมีการใช้โค้ด */}
+              {prices.discount > 0 && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body1" color="error.main" sx={{ display: 'flex', alignItems: 'center' }}>
+                    <LocalOfferIcon fontSize="small" sx={{ mr: 0.5 }} />
+                    ส่วนลด {discountCode && `(${discountCode})`}
+                  </Typography>
+                  <Typography variant="body1" color="error.main">-฿{prices.discount.toLocaleString()}</Typography>
+                </Box>
+              )}
+              
               <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 2, borderTop: '1px solid rgba(0, 0, 0, 0.12)' }}>
                 <Typography variant="subtitle1" fontWeight={600}>
                   รวมทั้งสิ้น

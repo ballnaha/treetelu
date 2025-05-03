@@ -75,6 +75,8 @@ const orderSchema = z.object({
     errorMap: () => ({ message: "กรุณาเลือกวิธีการชำระเงินที่ถูกต้อง" }),
   }),
   userId: z.number().optional(),
+  discount: z.number().optional(),
+  discountCode: z.string().optional(),
 });
 
 // แทนที่ส่วนของการส่งอีเมลด้วย Resend
@@ -89,7 +91,12 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
     
     // คำนวณค่าจัดส่ง: ฟรีค่าจัดส่งเมื่อซื้อสินค้ามากกว่าหรือเท่ากับ 1,500 บาท
     const shippingCost = subtotal >= 1500 ? 0 : 100;
-    const totalAmount = subtotal + shippingCost;
+    
+    // คำนวณส่วนลด (ถ้ามี)
+    const discount = Number(orderData.discount || 0);
+    
+    // คำนวณยอดรวมทั้งสิ้น (หักส่วนลดด้วย)
+    const totalAmount = subtotal + shippingCost - discount;
 
     // แปลงวันที่จัดส่งเป็น UTC+7
     const deliveryDate = orderData.shippingInfo.deliveryDate 
@@ -149,6 +156,12 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
                 <td style="padding: 10px 0;">ค่าจัดส่ง</td>
                 <td style="text-align: right; padding: 10px 0;">${shippingCost === 0 ? 'ฟรี' : `฿${shippingCost.toLocaleString()}`}</td>
               </tr>
+              ${orderData.discount && Number(orderData.discount) > 0 ? `
+              <tr>
+                <td style="padding: 10px 0;">ส่วนลด ${orderData.discountCode ? `(${orderData.discountCode})` : ''}</td>
+                <td style="text-align: right; padding: 10px 0; color: #e53935;">-฿${Number(orderData.discount).toLocaleString()}</td>
+              </tr>
+              ` : ''}
               <tr style="border-top: 2px solid #24B493; font-weight: bold;">
                 <td style="padding: 10px 0;">รวมทั้งสิ้น</td>
                 <td style="text-align: right; padding: 10px 0;">฿${totalAmount.toLocaleString()}</td>

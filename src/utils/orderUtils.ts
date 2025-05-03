@@ -87,13 +87,15 @@ type OrderDataInput = {
   }>;
   paymentMethod: PaymentMethodType;
   userId?: number;
+  discount?: number;
+  discountCode?: string;
 };
 
 /**
  * บันทึกข้อมูลคำสั่งซื้อลงฐานข้อมูล
  */
 export async function createOrder(orderData: OrderDataInput) {
-  const { customerInfo, shippingInfo, items, paymentMethod, userId } = orderData;
+  const { customerInfo, shippingInfo, items, paymentMethod, userId, discount = 0, discountCode } = orderData;
   
   try {
     // Debug log for userId
@@ -111,6 +113,9 @@ export async function createOrder(orderData: OrderDataInput) {
     // กำหนดค่าจัดส่ง (ตามเงื่อนไขธุรกิจ)
     const shippingCost = subtotal >= 1500 ? 0 : 100;
     
+    // คำนวณราคาสุทธิหลังหักส่วนลด
+    const finalAmount = subtotal + shippingCost - discount;
+    
     // สร้างเลขที่คำสั่งซื้อ
     const orderNumber = await generateOrderNumber();
     
@@ -123,6 +128,9 @@ export async function createOrder(orderData: OrderDataInput) {
         paymentMethod,
         subtotal,
         shippingCost,
+        discount,
+        discountCode,
+        finalAmount,
         isGiftShipping,
         customerEmail: customerInfo.email,
         shippingReceiver: shippingInfo.receiverName,
@@ -206,14 +214,16 @@ export async function createOrder(orderData: OrderDataInput) {
       }
       
       // Create order data with explicit userId handling
-      const orderCreateData = {
+      const orderCreateData: any = {
         orderNumber,
         // Ensure userId is properly converted to number and explicitly set
         // Using null instead of undefined for better Prisma compatibility
         userId: userId && Number(userId) > 0 ? Number(userId) : null,
         totalAmount: new Decimal(subtotal),
         shippingCost: new Decimal(shippingCost),
-        finalAmount: new Decimal(subtotal + shippingCost),
+        discount: new Decimal(discount),
+        discountCode: discountCode || null,
+        finalAmount: new Decimal(finalAmount),
         paymentMethod: paymentMethod as any, // แปลงเป็น enum ของ Prisma
         createdAt: bangkokNow,
         updatedAt: bangkokNow,

@@ -50,7 +50,12 @@ export function createOrderNotificationEmbed(orderData: any) {
   
   // คำนวณค่าจัดส่ง: ฟรีค่าจัดส่งเมื่อซื้อสินค้ามากกว่าหรือเท่ากับ 1,500 บาท
   const shippingCost = subtotal >= 1500 ? 0 : 100;
-  const totalAmount = subtotal + shippingCost;
+  
+  // คำนวณส่วนลด (ถ้ามี)
+  const discount = Number(orderData.discount || 0);
+  
+  // คำนวณยอดรวมสุทธิ
+  const totalAmount = subtotal + shippingCost - discount;
 
   // สร้างรายการสินค้า
   const itemsField = orderData.items.map((item: any, index: number) => {
@@ -76,7 +81,7 @@ export function createOrderNotificationEmbed(orderData: any) {
           },
           {
             name: '💰 ยอดรวม',
-            value: `**สินค้า:** ${subtotal.toLocaleString()} บาท\n**ค่าจัดส่ง:** ${shippingCost === 0 ? 'ฟรี' : `${shippingCost.toLocaleString()} บาท`}\n**รวมทั้งสิ้น:** ${totalAmount.toLocaleString()} บาท`,
+            value: `**สินค้า:** ${subtotal.toLocaleString()} บาท\n**ค่าจัดส่ง:** ${shippingCost === 0 ? 'ฟรี' : `${shippingCost.toLocaleString()} บาท`}${discount > 0 ? `\n**ส่วนลด${orderData.discountCode ? ` (${orderData.discountCode})` : ''}:** -${discount.toLocaleString()} บาท` : ''}\n**รวมทั้งสิ้น:** ${totalAmount.toLocaleString()} บาท`,
             inline: true
           },
           {

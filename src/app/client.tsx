@@ -362,7 +362,8 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
     categories,
     currentYear,
     showMenu,
-    products
+    products,
+    featuredBlogs = []
   }: {
     cartItems: any[];
     updateQuantity: (id: string, quantity: number) => void;
@@ -375,6 +376,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
     currentYear: number;
     showMenu: boolean;
     products: any[];
+    featuredBlogs?: any[];
   }) {
     const [activeCategory, setActiveCategory] = useState('all');
     const [currentSlide, setCurrentSlide] = useState(0);
@@ -1465,7 +1467,6 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
               left: 0,
               width: '100%',
               height: '100%',
-              backgroundImage: '',
               backgroundRepeat: 'repeat',
               opacity: 0.05,
               zIndex: 0
@@ -1489,211 +1490,562 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
               gap: 3,
               mt: 2
             }}>
-              {/* Knowledge Box 1 */}
-              <Paper 
-                elevation={0} 
-                  sx={{ 
-                  borderRadius: 2, 
-                  overflow: 'hidden',
-                  boxShadow: '0 8px 25px rgba(0,0,0,0.05)',
-                  transition: 'all 0.3s ease',
-                  height: '100%',
-                  border: '1px solid rgba(0,0,0,0.03)',
-                  backgroundColor: 'rgba(255,255,255,0.8)',
-                  backdropFilter: 'blur(8px)',
-                  '&:hover': {
-                    transform: 'translateY(-8px)',
-                    boxShadow: '0 15px 35px rgba(0,0,0,0.1)'
-                  }
-                }}
-              >
-                <Box sx={{ position: 'relative', width: '100%', height: 180 }}>
-                  <Image
-                    src="/images/blog/north.jpg"
-                    alt="ไม้มงคล"
-                    fill
-                    style={{ objectFit: 'cover' }}
-                  />
-                  <Box sx={{ 
-                    position: 'absolute',
-                    top: 16,
-                    left: 16,
-                    bgcolor: 'primary.main',
-                    color: 'white',
-                    py: 0.6,
-                    px: 2,
-                    borderRadius: 6,
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    letterSpacing: '0.5px',
-                    textTransform: 'uppercase',
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
-                    zIndex: 10
-                  }}>
-                    ฮวงจุ้ย
+              {featuredBlogs.length > 0 ? (
+                // แสดงบทความจาก API แบบ minimal design
+                featuredBlogs.map((blog) => (
+                  <Box
+                    key={blog.id}
+                    component={Link}
+                    href={`/blog/${blog.slug || blog.id}`}
+                    sx={{
+                      textDecoration: 'none',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      height: '100%',
+                      borderRadius: 2,
+                      overflow: 'hidden',
+                      backgroundColor: 'rgba(255,255,255,0.7)',
+                      transition: 'all 0.3s ease',
+                      border: '1px solid rgba(0,0,0,0.04)',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+                      '&:hover': {
+                        transform: 'translateY(-8px)',
+                        boxShadow: '0 12px 28px rgba(0,0,0,0.09)',
+                        '& .blog-image': {
+                          transform: 'scale(1.05)'
+                        }
+                      }
+                    }}
+                  >
+                    <Box sx={{ position: 'relative', width: '100%', height: 0, paddingTop: '56.25%', overflow: 'hidden' }}>
+                      <Image
+                        src={blog.image || '/images/blog/placeholder.jpg'}
+                        alt={blog.title}
+                        fill
+                        className="blog-image"
+                        style={{ 
+                          objectFit: 'cover',
+                          transition: 'transform 0.6s cubic-bezier(0.165, 0.84, 0.44, 1)'
+                        }}
+                      />
+                      {blog.category && (
+                        <Chip 
+                          label={blog.category} 
+                          size="small"
+                          sx={{ 
+                            position: 'absolute', 
+                            top: 16, 
+                            left: 16, 
+                            fontWeight: 500,
+                            textTransform: 'uppercase',
+                            fontSize: '0.65rem',
+                            letterSpacing: '0.5px',
+                            backgroundColor: 'primary.main',
+                            color: 'white',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                            '& .MuiChip-label': { 
+                              px: 1.2
+                            }
+                          }} 
+                        />
+                      )}
+                    </Box>
+                    
+                    <Box sx={{ 
+                      p: 2.5, 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      flexGrow: 1,
+                      justifyContent: 'space-between'
+                    }}>
+                      <Box>
+                        <Typography 
+                          variant="h6" 
+                          component="h3"
+                          sx={{ 
+                            fontSize: { xs: '1rem', sm: '1.1rem', md: '1.15rem' },
+                            fontWeight: 600,
+                            mb: 1,
+                            color: 'text.primary',
+                            lineHeight: 1.4,
+                            minHeight: { xs: '2.8rem', sm: '3.2rem' },
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                        >
+                          {blog.title}
+                        </Typography>
+                        
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: 'text.secondary', 
+                            mb: 2,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontSize: '0.85rem',
+                            opacity: 0.85
+                          }}
+                        >
+                          {blog.excerpt || blog.content?.substring(0, 100) + '...'}
+                        </Typography>
+                      </Box>
+                      
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        mt: 'auto',
+                        pt: 1.5,
+                        borderTop: '1px solid rgba(0,0,0,0.04)'
+                      }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: 'text.secondary',
+                            fontSize: '0.75rem'
+                          }}
+                        >
+                          {blog.createdAt ? new Date(blog.createdAt).toLocaleDateString('th-TH', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          }) : ''}
+                        </Typography>
+                        
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center',
+                          color: 'primary.main',
+                          fontWeight: 500,
+                          fontSize: '0.8rem'
+                        }}>
+                          <Typography variant="caption" sx={{ mr: 0.5, fontWeight: 500 }}>
+                            อ่านต่อ
+                          </Typography>
+                          <ArrowForwardIcon sx={{ fontSize: 14 }} className="arrow-icon" />
+                        </Box>
+                      </Box>
+                    </Box>
                   </Box>
-                </Box>
-                <Box sx={{ p: 3 }}>
-                  <Typography variant="h6" sx={{ mb: 1.5, fontWeight: 600 }}>
-                    ต้นไม้ฮวงจุ้ยที่ควรปลูกตามทิศต่างๆ
-                </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    การเลือกปลูกต้นไม้ให้ถูกทิศตามหลักฮวงจุ้ย จะช่วยเสริมพลังงานที่ดีและดึงดูดโชคลาภเข้าสู่บ้านของคุณ
-                </Typography>
-                  <Button 
-                  variant="text"
-                    color="primary"
+                ))
+              ) : (
+                // Fallback content รูปแบบ minimal เมื่อไม่มีข้อมูลบทความ
+                <>
+                  {/* Knowledge Box 1 */}
+                  <Box
+                    component={Link}
                     href="/blog"
-                    endIcon={<ArrowForwardIcon className="arrow-icon" sx={{ transition: 'transform 0.3s' }} />}
-                    sx={{ 
-                      fontWeight: 500,
-                      '&:hover .arrow-icon': {
-                        transform: 'translateX(4px)'
+                    sx={{
+                      textDecoration: 'none',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      height: '100%',
+                      borderRadius: 2,
+                      overflow: 'hidden',
+                      backgroundColor: 'rgba(255,255,255,0.7)',
+                      transition: 'all 0.3s ease',
+                      border: '1px solid rgba(0,0,0,0.04)',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+                      '&:hover': {
+                        transform: 'translateY(-8px)',
+                        boxShadow: '0 12px 28px rgba(0,0,0,0.09)',
+                        '& .blog-image': {
+                          transform: 'scale(1.05)'
+                        }
                       }
                     }}
                   >
-                    อ่านเพิ่มเติม
-                  </Button>
-              </Box>
-              </Paper>
-  
-              {/* Knowledge Box 2 */}
-                <Paper 
-                elevation={0} 
-                  sx={{ 
-                    borderRadius: 2,
-                  overflow: 'hidden',
-                  boxShadow: '0 8px 25px rgba(0,0,0,0.05)',
-                  transition: 'all 0.3s ease',
-                  height: '100%',
-                  border: '1px solid rgba(0,0,0,0.03)',
-                  backgroundColor: 'rgba(255,255,255,0.8)',
-                  backdropFilter: 'blur(8px)',
-                  '&:hover': {
-                    transform: 'translateY(-8px)',
-                    boxShadow: '0 15px 35px rgba(0,0,0,0.1)'
-                  }
-                }}
-              >
-                <Box sx={{ position: 'relative', width: '100%', height: 180 }}>
-                    <Image
-                    src="/images/blog/money-tree.jpg"
-                    alt="ไม้มงคล"
-                    fill
-                    style={{ objectFit: 'cover' }}
-                  />
-                  <Box sx={{ 
-                    position: 'absolute',
-                    top: 16,
-                    left: 16,
-                    bgcolor: 'primary.main',
-                    color: 'white',
-                    py: 0.6,
-                    px: 2,
-                    borderRadius: 6,
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    letterSpacing: '0.5px',
-                    textTransform: 'uppercase',
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
-                    zIndex: 10
-                  }}>
-                    ไม้มงคล
+                    <Box sx={{ position: 'relative', width: '100%', height: 0, paddingTop: '56.25%', overflow: 'hidden' }}>
+                      <Image
+                        src="/images/blog/north.jpg"
+                        alt="ไม้มงคล"
+                        fill
+                        className="blog-image"
+                        style={{ 
+                          objectFit: 'cover',
+                          transition: 'transform 0.6s cubic-bezier(0.165, 0.84, 0.44, 1)'
+                        }}
+                      />
+                      <Chip 
+                        label="ฮวงจุ้ย" 
+                        size="small"
+                        sx={{ 
+                          position: 'absolute', 
+                          top: 16, 
+                          left: 16, 
+                          fontWeight: 500,
+                          textTransform: 'uppercase',
+                          fontSize: '0.65rem',
+                          letterSpacing: '0.5px',
+                          backgroundColor: 'primary.main',
+                          color: 'white',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                          '& .MuiChip-label': { 
+                            px: 1.2
+                          }
+                        }} 
+                      />
+                    </Box>
+                    
+                    <Box sx={{ 
+                      p: 2.5, 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      flexGrow: 1,
+                      justifyContent: 'space-between'
+                    }}>
+                      <Box>
+                        <Typography 
+                          variant="h6" 
+                          component="h3"
+                          sx={{ 
+                            fontSize: { xs: '1rem', sm: '1.1rem', md: '1.15rem' },
+                            fontWeight: 600,
+                            mb: 1,
+                            color: 'text.primary',
+                            lineHeight: 1.4,
+                            minHeight: { xs: '2.8rem', sm: '3.2rem' },
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                        >
+                          ต้นไม้ฮวงจุ้ยที่ควรปลูกตามทิศต่างๆ
+                        </Typography>
+                        
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: 'text.secondary', 
+                            mb: 2,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontSize: '0.85rem',
+                            opacity: 0.85
+                          }}
+                        >
+                          การเลือกปลูกต้นไม้ให้ถูกทิศตามหลักฮวงจุ้ย จะช่วยเสริมพลังงานที่ดีและดึงดูดโชคลาภเข้าสู่บ้านของคุณ
+                        </Typography>
+                      </Box>
+                      
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        mt: 'auto',
+                        pt: 1.5,
+                        borderTop: '1px solid rgba(0,0,0,0.04)'
+                      }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: 'text.secondary',
+                            fontSize: '0.75rem'
+                          }}
+                        >
+                        </Typography>
+                        
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center',
+                          color: 'primary.main',
+                          fontWeight: 500,
+                          fontSize: '0.8rem'
+                        }}>
+                          <Typography variant="caption" sx={{ mr: 0.5, fontWeight: 500 }}>
+                            อ่านต่อ
+                          </Typography>
+                          <ArrowForwardIcon sx={{ fontSize: 14 }} className="arrow-icon" />
+                        </Box>
+                      </Box>
+                    </Box>
                   </Box>
-                </Box>
-                <Box sx={{ p: 3 }}>
-                  <Typography variant="h6" sx={{ mb: 1.5, fontWeight: 600 }}>
-                    5 ต้นไม้มงคลที่ช่วยเสริมโชคลาภการเงิน
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    ต้นไม้มงคลบางชนิดมีความเชื่อว่าช่วยดึงดูดเงินทอง เสริมโชคลาภและความมั่งคั่งให้กับผู้ครอบครอง
-                  </Typography>
-                  <Button 
-                    variant="text" 
-                    color="primary"
+
+                  {/* Knowledge Box 2 */}
+                  <Box
+                    component={Link}
                     href="/blog/5-ต้นไม้มงคลที่ช่วยเสริมโชคลาภการเงิน"
-                    endIcon={<ArrowForwardIcon className="arrow-icon" sx={{ transition: 'transform 0.3s' }} />}
-                      sx={{ 
-                      fontWeight: 500,
-                      '&:hover .arrow-icon': {
-                        transform: 'translateX(4px)'
+                    sx={{
+                      textDecoration: 'none',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      height: '100%',
+                      borderRadius: 2,
+                      overflow: 'hidden',
+                      backgroundColor: 'rgba(255,255,255,0.7)',
+                      transition: 'all 0.3s ease',
+                      border: '1px solid rgba(0,0,0,0.04)',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+                      '&:hover': {
+                        transform: 'translateY(-8px)',
+                        boxShadow: '0 12px 28px rgba(0,0,0,0.09)',
+                        '& .blog-image': {
+                          transform: 'scale(1.05)'
+                        }
                       }
                     }}
                   >
-                    อ่านเพิ่มเติม
-                  </Button>
+                    <Box sx={{ position: 'relative', width: '100%', height: 0, paddingTop: '56.25%', overflow: 'hidden' }}>
+                      <Image
+                        src="/images/blog/money-tree.jpg"
+                        alt="ไม้มงคล"
+                        fill
+                        className="blog-image"
+                        style={{ 
+                          objectFit: 'cover',
+                          transition: 'transform 0.6s cubic-bezier(0.165, 0.84, 0.44, 1)'
+                        }}
+                      />
+                      <Chip 
+                        label="ไม้มงคล" 
+                        size="small"
+                        sx={{ 
+                          position: 'absolute', 
+                          top: 16, 
+                          left: 16, 
+                          fontWeight: 500,
+                          textTransform: 'uppercase',
+                          fontSize: '0.65rem',
+                          letterSpacing: '0.5px',
+                          backgroundColor: 'primary.main',
+                          color: 'white',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                          '& .MuiChip-label': { 
+                            px: 1.2
+                          }
+                        }} 
+                      />
+                    </Box>
+                    
+                    <Box sx={{ 
+                      p: 2.5, 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      flexGrow: 1,
+                      justifyContent: 'space-between'
+                    }}>
+                      <Box>
+                        <Typography 
+                          variant="h6" 
+                          component="h3"
+                          sx={{ 
+                            fontSize: { xs: '1rem', sm: '1.1rem', md: '1.15rem' },
+                            fontWeight: 600,
+                            mb: 1,
+                            color: 'text.primary',
+                            lineHeight: 1.4,
+                            minHeight: { xs: '2.8rem', sm: '3.2rem' },
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                        >
+                          5 ต้นไม้มงคลที่ช่วยเสริมโชคลาภการเงิน
+                        </Typography>
+                        
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: 'text.secondary', 
+                            mb: 2,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontSize: '0.85rem',
+                            opacity: 0.85
+                          }}
+                        >
+                          ต้นไม้มงคลบางชนิดมีความเชื่อว่าช่วยดึงดูดเงินทอง เสริมโชคลาภและความมั่งคั่งให้กับผู้ครอบครอง
+                        </Typography>
                       </Box>
-                    </Paper>
-  
-              {/* Knowledge Box 3 */}
-                    <Paper 
-                elevation={0} 
-                      sx={{ 
-                  borderRadius: 2, 
-                  overflow: 'hidden',
-                  boxShadow: '0 8px 25px rgba(0,0,0,0.05)',
-                  transition: 'all 0.3s ease',
-                  height: '100%',
-                  border: '1px solid rgba(0,0,0,0.03)',
-                  backgroundColor: 'rgba(255,255,255,0.8)',
-                  backdropFilter: 'blur(8px)',
-                  '&:hover': {
-                    transform: 'translateY(-8px)',
-                    boxShadow: '0 15px 35px rgba(0,0,0,0.1)'
-                  }
-                }}
-              >
-                <Box sx={{ position: 'relative', width: '100%', height: 180 }}>
-                        <Image
-                    src="/images/blog/negative-energy.jpg"
-                    alt="ต้นไม้ดูดพลังงาน"
-                    fill
-                    style={{ objectFit: 'cover' }}
-                  />
-                  <Box sx={{ 
-                    position: 'absolute',
-                    top: 16,
-                    left: 16,
-                    bgcolor: 'primary.main',
-                    color: 'white',
-                    py: 0.6,
-                    px: 2,
-                    borderRadius: 6,
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    letterSpacing: '0.5px',
-                    textTransform: 'uppercase',
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
-                    zIndex: 10
-                  }}>
-                    พลังงาน
+                      
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        mt: 'auto',
+                        pt: 1.5,
+                        borderTop: '1px solid rgba(0,0,0,0.04)'
+                      }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: 'text.secondary',
+                            fontSize: '0.75rem'
+                          }}
+                        >
+                        </Typography>
+                        
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center',
+                          color: 'primary.main',
+                          fontWeight: 500,
+                          fontSize: '0.8rem'
+                        }}>
+                          <Typography variant="caption" sx={{ mr: 0.5, fontWeight: 500 }}>
+                            อ่านต่อ
+                          </Typography>
+                          <ArrowForwardIcon sx={{ fontSize: 14 }} className="arrow-icon" />
+                        </Box>
                       </Box>
+                    </Box>
                   </Box>
-                <Box sx={{ p: 3 }}>
-                  <Typography variant="h6" sx={{ mb: 1.5, fontWeight: 600 }}>
-                    ต้นไม้ดูดพลังงานลบและวิธีดูแลให้ถูกต้อง
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    ต้นไม้บางชนิดมีคุณสมบัติในการดูดซับพลังงานลบ ช่วยสร้างบรรยากาศที่สงบและเป็นมงคลให้กับบ้านของคุณ
-                  </Typography>
-                  <Button 
-                    variant="text" 
-                    color="primary"
+
+                  {/* Knowledge Box 3 */}
+                  <Box
+                    component={Link}
                     href="/blog/ต้นไม้ดูดพลังงานลบและวิธีดูแลให้ถูกต้อง"
-                    endIcon={<ArrowForwardIcon className="arrow-icon" sx={{ transition: 'transform 0.3s' }} />}
-                      sx={{ 
-                      fontWeight: 500,
-                      '&:hover .arrow-icon': {
-                        transform: 'translateX(4px)'
+                    sx={{
+                      textDecoration: 'none',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      height: '100%',
+                      borderRadius: 2,
+                      overflow: 'hidden',
+                      backgroundColor: 'rgba(255,255,255,0.7)',
+                      transition: 'all 0.3s ease',
+                      border: '1px solid rgba(0,0,0,0.04)',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+                      '&:hover': {
+                        transform: 'translateY(-8px)',
+                        boxShadow: '0 12px 28px rgba(0,0,0,0.09)',
+                        '& .blog-image': {
+                          transform: 'scale(1.05)'
+                        }
                       }
                     }}
                   >
-                    อ่านเพิ่มเติม
-                  </Button>
+                    <Box sx={{ position: 'relative', width: '100%', height: 0, paddingTop: '56.25%', overflow: 'hidden' }}>
+                      <Image
+                        src="/images/blog/negative-energy.jpg"
+                        alt="ต้นไม้ดูดพลังงาน"
+                        fill
+                        className="blog-image"
+                        style={{ 
+                          objectFit: 'cover',
+                          transition: 'transform 0.6s cubic-bezier(0.165, 0.84, 0.44, 1)'
+                        }}
+                      />
+                      <Chip 
+                        label="พลังงาน" 
+                        size="small"
+                        sx={{ 
+                          position: 'absolute', 
+                          top: 16, 
+                          left: 16, 
+                          fontWeight: 500,
+                          textTransform: 'uppercase',
+                          fontSize: '0.65rem',
+                          letterSpacing: '0.5px',
+                          backgroundColor: 'primary.main',
+                          color: 'white',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                          '& .MuiChip-label': { 
+                            px: 1.2
+                          }
+                        }} 
+                      />
+                    </Box>
+                    
+                    <Box sx={{ 
+                      p: 2.5, 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      flexGrow: 1,
+                      justifyContent: 'space-between'
+                    }}>
+                      <Box>
+                        <Typography 
+                          variant="h6" 
+                          component="h3"
+                          sx={{ 
+                            fontSize: { xs: '1rem', sm: '1.1rem', md: '1.15rem' },
+                            fontWeight: 600,
+                            mb: 1,
+                            color: 'text.primary',
+                            lineHeight: 1.4,
+                            minHeight: { xs: '2.8rem', sm: '3.2rem' },
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                        >
+                          ต้นไม้ดูดพลังงานลบและวิธีดูแลให้ถูกต้อง
+                        </Typography>
+                        
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: 'text.secondary', 
+                            mb: 2,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontSize: '0.85rem',
+                            opacity: 0.85
+                          }}
+                        >
+                          ต้นไม้บางชนิดมีคุณสมบัติในการดูดซับพลังงานลบ ช่วยสร้างบรรยากาศที่สงบและเป็นมงคลให้กับบ้านของคุณ
+                        </Typography>
                       </Box>
-                    </Paper>
+                      
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        mt: 'auto',
+                        pt: 1.5,
+                        borderTop: '1px solid rgba(0,0,0,0.04)'
+                      }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: 'text.secondary',
+                            fontSize: '0.75rem'
+                          }}
+                        >
+                        </Typography>
+                        
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center',
+                          color: 'primary.main',
+                          fontWeight: 500,
+                          fontSize: '0.8rem'
+                        }}>
+                          <Typography variant="caption" sx={{ mr: 0.5, fontWeight: 500 }}>
+                            อ่านต่อ
+                          </Typography>
+                          <ArrowForwardIcon sx={{ fontSize: 14 }} className="arrow-icon" />
+                        </Box>
+                      </Box>
+                    </Box>
                   </Box>
-  
+                </>
+              )}
+            </Box>
+
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
               <Button 
                 component={Link}
@@ -1877,6 +2229,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
     const { getTotalItems, openCart, closeCart, cartItems, updateQuantity, removeItem, isCartOpen } = useCart();
     const [products, setProducts] = useState(initialProducts || []);
     const [categories, setCategories] = useState(initialCategories || []);
+    const [featuredBlogs, setFeaturedBlogs] = useState<any[]>([]); // เพิ่ม state สำหรับเก็บบทความ
     const [loading, setLoading] = useState(!initialProducts);
     const [error, setError] = useState<string | null>(null);
     const [currentYear] = useState(() => new Date().getFullYear());
@@ -1910,6 +2263,15 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
         }
         const categoriesData = await categoriesRes.json();
         setCategories(categoriesData);
+        
+        // ดึงข้อมูลบทความเด่นจาก API
+        const blogsRes = await fetch('/api/featured-blogs');
+        if (blogsRes.ok) {
+          const blogsData = await blogsRes.json();
+          setFeaturedBlogs(blogsData.blogs || []);
+        } else {
+          console.error('Error loading featured blogs:', blogsRes.status);
+        }
         
         setLoading(false);
         setError(null);
@@ -1992,6 +2354,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
           currentYear={currentYear}
           showMenu={!isMobile}
           products={products}
+          featuredBlogs={featuredBlogs}
         />
       </Box>
     );
