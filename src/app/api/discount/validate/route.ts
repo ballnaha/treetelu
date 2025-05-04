@@ -18,13 +18,7 @@ const DISCOUNT_CODES = [
     minAmount: 1000,
     description: 'ลด 200 บาท เมื่อสั่งซื้อขั้นต่ำ 1,000 บาท'
   },
-  // { 
-  //   code: 'FREE50', 
-  //   type: 'fixed', 
-  //   value: 50, 
-  //   minAmount: 0,
-  //   description: 'ลด 50 บาทสำหรับทุกการสั่งซื้อ'
-  // }
+
 ];
 
 export async function POST(request: NextRequest) {

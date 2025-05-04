@@ -236,10 +236,10 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
     // await saveOrderToDatabase(orderData);
 
     // ตรวจสอบว่าส่งอีเมลได้สำเร็จหรือไม่
-    return NextResponse.json({ message: 'ส่งอีเมลสำเร็จ' }, { status: 200 });
+    return { success: true, message: 'ส่งอีเมลสำเร็จ' };
   } catch (error) {
     console.error('การส่งอีเมลล้มเหลว:', error);
-    return NextResponse.json({ message: 'การส่งอีเมลล้มเหลว' }, { status: 500 });
+    return { success: false, message: 'การส่งอีเมลล้มเหลว' };
   }
 };
 
@@ -266,7 +266,10 @@ export async function POST(request: NextRequest) {
     
     // ส่งอีเมลยืนยันคำสั่งซื้อ
     try {
-      await sendOrderConfirmationEmail(validatedData);
+      const emailResult = await sendOrderConfirmationEmail(validatedData);
+      if (!emailResult.success) {
+        console.warn('Order created but email sending failed:', emailResult.message);
+      }
     } catch (emailError) {
       console.error('Error sending order confirmation email:', emailError);
       // ไม่คืนค่า error ถ้าการส่งอีเมลล้มเหลว แต่คำสั่งซื้อยังคงถูกสร้าง
@@ -316,5 +319,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-export { sendOrderConfirmationEmail };
