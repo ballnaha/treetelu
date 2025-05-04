@@ -792,7 +792,7 @@ export default function Checkout() {
   // ถ้าไม่มีสินค้าในตะกร้า
   if (isCartEmpty) {
     return (
-      <Container maxWidth="md" sx={{ py: 8 }}>
+      <Container maxWidth="md" sx={{ py:0 }}>
         <PageTitle variant="h5">ชำระเงิน</PageTitle>
         <Paper sx={{ p: 4, textAlign: 'center' }}>
           <Typography variant="h6" gutterBottom>
@@ -817,18 +817,20 @@ export default function Checkout() {
 
   // แสดงหน้าชำระเงินปกติ
   return (
-    <Container maxWidth="lg" sx={{ py: 6 }}>
+    <Container maxWidth="lg" sx={{ py: 0 }}>
       {/* QR Code Dialog */}
       <Dialog
         open={openQRDialog}
         onClose={handleCloseQRDialog}
         maxWidth="md"
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            p: 1,
-            backgroundColor: '#fff',
-            position: 'relative'
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: 2,
+              p: 1,
+              backgroundColor: '#fff',
+              position: 'relative'
+            }
           }
         }}
       >
