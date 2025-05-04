@@ -21,16 +21,10 @@ interface DiscountCode {
   updatedAt: string;
 }
 
-type Context = {
-  params: {
-    id: string;
-  };
-};
-
 // ฟังก์ชันสำหรับดึงข้อมูลรหัสส่วนลดตาม ID
 export async function GET(
   request: NextRequest,
-  { params }: Context
+  { params }: { params: { id: string } }
 ) {
   try {
     // ตรวจสอบการยืนยันตัวตน
@@ -90,7 +84,7 @@ export async function GET(
 // ฟังก์ชันสำหรับอัปเดตรหัสส่วนลด
 export async function PUT(
   request: NextRequest,
-  { params }: Context
+  { params }: { params: { id: string } }
 ) {
   try {
     // ตรวจสอบการยืนยันตัวตน
@@ -184,7 +178,7 @@ export async function PUT(
 // ฟังก์ชันสำหรับลบรหัสส่วนลด
 export async function DELETE(
   request: NextRequest,
-  { params }: Context
+  { params }: { params: { id: string } }
 ) {
   try {
     // ตรวจสอบการยืนยันตัวตน
