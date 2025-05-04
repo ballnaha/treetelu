@@ -18,30 +18,36 @@ export async function generateOrderNumber(): Promise<string> {
   const yearMonth = `${yearShort}${month}`; // เช่น 2501
   
   try {
-    // หาเลขที่คำสั่งซื้อล่าสุดของเดือนปัจจุบัน
-    const lastOrderResult = await prisma.$queryRaw<Array<{orderNumber: string}>>`
-      SELECT orderNumber FROM orders 
-      WHERE orderNumber LIKE ${`${yearMonth}%`}
-      ORDER BY orderNumber DESC
-      LIMIT 1
-    `;
-    
-    let runningNumber: number;
-    
-    if (!lastOrderResult || lastOrderResult.length === 0) {
-      // ถ้าไม่มีคำสั่งซื้อในเดือนนี้เลย ให้เริ่มที่ 001
-      runningNumber = 1;
-    } else {
-      // ถ้ามีคำสั่งซื้อแล้ว ให้เพิ่มเลขลำดับขึ้น 1
-      const lastRunningNumber = parseInt(lastOrderResult[0].orderNumber.slice(-3));
-      runningNumber = lastRunningNumber + 1;
-    }
-    
-    // แปลงเป็นสตริง 3 หลัก เช่น 001, 002, ..., 099, 100
-    const runningString = runningNumber.toString().padStart(3, '0');
-    
-    // สร้างเลขที่คำสั่งซื้อในรูปแบบ YYMM + running number
-    return `${yearMonth}${runningString}`;
+    // ใช้ transaction และ lock เพื่อป้องกัน race condition
+    return await prisma.$transaction(async (tx) => {
+      // หาเลขที่คำสั่งซื้อล่าสุดของเดือนปัจจุบันพร้อมล็อกแถว
+      const lastOrderResult = await tx.$queryRaw<Array<{orderNumber: string}>>`
+        SELECT orderNumber FROM orders 
+        WHERE orderNumber LIKE ${`${yearMonth}%`}
+        ORDER BY orderNumber DESC
+        LIMIT 1
+        FOR UPDATE
+      `;
+      
+      let runningNumber: number;
+      
+      if (!lastOrderResult || lastOrderResult.length === 0) {
+        // ถ้าไม่มีคำสั่งซื้อในเดือนนี้เลย ให้เริ่มที่ 001
+        runningNumber = 1;
+      } else {
+        // ถ้ามีคำสั่งซื้อแล้ว ให้เพิ่มเลขลำดับขึ้น 1
+        const lastRunningNumber = parseInt(lastOrderResult[0].orderNumber.slice(-3));
+        runningNumber = lastRunningNumber + 1;
+      }
+      
+      // แปลงเป็นสตริง 3 หลัก เช่น 001, 002, ..., 099, 100
+      const runningString = runningNumber.toString().padStart(3, '0');
+      
+      // สร้างเลขที่คำสั่งซื้อในรูปแบบ YYMM + running number
+      return `${yearMonth}${runningString}`;
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable // ใช้ระดับการแยกแยะแบบอนุกรม
+    });
   } catch (error) {
     console.error('Error generating order number:', error);
     throw new Error('ไม่สามารถสร้างเลขที่คำสั่งซื้อได้');

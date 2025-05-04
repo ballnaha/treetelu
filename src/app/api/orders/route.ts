@@ -287,11 +287,23 @@ export async function POST(request: NextRequest) {
     // ส่งการแจ้งเตือนไปยัง Discord (ถ้ามีการตั้งค่า)
     try {
       if (process.env.DISCORD_WEBHOOK_URL) {
-        // ตรวจสอบให้แน่ใจว่า result.order มี orderNumber
+        // ตรวจสอบให้แน่ใจว่ามีข้อมูลที่จำเป็นสำหรับการส่งแจ้งเตือน
         const orderForNotification = {
+          ...validatedData,
           ...result.order,
-          orderNumber: orderNumber || result.order.orderNumber
+          orderNumber: orderNumber || result.order.orderNumber,
+          items: validatedData.items // ใช้ items จาก validatedData เพราะในข้อมูลที่ได้จาก database อาจไม่มี
         };
+        
+        // Debug log
+        console.log('Sending Discord notification with data structure:', 
+          JSON.stringify({
+            hasItems: !!orderForNotification.items,
+            itemsCount: orderForNotification.items?.length || 0,
+            orderNumber: orderForNotification.orderNumber
+          }, null, 2)
+        );
+        
         const embed = createOrderNotificationEmbed(orderForNotification);
         await sendDiscordNotification(embed);
       }

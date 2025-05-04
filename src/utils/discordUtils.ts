@@ -45,6 +45,26 @@ export async function sendDiscordNotification(
  * @returns Discord embed object
  */
 export function createOrderNotificationEmbed(orderData: any) {
+  // ตรวจสอบว่ามีข้อมูล items หรือไม่ และป้องกัน error
+  if (!orderData || !orderData.items || !Array.isArray(orderData.items) || orderData.items.length === 0) {
+    console.warn('Invalid or missing items in order data for Discord notification');
+    
+    // สร้าง embed อย่างง่ายในกรณีไม่มีข้อมูล items
+    return {
+      embeds: [
+        {
+          title: `📦 คำสั่งซื้อใหม่ ${orderData?.orderNumber ? `#${orderData.orderNumber}` : ''}`,
+          color: 0x24B493,
+          description: 'มีคำสั่งซื้อใหม่ แต่ไม่สามารถแสดงรายละเอียดได้เนื่องจากข้อมูลไม่ครบถ้วน',
+          timestamp: new Date().toISOString(),
+          footer: {
+            text: 'TreeTelu Order System'
+          }
+        }
+      ]
+    };
+  }
+  
   // คำนวณราคารวมทั้งหมด
   const subtotal = Number(orderData.items.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * Number(item.quantity)), 0));
   
