@@ -186,13 +186,13 @@ const formatCurrency = (amount: number) => {
 };
 
 // ฟังก์ชันเตรียมข้อมูลสำหรับ Chart.js
-const prepareSalesChartData = (salesData: MonthSales[]) => {
+const prepareSalesChartData = (salesData: MonthSales[], unitType: string = 'amount') => {
   return {
     labels: salesData.map(item => item.month),
     datasets: [
       {
-        label: 'ยอดขาย (บาท)',
-        data: salesData.map(item => item.sales),
+        label: unitType === 'amount' ? 'ยอดขาย (บาท)' : 'จำนวนคำสั่งซื้อ',
+        data: salesData.map(item => unitType === 'amount' ? item.sales : (item.numOrders || 0)),
         backgroundColor: 'rgba(75, 192, 192, 0.6)',
         borderColor: 'rgba(75, 192, 192, 1)',
         borderWidth: 1,
@@ -275,7 +275,7 @@ const productChartOptions = {
         label: function(context: any) {
           const label = context.label || '';
           const value = context.raw;
-          return `${label}: ${value} ชิ้น`;
+          return `${label}: ${value} รายการ`;
         }
       }
     }
@@ -362,7 +362,7 @@ export default function AdminDashboardClient() {
                     maximumFractionDigits: 0
                   }).format(context.parsed.y);
         } else {
-                  label += `${context.parsed.y} ชิ้น`;
+                  label += `${context.parsed.y} รายการ`;
                 }
               }
               return label;
@@ -415,7 +415,7 @@ export default function AdminDashboardClient() {
                   maximumFractionDigits: 0
                 }).format(value);
               } else {
-                return value + (isMobile ? '' : ' ชิ้น');
+                return value + (isMobile ? '' : ' รายการ');
               }
             }
           }
@@ -1359,7 +1359,7 @@ export default function AdminDashboardClient() {
                     height: { xs: 250, sm: 300, md: 350 },
                     position: 'relative'
                   }}>
-                    <Bar data={prepareSalesChartData(getFilteredSalesData())} options={salesChartOptions} />
+                    <Bar data={prepareSalesChartData(getFilteredSalesData(), showUnit)} options={salesChartOptions} />
                   </Box>
                 </CardContent>
               </Card>
