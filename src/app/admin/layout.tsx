@@ -22,7 +22,10 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  styled
+  styled,
+  Menu,
+  MenuItem,
+  Collapse
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
@@ -35,6 +38,10 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import HomeIcon from '@mui/icons-material/Home';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import ArticleIcon from '@mui/icons-material/Article';
+import DiscountIcon from '@mui/icons-material/Discount';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 
 // สร้าง styled component สำหรับ navigation
 const StyledNavButton = styled(Button)(({ theme }) => ({
@@ -48,14 +55,50 @@ const StyledNavButton = styled(Button)(({ theme }) => ({
   },
 }));
 
+// สร้าง styled component สำหรับ ListItem
+const CustomListItem = styled(ListItem)(({ theme }) => ({
+  cursor: 'pointer',
+  '&:hover': { 
+    backgroundColor: 'rgba(0, 0, 0, 0.04)'
+  }
+}));
+
 // ข้อมูลเมนู admin
 const adminMenuItems = [
-  { text: 'แดชบอร์ด', href: '/admin/dashboard', icon: <DashboardIcon /> },
-  { text: 'คำสั่งซื้อ', href: '/admin/orders', icon: <ShoppingCartIcon /> },
-  { text: 'สินค้า', href: '/admin/products', icon: <InventoryIcon /> },
-  { text: 'บทความ', href: '/admin/blog', icon: <ArticleIcon /> },
-  { text: 'ผู้ใช้งาน', href: '/admin/users', icon: <PeopleIcon /> },
-  
+  { 
+    text: 'แดชบอร์ด', 
+    href: '/admin/dashboard', 
+    icon: <DashboardIcon />, 
+    hasSubMenu: false 
+  },
+  { 
+    text: 'คำสั่งซื้อ', 
+    href: '/admin/orders', 
+    icon: <ShoppingCartIcon />, 
+    hasSubMenu: false 
+  },
+  { 
+    text: 'สินค้า', 
+    href: '/admin/products', 
+    icon: <InventoryIcon />, 
+    hasSubMenu: true,
+    subMenu: [
+      { text: 'รายการสินค้า', href: '/admin/products', icon: <LocalOfferIcon /> },
+      { text: 'คูปองส่วนลด', href: '/admin/discount-codes', icon: <DiscountIcon /> }
+    ]
+  },
+  { 
+    text: 'บทความ', 
+    href: '/admin/blog', 
+    icon: <ArticleIcon />, 
+    hasSubMenu: false 
+  },
+  { 
+    text: 'ผู้ใช้งาน', 
+    href: '/admin/users', 
+    icon: <PeopleIcon />, 
+    hasSubMenu: false 
+  },
 ];
 
 export default function AdminLayout({
@@ -67,6 +110,9 @@ export default function AdminLayout({
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [subMenuOpen, setSubMenuOpen] = useState<number | null>(null);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
 
   // ตรวจสอบว่าเป็น admin หรือไม่
   useEffect(() => {
@@ -101,6 +147,27 @@ export default function AdminLayout({
   const handleLogout = async () => {
     await logout();
     router.push('/login');
+  };
+
+  // ฟังก์ชันเปิดเมนูย่อย
+  const handleMenuClick = (event: React.MouseEvent<HTMLElement>, index: number) => {
+    if (adminMenuItems[index].hasSubMenu) {
+      setAnchorEl(event.currentTarget);
+      setOpenMenuIndex(index);
+    } else {
+      router.push(adminMenuItems[index].href);
+    }
+  };
+
+  // ฟังก์ชันปิดเมนูย่อย
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setOpenMenuIndex(null);
+  };
+
+  // ฟังก์ชันสลับเมนูย่อยบนมือถือ
+  const toggleSubMenu = (index: number) => {
+    setSubMenuOpen(subMenuOpen === index ? null : index);
   };
 
   if (loading) {
@@ -162,19 +229,49 @@ export default function AdminLayout({
                   {/* เมนูสำหรับจอใหญ่ */}
                   <Stack direction="row" spacing={2} sx={{ mr: 2, display: { xs: 'none', md: 'flex' } }}>
                     {adminMenuItems.map((item, index) => (
-                      <StyledNavButton 
-                        key={index} 
-                        href={item.href}
-                        startIcon={item.icon}
-                        sx={{ 
-                          color: 'text.primary',
-                          '&:hover': {
-                            color: 'primary.main',
-                          }
-                        }}
-                      >
-                        {item.text}
-                      </StyledNavButton>
+                      <Box key={index}>
+                        <StyledNavButton 
+                          onClick={(e) => handleMenuClick(e, index)}
+                          startIcon={item.icon}
+                          endIcon={item.hasSubMenu ? (
+                            openMenuIndex === index ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />
+                          ) : null}
+                          sx={{ 
+                            color: 'text.primary',
+                            '&:hover': {
+                              color: 'primary.main',
+                            }
+                          }}
+                        >
+                          {item.text}
+                        </StyledNavButton>
+                        
+                        {item.hasSubMenu && (
+                          <Menu
+                            anchorEl={anchorEl}
+                            open={openMenuIndex === index}
+                            onClose={handleMenuClose}
+                            MenuListProps={{
+                              'aria-labelledby': 'basic-button',
+                            }}
+                            sx={{ mt: 1 }}
+                          >
+                            {item.subMenu?.map((subItem, subIndex) => (
+                              <MenuItem 
+                                key={`sub-${index}-${subIndex}`} 
+                                onClick={() => {
+                                  router.push(subItem.href);
+                                  handleMenuClose();
+                                }}
+                                sx={{ minWidth: '180px' }}
+                              >
+                                <ListItemIcon>{subItem.icon}</ListItemIcon>
+                                {subItem.text}
+                              </MenuItem>
+                            ))}
+                          </Menu>
+                        )}
+                      </Box>
                     ))}
                   </Stack>
                   
@@ -253,34 +350,53 @@ export default function AdminLayout({
         <Divider />
         <List>
           {adminMenuItems.map((item, index) => (
-            <ListItem 
-              key={index} 
-              onClick={closeMobileMenu}
-              sx={{ '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' } }}
-            >
-              <Link href={item.href} style={{ display: 'flex', width: '100%', textDecoration: 'none', color: 'inherit' }}>
+            <Box key={index}>
+              <CustomListItem 
+                onClick={() => item.hasSubMenu ? toggleSubMenu(index) : router.push(item.href)}
+              >
                 <ListItemIcon>{item.icon}</ListItemIcon>
                 <ListItemText primary={item.text} />
-              </Link>
-            </ListItem>
+                {item.hasSubMenu && (
+                  subMenuOpen === index ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />
+                )}
+              </CustomListItem>
+              
+              {item.hasSubMenu && (
+                <Collapse in={subMenuOpen === index} timeout="auto" unmountOnExit>
+                  <List component="div" disablePadding>
+                    {item.subMenu?.map((subItem, subIndex) => (
+                      <CustomListItem 
+                        key={`submobile-${index}-${subIndex}`}
+                        onClick={() => {
+                          router.push(subItem.href);
+                          closeMobileMenu();
+                        }}
+                        sx={{ pl: 4 }}
+                      >
+                        <ListItemIcon>{subItem.icon}</ListItemIcon>
+                        <ListItemText primary={subItem.text} />
+                      </CustomListItem>
+                    ))}
+                  </List>
+                </Collapse>
+              )}
+            </Box>
           ))}
           <Divider sx={{ my: 1 }} />
-          <ListItem 
+          <CustomListItem 
             onClick={closeMobileMenu}
-            sx={{ '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' } }}
           >
             <Link href="/" style={{ display: 'flex', width: '100%', textDecoration: 'none', color: 'inherit' }}>
               <ListItemIcon><HomeIcon /></ListItemIcon>
               <ListItemText primary="กลับหน้าร้าน" />
             </Link>
-          </ListItem>
-          <ListItem 
+          </CustomListItem>
+          <CustomListItem 
             onClick={handleLogout}
-            sx={{ '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' }, cursor: 'pointer' }}
           >
             <ListItemIcon><LogoutIcon /></ListItemIcon>
             <ListItemText primary="ออกจากระบบ" />
-          </ListItem>
+          </CustomListItem>
         </List>
       </Drawer>
       

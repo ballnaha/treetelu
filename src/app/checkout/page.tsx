@@ -32,7 +32,6 @@ import {
   Dialog,
   DialogContent
 } from '@mui/material';
-import Grid from '@mui/material/Grid';
 import { styled } from '@mui/material/styles';
 import { LoadingButton } from '@mui/lab';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -148,6 +147,7 @@ export default function Checkout() {
   const [hasDiscountError, setHasDiscountError] = useState(false);
   const [discountErrorMsg, setDiscountErrorMsg] = useState('');
   const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
+  const [discountDetails, setDiscountDetails] = useState<any>(null);
   
   // ใช้ useRef เพื่อป้องกันการเรียก setState ซ้ำซ้อน
   const initialRenderRef = useRef(true);
@@ -229,6 +229,7 @@ export default function Checkout() {
     setDiscountAmount(0);
     setHasDiscountError(false);
     setDiscountErrorMsg('');
+    setDiscountDetails(null);
   }, []);
 
   // เพิ่ม useEffect เพื่อตรวจสอบส่วนลดซ้ำเมื่อมีการเปลี่ยนแปลงในตะกร้าสินค้า
@@ -255,6 +256,7 @@ export default function Checkout() {
             // อัพเดตส่วนลด ถ้ามีการเปลี่ยนแปลง
             if (data.discountAmount !== discountAmount) {
               setDiscountAmount(data.discountAmount);
+              setDiscountDetails(data.discount);
             }
           } else {
             // ถ้าส่วนลดไม่ถูกต้องอีกต่อไป (เช่น ยอดต่ำกว่ายอดขั้นต่ำในการใช้โค้ด)
@@ -390,7 +392,6 @@ export default function Checkout() {
   };
 
   // ฟังก์ชันสำหรับตรวจสอบและใช้โค้ดส่วนลด
-  // ฟังก์ชันสำหรับตรวจสอบและใช้โค้ดส่วนลด
   const handleApplyDiscount = useCallback(async () => {
     if (!discountCode.trim()) {
       setHasDiscountError(true);
@@ -418,22 +419,25 @@ export default function Checkout() {
       
       if (data.success) {
         setDiscountAmount(data.discountAmount);
+        setDiscountDetails(data.discount);
         setHasDiscountError(false);
         setDiscountErrorMsg('');
       } else {
         setHasDiscountError(true);
         setDiscountErrorMsg(data.message || 'รหัสส่วนลดไม่ถูกต้อง');
         setDiscountAmount(0);
+        setDiscountDetails(null);
       }
     } catch (error) {
       console.error('Error validating discount code:', error);
       setHasDiscountError(true);
       setDiscountErrorMsg('เกิดข้อผิดพลาดในการตรวจสอบรหัสส่วนลด');
       setDiscountAmount(0);
+      setDiscountDetails(null);
     } finally {
       setIsApplyingDiscount(false);
     }
-  }, [discountCode, prices.subtotal, handleClearDiscount]);
+  }, [discountCode, prices.subtotal]);
 
   const handleNext = () => {
     if (activeStep === 0) {
@@ -663,6 +667,24 @@ export default function Checkout() {
         discountCode: discountAmount > 0 ? discountCode : undefined
       };
       
+      // ถ้ามีการใช้รหัสส่วนลด ให้เรียกใช้ API สำหรับเพิ่มจำนวนการใช้งาน
+      if (discountAmount > 0 && discountCode) {
+        try {
+          await fetch('/api/discount/use', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+              code: discountCode 
+            }),
+          });
+        } catch (error) {
+          console.error('Error updating discount usage count:', error);
+          // ไม่จำเป็นต้องหยุดการสั่งซื้อหากการอัปเดตจำนวนการใช้งานส่วนลดล้มเหลว
+        }
+      }
+      
       // ส่งข้อมูลการสั่งซื้อไปยัง API
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -697,6 +719,24 @@ export default function Checkout() {
         setOrderNumber(result.orderNumber);
         clearCart(); // ล้างตะกร้าสินค้า
         setOrderComplete(true);
+        
+        // อัปเดตการใช้งานรหัสส่วนลด (เชื่อมโยงกับ order)
+        if (discountAmount > 0 && discountCode && result.orderId) {
+          try {
+            await fetch('/api/discount/use', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ 
+                code: discountCode,
+                orderId: result.orderId
+              }),
+            });
+          } catch (error) {
+            console.error('Error linking discount code to order:', error);
+          }
+        }
       } else {
         // มีข้อผิดพลาดเกิดขึ้น
         throw new Error(result.message || 'เกิดข้อผิดพลาดในการสั่งซื้อ');
@@ -1016,11 +1056,17 @@ export default function Checkout() {
                   </LoadingButton>
                 )}
               </Box>
+              
               {discountAmount > 0 && (
                 <Alert severity="success" sx={{ mt: 1 }} icon={false}>
                   <Typography variant="body2" fontWeight={500}>
                     ✓ ใช้รหัสส่วนลด {discountCode} สำเร็จ!
                   </Typography>
+                  {discountDetails && (
+                    <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                      {discountDetails.description}
+                    </Typography>
+                  )}
                 </Alert>
               )}
             </Box>
@@ -1838,11 +1884,17 @@ export default function Checkout() {
                   </LoadingButton>
                 )}
               </Box>
+              
               {discountAmount > 0 && (
                 <Alert severity="success" sx={{ mt: 1 }} icon={false}>
                   <Typography variant="body2" fontWeight={500}>
                     ✓ ใช้รหัสส่วนลด {discountCode} สำเร็จ!
                   </Typography>
+                  {discountDetails && (
+                    <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                      {discountDetails.description}
+                    </Typography>
+                  )}
                 </Alert>
               )}
             </Box>

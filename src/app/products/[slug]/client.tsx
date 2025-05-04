@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Box, Typography, Container, Breadcrumbs, CircularProgress, Snackbar, Alert, IconButton, Tooltip } from '@mui/material';
+import React, { useState, useEffect, useRef } from 'react';
+import { Box, Typography, Container, Breadcrumbs, CircularProgress, Snackbar, Alert, IconButton, Tooltip, Modal, Backdrop } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import Link from 'next/link';
@@ -25,6 +25,15 @@ import RelatedProducts from '@/components/RelatedProducts';
 import { useTheme } from '@mui/material/styles';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import Head from 'next/head';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Navigation, Pagination, Autoplay, EffectFade } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
+import 'swiper/css/effect-fade';
+import { Swiper as SwiperType } from 'swiper';
+import CloseIcon from '@mui/icons-material/Close';
+import ZoomOutMapIcon from '@mui/icons-material/ZoomOutMap';
 
 // Custom styled components
 const ProductImageWrapper = styled(Box)(({ theme }) => ({
@@ -53,10 +62,11 @@ const ThumbImage = styled(Box, {
   cursor: 'pointer',
   border: selected ? `2px solid ${theme.palette.primary.main}` : '2px solid transparent',
   opacity: selected ? 1 : 0.7,
-  transition: 'all 0.2s ease',
+  transition: 'all 0.3s ease',
   '&:hover': {
     opacity: 1,
     transform: 'translateY(-2px)',
+    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
   },
   [theme.breakpoints.down('sm')]: {
     width: '60px',
@@ -85,6 +95,88 @@ const InfoCard = styled(Paper)(({ theme }) => ({
   backgroundColor: '#fcfcfc',
 }));
 
+// เพิ่ม CSS styles สำหรับ Swiper
+const SwiperWrapper = styled(Box)(({ theme }) => ({
+  width: '100%',
+  maxWidth: '568px',
+  height: '100%',
+  position: 'relative',
+  overflow: 'hidden',
+  margin: '0 auto',
+  '.swiper': {
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden',
+  },
+  '.swiper-slide': {
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  '.swiper-pagination-bullet': {
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    opacity: 0.7,
+    '&-active': {
+      backgroundColor: '#fff',
+      opacity: 1,
+    }
+  },
+  '.swiper-button-next, .swiper-button-prev': {
+    color: '#fff',
+    background: 'rgba(0, 0, 0, 0.3)',
+    width: '35px',
+    height: '35px',
+    borderRadius: '50%',
+    '&:after': {
+      fontSize: '18px',
+    },
+    '&:hover': {
+      background: 'rgba(0, 0, 0, 0.5)',
+    },
+  }
+}));
+
+// เพิ่มสไตล์สำหรับกล่อง Thumbnails
+const ThumbsContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  gap: theme.spacing(1.5),
+  flexWrap: 'wrap',
+  justifyContent: 'center',
+  marginTop: theme.spacing(2),
+  maxWidth: '100%',
+  overflowX: 'auto',
+  padding: theme.spacing(1, 0),
+  '&::-webkit-scrollbar': {
+    height: '4px',
+  },
+  '&::-webkit-scrollbar-track': {
+    background: 'rgba(0, 0, 0, 0.05)',
+    borderRadius: '10px',
+  },
+  '&::-webkit-scrollbar-thumb': {
+    background: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: '10px',
+  },
+  [theme.breakpoints.down('sm')]: {
+    gap: theme.spacing(1),
+    marginTop: theme.spacing(1.5),
+  },
+}));
+
+const ZoomButton = styled(IconButton)(({ theme }) => ({
+  position: 'absolute',
+  bottom: 15,
+  right: 15,
+  color: '#fff',
+  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  zIndex: 5,
+  padding: theme.spacing(0.5),
+  '&:hover': {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  }
+}));
+
 interface ProductDetailClientProps {
   slug: string;
 }
@@ -95,8 +187,11 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
   const [error, setError] = useState<string | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const { addToCart, cartItems, updateQuantity, removeItem, isCartOpen, closeCart, openCart } = useCart();
   const theme = useTheme();
+  const swiperRef = useRef<SwiperType | null>(null);
+  const fullscreenSwiperRef = useRef<SwiperType | null>(null);
 
   // สร้างรายการรูปภาพจำลอง (สามารถแก้ไขให้รับข้อมูลจาก API จริงได้)
   const [productImages, setProductImages] = useState<string[]>([]);
@@ -211,6 +306,15 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
   // เปลี่ยนรูปที่แสดง
   const handleImageChange = (index: number) => {
     setSelectedImageIndex(index);
+    // ถ้ามี swiper instance ให้เลื่อนไปที่ slide ตามตำแหน่ง index
+    if (swiperRef.current) {
+      swiperRef.current.slideTo(index);
+    }
+  };
+
+  // ฟังก์ชันจัดการเมื่อ Swiper เปลี่ยน slide
+  const handleSlideChange = (swiper: SwiperType) => {
+    setSelectedImageIndex(swiper.activeIndex);
   };
 
   // ตรวจสอบว่าสินค้ามีส่วนลดหรือไม่
@@ -245,6 +349,11 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
     const productUrl = `${window.location.origin}/products/${slug}`;
     const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productUrl)}`;
     window.open(fbShareUrl, '_blank', 'width=600,height=400');
+  };
+
+  // เปิด/ปิดโหมดเต็มหน้าจอ
+  const handleFullscreenToggle = () => {
+    setFullscreenOpen(!fullscreenOpen);
   };
 
   if (loading) {
@@ -447,19 +556,75 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {/* รูปหลัก */}
               <ProductImageWrapper>
-                <Image
-                  src={getImageUrl(displayImage)}
-                  alt={product.productName || 'Product image'}
-                  fill
-                  style={{ objectFit: 'contain' }}
-                  priority
-                  onError={handleMainImageError}
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  quality={85}
-                  loading="eager"
-                  placeholder="blur"
-                  blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChgF/sWryvgAAAABJRU5ErkJggg=="
-                />
+                {productImages.length > 1 ? (
+                  <SwiperWrapper>
+                    <Swiper
+                      modules={[Navigation, Pagination, Autoplay, EffectFade]}
+                      spaceBetween={0}
+                      slidesPerView={1}
+                      navigation={true}
+                      pagination={{ clickable: true, dynamicBullets: true }}
+                      autoplay={{ 
+                        delay: 5000, 
+                        disableOnInteraction: false,
+                        pauseOnMouseEnter: true
+                      }}
+                      effect="fade"
+                      fadeEffect={{ crossFade: true }}
+                      loop={productImages.length > 1}
+                      style={{ 
+                        '--swiper-navigation-color': '#ffffff',
+                        '--swiper-pagination-color': '#ffffff',
+                        '--swiper-navigation-size': '30px'
+                      } as React.CSSProperties}
+                      onSwiper={(swiper) => (swiperRef.current = swiper)}
+                      onSlideChange={handleSlideChange}
+                    >
+                      {productImages.map((img, index) => (
+                        <SwiperSlide key={index}>
+                          <Image
+                            src={getImageUrl(img)}
+                            alt={`${product.productName || 'Product image'} - ${index + 1}`}
+                            fill
+                            style={{ 
+                              objectFit: 'cover',
+                              objectPosition: 'center'
+                            }}
+                            priority={index === 0}
+                            onError={handleMainImageError}
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            quality={85}
+                            loading={index === 0 ? "eager" : "lazy"}
+                            placeholder="blur"
+                            blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChgF/sWryvgAAAABJRU5ErkJggg=="
+                          />
+                        </SwiperSlide>
+                      ))}
+                    </Swiper>
+                    <ZoomButton onClick={handleFullscreenToggle}>
+                      <ZoomOutMapIcon fontSize="small" />
+                    </ZoomButton>
+                  </SwiperWrapper>
+                ) : (
+                  <Box sx={{ position: 'relative', width: '100%', height: '100%', maxWidth: '568px', margin: '0 auto', overflow: 'hidden' }}>
+                    <Image
+                      src={getImageUrl(displayImage)}
+                      alt={product.productName || 'Product image'}
+                      fill
+                      style={{ objectFit: 'cover' }}
+                      priority
+                      onError={handleMainImageError}
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      quality={85}
+                      loading="eager"
+                      placeholder="blur"
+                      blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChgF/sWryvgAAAABJRU5ErkJggg=="
+                    />
+                    <ZoomButton onClick={handleFullscreenToggle}>
+                      <ZoomOutMapIcon fontSize="small" />
+                    </ZoomButton>
+                  </Box>
+                )}
                 {hasDiscount && (
                   <Chip 
                     label={`-${calculateDiscount()}%`} 
@@ -470,7 +635,8 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
                       right: 16,
                       fontWeight: 600,
                       fontSize: '0.9rem',
-                      px: 1
+                      px: 1,
+                      zIndex: 5
                     }}
                   />
                 )}
@@ -478,13 +644,7 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
               
               {/* รูปย่อย (thumbnails) */}
               {productImages.length > 1 && (
-                <Box sx={{ 
-                  display: 'flex', 
-                  gap: { xs: 1.5, sm: 2 }, 
-                  flexWrap: 'wrap',
-                  justifyContent: 'center',
-                  mt: { xs: 1.5, sm: 2 }
-                }}>
+                <ThumbsContainer>
                   {productImages.map((img, index) => (
                     <ThumbImage 
                       key={index} 
@@ -505,7 +665,7 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
                       />
                     </ThumbImage>
                   ))}
-                </Box>
+                </ThumbsContainer>
               )}
             </Box>
           </Box>
@@ -608,7 +768,7 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
                 
                 <Box 
                   sx={{ 
-                    minWidth: '60px', 
+                    minWidth: '100px', 
                     height: '36px',
                     display: 'flex',
                     alignItems: 'center',
@@ -789,6 +949,112 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
         {product.id && (
           <RelatedProducts productId={product.id.toString()} />
         )}
+
+        {/* โหมดแสดงรูปแบบเต็มหน้าจอ */}
+        <Modal
+          open={fullscreenOpen}
+          onClose={handleFullscreenToggle}
+          closeAfterTransition
+          BackdropComponent={Backdrop}
+          BackdropProps={{
+            timeout: 500
+          }}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            '& .MuiBackdrop-root': {
+              backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            },
+            overflow: 'hidden'
+          }}
+        >
+          <Box
+            sx={{
+              position: 'relative',
+              width: { xs: '95vw', sm: '80vw', md: '70vw' },
+              height: { xs: '70vh', sm: '75vh', md: '80vh' },
+              maxWidth: '900px',
+              maxHeight: '800px',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              backgroundColor: 'transparent',
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+            }}
+          >
+            <IconButton 
+              onClick={handleFullscreenToggle}
+              sx={{
+                position: 'absolute',
+                top: 10,
+                right: 10,
+                color: '#fff',
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                zIndex: 10,
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                }
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+            
+            {productImages.length > 1 ? (
+              <Box sx={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+                <Swiper
+                  modules={[Navigation, Pagination, EffectFade]}
+                  spaceBetween={0}
+                  slidesPerView={1}
+                  navigation={true}
+                  pagination={{ clickable: true, dynamicBullets: true }}
+                  effect="fade"
+                  fadeEffect={{ crossFade: true }}
+                  loop={productImages.length > 1}
+                  initialSlide={selectedImageIndex}
+                  style={{ 
+                    width: '100%',
+                    height: '100%',
+                    '--swiper-navigation-color': '#ffffff',
+                    '--swiper-pagination-color': '#ffffff',
+                    '--swiper-navigation-size': '30px'
+                  } as React.CSSProperties}
+                  onSwiper={(swiper) => (fullscreenSwiperRef.current = swiper)}
+                >
+                  {productImages.map((img, index) => (
+                    <SwiperSlide key={index} style={{ overflow: 'hidden', position: 'relative' }}>
+                      <Image
+                        src={getImageUrl(img)}
+                        alt={`${product.productName || 'Product image'} - ${index + 1}`}
+                        fill
+                        style={{ 
+                          objectFit: 'contain',
+                          objectPosition: 'center'
+                        }}
+                        onError={handleMainImageError}
+                        sizes="(max-width: 600px) 95vw, (max-width: 900px) 80vw, 70vw"
+                        quality={90}
+                        loading="eager"
+                      />
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
+              </Box>
+            ) : (
+              <Box sx={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+                <Image
+                  src={getImageUrl(displayImage)}
+                  alt={product.productName || 'Product image'}
+                  fill
+                  style={{ objectFit: 'contain' }}
+                  onError={handleMainImageError}
+                  sizes="(max-width: 600px) 95vw, (max-width: 900px) 80vw, 70vw"
+                  quality={90}
+                  loading="eager"
+                />
+              </Box>
+            )}
+          </Box>
+        </Modal>
       </Container>
     </>
   );

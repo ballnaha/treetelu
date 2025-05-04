@@ -267,26 +267,6 @@ model Blog {
   @@map("blogs")
 }
 
-model DiscountCode {
-  id          Int       @id @default(autoincrement())
-  code        String    @unique @db.VarChar(50)
-  type        String    @db.VarChar(20)
-  value       Decimal   @db.Decimal(10, 2)
-  minAmount   Decimal   @db.Decimal(10, 2)
-  maxDiscount Decimal?  @db.Decimal(10, 2)
-  description String    @db.VarChar(255)
-  maxUses     Int       @default(0)
-  usedCount   Int       @default(0)
-  status      String    @default("active") @db.VarChar(20)
-  startDate   DateTime? @db.DateTime(0)
-  endDate     DateTime? @db.DateTime(0)
-  createdBy   Int?      @db.UnsignedInt
-  createdAt   DateTime  @default(now()) @db.DateTime(0)
-  updatedAt   DateTime  @updatedAt @db.DateTime(0)
-
-  @@map("discount_codes")
-}
-
 enum OrderStatus {
   PENDING
   PROCESSING

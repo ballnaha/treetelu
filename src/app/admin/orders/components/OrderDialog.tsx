@@ -111,7 +111,9 @@ import {
   TableHead,
   TableRow,
   Paper,
-  IconButton
+  IconButton,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import SaveIcon from '@mui/icons-material/Save';
@@ -132,6 +134,8 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [paymentImage, setPaymentImage] = useState<string | null>(null);
   const [showImageModal, setShowImageModal] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
   // Reset form when order changes
   useEffect(() => {
@@ -184,16 +188,26 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
       onClose={onClose}
       fullWidth
       maxWidth="md"
+      fullScreen={isMobile}
       scroll="paper"
+      PaperProps={{
+        sx: {
+          borderRadius: isMobile ? 0 : 2,
+          m: isMobile ? 0 : 2,
+        }
+      }}
     >
       <Box sx={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        p: 2,
+        p: isMobile ? 2 : 2,
         bgcolor: 'background.neutral',
         borderBottom: '1px solid',
-        borderColor: 'divider'
+        borderColor: 'divider',
+        position: isMobile ? 'sticky' : 'static',
+        top: 0,
+        zIndex: 10
       }}>
         <Typography variant="h6">
           รายละเอียดคำสั่งซื้อ #{order.orderNumber}
@@ -203,7 +217,14 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
         </IconButton>
       </Box>
       
-      <DialogContent dividers sx={{ p: 3 }}>
+      <DialogContent 
+        dividers 
+        sx={{ 
+          p: { xs: 2, sm: 3 },
+          pb: isMobile ? 24 : 6, // เพิ่ม padding ด้านล่างให้มากกว่าเดิม
+          overflowY: 'auto'
+        }}
+      >
         <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
           <Typography variant="body2" color="text.secondary">
             วันที่สั่งซื้อ: {order.createdAt && typeof order.createdAt === 'string' && !isNaN(new Date(order.createdAt).getTime()) 
@@ -446,12 +467,12 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
         </Box>
         
         {/* Payment Information */}
-        <Box sx={{ mt: 3 }}>
+        <Box sx={{ mt: 3, mb: isMobile ? 10 : 4 }}> {/* เพิ่ม bottom margin ให้มากขึ้น */}
           <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
             ข้อมูลการชำระเงิน
           </Typography>
           
-          <Paper elevation={0} variant="outlined" sx={{ p: 2 }}>
+          <Paper elevation={0} variant="outlined" sx={{ p: 2, mb: isMobile ? 4 : 2 }}> {/* เพิ่ม margin ให้กับ Paper */}
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
               <Box flex={1}>
                 <Typography variant="caption" color="text.secondary">วิธีการชำระเงิน</Typography>
@@ -469,7 +490,7 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
             
             {/* แสดงรูปหลักฐานการชำระเงิน */}
             {paymentImage && (
-              <Box sx={{ mt: 2 }}>
+              <Box sx={{ mt: 2, mb: isMobile ? 4 : 2 }}> {/* เพิ่มระยะห่างด้านล่างเมื่อดูบนมือถือ */}
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
                   หลักฐานการชำระเงิน
                 </Typography>
@@ -496,30 +517,107 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
               </Box>
             )}
           </Paper>
+          
+          {/* เพิ่ม Box ว่างด้านล่างเพื่อให้มีระยะห่างด้านล่างมากขึ้น */}
+          {isMobile && (
+            <Box sx={{ height: 20 }} />
+          )}
         </Box>
       </DialogContent>
       
-      <DialogActions sx={{ p: 2, bgcolor: 'background.neutral', justifyContent: 'space-between' }}>
-        <Button 
-          onClick={() => setDeleteConfirmOpen(true)} 
-          color="error"
-          startIcon={<DeleteIcon />}
-          variant="outlined"
-          sx={{ display: onDeleteOrder ? 'flex' : 'none' }}
-        >
-          ลบคำสั่งซื้อ
-        </Button>
-        <Box>
-          <Button onClick={onClose} color="inherit" sx={{ mr: 1 }}>
-            ยกเลิก
-          </Button>
-          <Button 
-            onClick={handleUpdateStatus} 
-            variant="contained" 
-            startIcon={<SaveIcon />}
+      <DialogActions 
+        sx={{ 
+          p: 0,
+          m: 0, 
+          bgcolor: '#f8f9fa',
+          justifyContent: 'space-between',
+          position: isMobile ? 'fixed' : 'static',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          borderTop: '2px solid',
+          borderColor: '#ebedf0',
+          zIndex: 100, // เพิ่ม z-index ให้สูงขึ้น
+          boxShadow: isMobile ? '0px -4px 12px rgba(0,0,0,0.05)' : 'none',
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap: 1
+        }}
+      >
+        <Box sx={{ 
+          display: 'flex', 
+          width: '100%', 
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: 2,
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 2, sm: 2 }
+        }}>
+          {onDeleteOrder && (
+            <Button
+              onClick={() => setDeleteConfirmOpen(true)}
+              color="error"
+              startIcon={<DeleteIcon />}
+              variant="outlined"
+              size="medium"
+              sx={{ 
+                order: { xs: 2, sm: 1 },
+                width: { xs: '100%', sm: 'auto' },
+                borderRadius: '4px',
+                fontWeight: 500,
+                boxShadow: 'none',
+                borderColor: 'rgba(211, 47, 47, 0.5)',
+                px: { xs: 2, sm: 2 },
+                py: 1
+              }}
+            >
+              ลบคำสั่งซื้อ
+            </Button>
+          )}
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              gap: 1.5,
+              width: { xs: '100%', sm: 'auto' },
+              order: { xs: 1, sm: 2 },
+              ml: { xs: 0, sm: 'auto' }
+            }}
           >
-            บันทึกการเปลี่ยนแปลง
-          </Button>
+            <Button 
+              onClick={onClose} 
+              color="inherit" 
+              size="medium"
+              variant="outlined"
+              sx={{ 
+                fontWeight: 500,
+                flex: { xs: 1, sm: 'none' },
+                borderRadius: '4px',
+                px: { xs: 2, sm: 3 },
+                py: 1,
+                borderColor: '#dee2e6'
+              }}
+            >
+              ยกเลิก
+            </Button>
+            <Button
+              onClick={handleUpdateStatus}
+              variant="contained"
+              color="primary"
+              startIcon={<SaveIcon />}
+              size="medium"
+              sx={{ 
+                fontWeight: 500,
+                flex: { xs: 2, sm: 'none' },
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                borderRadius: '4px',
+                px: { xs: 2, sm: 3 },
+                py: 1,
+                minWidth: '120px'
+              }}
+            >
+              บันทึกการเปลี่ยนแปลง
+            </Button>
+          </Box>
         </Box>
       </DialogActions>
       
@@ -529,51 +627,140 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
         onClose={() => setDeleteConfirmOpen(false)}
         maxWidth="xs"
         fullWidth
+        fullScreen={isMobile}
+        PaperProps={{
+          sx: {
+            borderRadius: isMobile ? 0 : 2,
+            m: isMobile ? 0 : 2,
+            overflow: 'hidden'
+          }
+        }}
       >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 1.5, 
+          p: { xs: 2, sm: 2.5 },
+          borderBottom: '2px solid',
+          borderColor: '#ebedf0',
+          bgcolor: '#f8f9fa'
+        }}>
           <WarningIcon color="error" />
-          ยืนยันการลบคำสั่งซื้อ
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>ยืนยันการลบคำสั่งซื้อ</Typography>
+          {isMobile && (
+            <IconButton 
+              onClick={() => setDeleteConfirmOpen(false)} 
+              size="small" 
+              sx={{ 
+                ml: 'auto',
+                color: 'text.secondary',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                }
+              }}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          )}
         </DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" gutterBottom>
+        <DialogContent sx={{ p: { xs: 2.5, sm: 3 }, pt: { xs: 2, sm: 2.5 } }}>
+          <Typography variant="body1" gutterBottom fontWeight={500}>
             คุณต้องการลบคำสั่งซื้อ #{order?.orderNumber} ใช่หรือไม่?
           </Typography>
-          <Typography variant="body2" color="error.main">
+          <Typography variant="body2" color="error.main" sx={{ mt: 1, p: 1.5, bgcolor: 'rgba(211, 47, 47, 0.05)', borderRadius: 1 }}>
             การดำเนินการนี้ไม่สามารถยกเลิกได้ และข้อมูลทั้งหมดที่เกี่ยวข้องกับคำสั่งซื้อนี้จะถูกลบออกจากระบบ
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setDeleteConfirmOpen(false)} color="inherit">
+        <DialogActions sx={{ 
+          p: 2.5,
+          pt: 2,
+          pb: 2.5,
+          borderTop: '2px solid',
+          borderColor: '#ebedf0',
+          flexWrap: 'wrap',
+          gap: 1.5,
+          bgcolor: '#f8f9fa',
+          justifyContent: 'flex-end'
+        }}>
+          <Button 
+            onClick={() => setDeleteConfirmOpen(false)} 
+            color="inherit"
+            variant="outlined"
+            size="medium"
+            sx={{ 
+              minWidth: { xs: '100%', sm: '120px' },
+              borderRadius: '4px',
+              fontWeight: 500,
+              borderColor: '#dee2e6',
+              py: 1
+            }}
+          >
             ยกเลิก
           </Button>
-          <Button onClick={handleDeleteOrder} color="error" variant="contained">
+          <Button 
+            onClick={handleDeleteOrder} 
+            color="error" 
+            variant="contained"
+            size="medium"
+            sx={{ 
+              minWidth: { xs: '100%', sm: '120px' },
+              boxShadow: '0 2px 4px rgba(211, 47, 47, 0.2)',
+              borderRadius: '4px',
+              fontWeight: 500,
+              py: 1
+            }}
+          >
             ยืนยันการลบ
           </Button>
         </DialogActions>
       </Dialog>
       
       {/* Modal แสดงรูปภาพเต็มจอ */}
-      <Dialog 
-        open={showImageModal} 
+      <Dialog
+        open={showImageModal}
         onClose={() => setShowImageModal(false)}
         maxWidth="md"
         fullWidth
+        fullScreen={isMobile}
+        PaperProps={{
+          sx: {
+            borderRadius: isMobile ? 0 : 2,
+            m: isMobile ? 0 : 2,
+            overflow: 'hidden'
+          }
+        }}
       >
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          หลักฐานการชำระเงิน
-          <IconButton onClick={() => setShowImageModal(false)}>
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          p: { xs: 1.5, sm: 2 },
+          bgcolor: '#f9f9f9'
+        }}>
+          <Typography variant="h6" sx={{ fontWeight: 500 }}>หลักฐานการชำระเงิน</Typography>
+          <IconButton 
+            onClick={() => setShowImageModal(false)}
+            sx={{
+              color: 'text.secondary',
+              '&:hover': {
+                backgroundColor: 'rgba(0, 0, 0, 0.04)'
+              }
+            }}
+          >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ p: 0, height: 'calc(100% - 64px)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#000' }}>
           {paymentImage && (
             <Box 
               component="img" 
               src={paymentImage}
               alt="หลักฐานการชำระเงิน"
               sx={{ 
-                width: '100%', 
-                height: 'auto',
+                maxWidth: '100%', 
+                maxHeight: '100%',
                 objectFit: 'contain'
               }}
               onError={(e) => {
