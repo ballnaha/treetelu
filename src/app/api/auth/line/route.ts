@@ -108,13 +108,14 @@ export async function GET(request: NextRequest) {
     );
     
     // บันทึก log ค่า isAdmin ที่จะใส่ใน token
-    console.log('Generated token with isAdmin value:', String(user.isAdmin) === 'true');
+    //console.log('Generated token with isAdmin value:', String(user.isAdmin) === 'true');
     
     // Generate CSRF token
     const csrfToken = uuidv4();
-    
+    // เพิ่มการกำหนดค่า BASE_URL ให้ถูกต้อง (เพิ่มก่อนฟังก์ชัน GET)
+    const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://treetelu.com';
     // Redirect to frontend with token data
-    const redirectUrl = new URL('/login/callback', request.nextUrl.origin);
+    const redirectUrl = new URL('/login/callback',BASE_URL);
     redirectUrl.searchParams.set('token', token);
     redirectUrl.searchParams.set('userId', user.id.toString());
     redirectUrl.searchParams.set('name', `${user.firstName} ${user.lastName}`);
