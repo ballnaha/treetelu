@@ -113,6 +113,12 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
           </div>
           <h1 style="color: #24B493; font-size: 24px;">ขอบคุณสำหรับคำสั่งซื้อ</h1>
           
+          <div style="background-color: #f5f5f5; padding: 10px; margin-bottom: 20px; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; font-size: 16px;">
+              <strong>เลขที่คำสั่งซื้อ:</strong> <span style="color: #24B493;">${orderData.orderNumber}</span>
+            </p>
+          </div>
+          
           <div style="margin: 20px 0;">
             <h2>รายการสินค้า</h2>
             <table style="width: 100%; border-collapse: collapse;">
@@ -225,7 +231,7 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
 
     // ส่งอีเมลด้วย Resend
     await resend.emails.send({
-      from: 'Treetelu <no-reply@treetelu.com>',
+      from: 'Treetelu - ต้นไม้ในกระถาง <no-reply@treetelu.com>',
       to: orderData.customerInfo.email,
       subject: 'ขอบคุณสำหรับคำสั่งซื้อ',
       html: emailContent,
@@ -266,7 +272,10 @@ export async function POST(request: NextRequest) {
     
     // ส่งอีเมลยืนยันคำสั่งซื้อ
     try {
-      const emailResult = await sendOrderConfirmationEmail(validatedData);
+      const emailResult = await sendOrderConfirmationEmail({
+        ...validatedData,
+        orderNumber
+      });
       if (!emailResult.success) {
         console.warn('Order created but email sending failed:', emailResult.message);
       }
