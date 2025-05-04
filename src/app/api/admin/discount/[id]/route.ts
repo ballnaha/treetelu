@@ -24,7 +24,7 @@ interface DiscountCode {
 // ฟังก์ชันสำหรับดึงข้อมูลรหัสส่วนลดตาม ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     // ตรวจสอบการยืนยันตัวตน
@@ -36,7 +36,7 @@ export async function GET(
       }, { status: 401 });
     }
 
-    const id = Number(params.id);
+    const id = Number(context.params.id);
     if (isNaN(id)) {
       return NextResponse.json({
         success: false,
@@ -84,7 +84,7 @@ export async function GET(
 // ฟังก์ชันสำหรับอัปเดตรหัสส่วนลด
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     // ตรวจสอบการยืนยันตัวตน
@@ -96,7 +96,7 @@ export async function PUT(
       }, { status: 401 });
     }
 
-    const id = Number(params.id);
+    const id = Number(context.params.id);
     if (isNaN(id)) {
       return NextResponse.json({
         success: false,
@@ -178,7 +178,7 @@ export async function PUT(
 // ฟังก์ชันสำหรับลบรหัสส่วนลด
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     // ตรวจสอบการยืนยันตัวตน
@@ -190,7 +190,7 @@ export async function DELETE(
       }, { status: 401 });
     }
 
-    const id = Number(params.id);
+    const id = Number(context.params.id);
     if (isNaN(id)) {
       return NextResponse.json({
         success: false,
