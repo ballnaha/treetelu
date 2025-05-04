@@ -133,3 +133,20 @@ export const createImageErrorHandler = (setImageSrc: (src: string) => void) => {
     setImageSrc('/images/no-image.png');
   };
 };
+
+/**
+ * ฟังก์ชันตรวจสอบและแปลง URL ของรูปภาพให้ถูกต้อง
+ * 
+ * @param url URL ของรูปภาพที่ต้องการตรวจสอบ
+ * @returns URL ที่ถูกต้องและใช้งานได้
+ */
+export const getValidImageUrl = (url: string | undefined): string => {
+  // ถ้าไม่มี URL หรือค่าไม่ถูกต้อง หรือเป็นรูปจาก LINE ให้ใช้รูปเริ่มต้น
+  if (!url || url === 'undefined' || url === 'null' || url === '' || 
+      url.includes('profile.line-scdn.net') || url.includes('obs.line-scdn.net')) {
+    return '/images/no-image.png';
+  }
+
+  // กรณีที่เป็น URL ทั่วไป ส่งกลับโดยไม่มีการเปลี่ยนแปลง
+  return url;
+};

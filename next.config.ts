@@ -5,7 +5,9 @@ const nextConfig = {
     'http://168.231.118.94:3001',
     'http://168.231.118.94',
     'https://168.231.118.94:3001',
-    'https://168.231.118.94'
+    'https://168.231.118.94',
+    'http://treetelu.com',
+    'https://treetelu.com',
   ],
   reactStrictMode: true,
   distDir: '.next', // ระบุโฟลเดอร์สำหรับ build output
@@ -16,7 +18,7 @@ const nextConfig = {
   // ย้ายจาก experimental.serverComponentsExternalPackages ไปเป็น serverExternalPackages ตามคำแนะนำ
   serverExternalPackages: ['fs', 'path'],
   images: {
-    domains: ['localhost', '168.231.118.94'],
+    domains: ['localhost', '168.231.118.94', 'treetelu.com'],
     // รองรับการแสดงรูปภาพจากแหล่งภายนอก
     remotePatterns: [
       {

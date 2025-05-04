@@ -5,9 +5,12 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 interface User {
   id?: string | number;
   name: string;
+  email?: string;
   isLoggedIn: boolean;
   isAdmin?: boolean;
+  isLineUser?: boolean;
   token?: string;
+  avatar?: string;
 }
 
 interface AuthContextType {
@@ -61,6 +64,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // ฟังก์ชันสำหรับการเข้าสู่ระบบ
   const login = (userData: User, csrfToken?: string) => {
     console.log('AuthContext: login with data:', userData);
+    
+    // ตรวจสอบและแก้ไขข้อมูล avatar
+    if (userData.avatar === undefined || userData.avatar === 'undefined' || userData.avatar === 'null') {
+      console.log('Fixing undefined avatar in login data');
+      userData.avatar = '';
+    }
+    
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
     

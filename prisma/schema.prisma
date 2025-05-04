@@ -112,12 +112,12 @@ model Order {
   totalAmount   Decimal       @db.Decimal(10, 2)
   shippingCost  Decimal       @db.Decimal(10, 2)
   discount      Decimal       @default(0.00) @db.Decimal(10, 2)
-  discountCode  String?       @db.VarChar(50)
   finalAmount   Decimal       @db.Decimal(10, 2)
   paymentMethod PaymentMethod @default(BANK_TRANSFER)
   paymentStatus PaymentStatus @default(PENDING)
   createdAt     DateTime      @default(now()) @db.DateTime(0)
   updatedAt     DateTime      @updatedAt @db.DateTime(0)
+  discountCode  String?       @db.VarChar(50)
   customerInfo  CustomerInfo?
   orderItems    OrderItem[]
   paymentInfo   PaymentInfo?
@@ -171,7 +171,7 @@ model ShippingInfo {
   addressLine2     String?       @db.VarChar(255)
   provinceId       Int
   provinceName     String        @db.VarChar(100)
-  amphureId         Int
+  amphureId        Int
   amphureName      String        @db.VarChar(100)
   tambonId         Int
   tambonName       String        @db.VarChar(100)
@@ -242,8 +242,29 @@ model users {
   rememberToken   String?       @db.VarChar(100)
   createdAt       DateTime      @default(now()) @db.Timestamp(0)
   updatedAt       DateTime      @updatedAt @db.Timestamp(0)
+  avatar          String?       @db.VarChar(255)
+  lineId          String?       @db.VarChar(100)
 
   @@map("users")
+}
+
+model Blog {
+  id        Int      @id @default(autoincrement())
+  title     String   @db.VarChar(255)
+  slug      String   @unique @db.VarChar(255)
+  excerpt   String   @db.VarChar(500)
+  content   String   @db.LongText
+  image     String   @db.VarChar(255)
+  category  String   @db.VarChar(100)
+  date      String   @db.VarChar(100)
+  published Boolean  @default(true)
+  userId    Int?     @db.UnsignedInt
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  updatedAt DateTime @updatedAt @db.DateTime(0)
+
+  @@index([slug], map: "blog_slug_index")
+  @@index([category], map: "blog_category_index")
+  @@map("blogs")
 }
 
 enum OrderStatus {
@@ -271,23 +292,4 @@ enum PaymentStatus {
 enum users_isAdmin {
   true
   false
-}
-
-model Blog {
-  id        Int       @id @default(autoincrement())
-  title     String    @db.VarChar(255)
-  slug      String    @unique @db.VarChar(255)
-  excerpt   String    @db.VarChar(500)
-  content   String    @db.LongText
-  image     String    @db.VarChar(255)
-  category  String    @db.VarChar(100)
-  date      String    @db.VarChar(100)
-  published Boolean   @default(true)
-  userId    Int?      @db.UnsignedInt
-  createdAt DateTime  @default(now()) @db.DateTime(0)
-  updatedAt DateTime  @updatedAt @db.DateTime(0)
-
-  @@index([slug], map: "blog_slug_index")
-  @@index([category], map: "blog_category_index")
-  @@map("blogs")
 }

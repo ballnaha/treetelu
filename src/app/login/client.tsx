@@ -73,14 +73,41 @@ const StyledButton = styled(Button)(({ theme }) => ({
   },
 }));
 
+// LINE Login Button
+const LineLoginButton = styled(Button)(({ theme }) => ({
+  textTransform: 'none',
+  fontWeight: 600,
+  fontSize: '1rem',
+  padding: '12px 24px',
+  borderRadius: '30px',
+  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+  transition: 'all 0.3s ease',
+  backgroundColor: '#06C755',
+  color: '#ffffff',
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: '0 6px 12px rgba(0, 0, 0, 0.15)',
+    backgroundColor: '#05a949',
+  },
+}));
+
 export default function LoginClient() {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   const { login, user } = useAuth();
+  const [lineLoginUrl, setLineLoginUrl] = useState('');
   
   // Fix hydration issues by ensuring component is mounted
   useEffect(() => {
     setIsMounted(true);
+    
+    // รับค่า LINE Login URL จาก environment variable หรือใช้ค่าเริ่มต้น
+    const lineClientId = process.env.NEXT_PUBLIC_LINE_CLIENT_ID || '';
+    const lineRedirectUri = process.env.NEXT_PUBLIC_LINE_REDIRECT_URI || 'http://localhost:3001/api/auth/line';
+    
+    // สร้าง LINE Login URL
+    const loginUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${lineClientId}&redirect_uri=${encodeURIComponent(lineRedirectUri)}&state=12345&scope=profile&bot_prompt=normal`;
+    setLineLoginUrl(loginUrl);
   }, []);
   
   // ถ้าผู้ใช้ล็อกอินอยู่แล้ว ให้เปลี่ยนหน้าไปที่หน้าหลัก
@@ -230,6 +257,13 @@ export default function LoginClient() {
       setIsSubmitting(false);
     }
   };
+
+  // เปิด LINE Login
+  const handleLineLogin = () => {
+    if (lineLoginUrl) {
+      window.location.href = lineLoginUrl;
+    }
+  };
   
   // Prevent layout shift during hydration
   if (!isMounted) {
@@ -263,6 +297,31 @@ export default function LoginClient() {
             {error}
           </Alert>
         )}
+        
+        {/* แบบที่ 1: วางปุ่ม LINE Login ไว้ด้านบนของฟอร์ม */}
+        <Box sx={{ mb: 3 }}>
+          <LineLoginButton
+            type="button"
+            variant="contained"
+            fullWidth
+            size="large"
+            onClick={handleLineLogin}
+            sx={{ 
+              backgroundColor: '#06C755',
+              '&:hover': {
+                backgroundColor: '#05a949',
+              }
+            }}
+          >
+            เข้าสู่ระบบด้วย LINE
+          </LineLoginButton>
+        </Box>
+        
+        <Divider sx={{ my: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ px: 1 }}>
+            หรือเข้าสู่ระบบด้วยอีเมล
+          </Typography>
+        </Divider>
         
         <form onSubmit={handleSubmit}>
           <TextField
@@ -338,9 +397,13 @@ export default function LoginClient() {
             size="large"
             disabled={isSubmitting}
             startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <LoginIcon />}
+            sx={{ mb: 2 }}
           >
             {isSubmitting ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
           </StyledButton>
+          
+          
+          
         </form>
         
         <Divider sx={{ my: 4 }} />
@@ -375,3 +438,28 @@ export default function LoginClient() {
     </Container>
   );
 }
+
+// ถ้าต้องการใช้แบบที่ 3: Tabs ให้เพิ่มเข้าไปในโค้ดส่วนหัวของ component
+// const [loginMethod, setLoginMethod] = useState(0);
+
+// function TabPanel(props: { children?: React.ReactNode; index: number; value: number }) {
+//   const { children, value, index, ...other } = props;
+//   return (
+//     <div
+//       role="tabpanel"
+//       hidden={value !== index}
+//       id={`login-tabpanel-${index}`}
+//       aria-labelledby={`login-tab-${index}`}
+//       {...other}
+//     >
+//       {value === index && <Box>{children}</Box>}
+//     </div>
+//   );
+// }
+
+// function a11yProps(index: number) {
+//   return {
+//     id: `login-tab-${index}`,
+//     'aria-controls': `login-tabpanel-${index}`,
+//   };
+// }

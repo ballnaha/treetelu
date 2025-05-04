@@ -74,7 +74,10 @@ const orderSchema = z.object({
   paymentMethod: z.enum(["BANK_TRANSFER", "CREDIT_CARD", "PROMPTPAY", "COD"], {
     errorMap: () => ({ message: "กรุณาเลือกวิธีการชำระเงินที่ถูกต้อง" }),
   }),
-  userId: z.number().optional(),
+  userId: z.union([
+    z.number(),
+    z.string().transform((val) => Number(val))
+  ]).optional(),
   discount: z.number().optional(),
   discountCode: z.string().optional(),
 });
@@ -215,153 +218,103 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
                 <strong>วันที่จัดส่ง:</strong> ${format(deliveryDate, 'dd MMMM yyyy', { locale: thLocale })}
               </p>
             ` : ''}
-            ${orderData.shippingInfo.deliveryTime ? `
-              <p style="margin: 5px 0; color: #34495e;">
-                <strong>เวลาที่จัดส่ง:</strong> ${orderData.shippingInfo.deliveryTime}
-              </p>
-            ` : ''}
-            ${orderData.shippingInfo.cardMessage ? `
-              <p style="margin: 5px 0; color: #34495e;">
-                <strong>ข้อความในการ์ด:</strong> "${orderData.shippingInfo.cardMessage}"
-              </p>
-            ` : ''}
-            ${orderData.customerInfo.note ? `
-              <p style="margin: 5px 0; color: #34495e;">
-                <strong>ข้อความเพิ่มเติม:</strong> ${orderData.customerInfo.note}
-              </p>
-            ` : ''}
-          </div>
 
-          <p style="color: #666; font-style: italic; text-align: center; margin-top: 30px;">
-            หากมีคำถามกรุณาติดต่อ Line: @095xrokt
-          </p>
+          </div>
         </div>
       `;
 
-    // ส่งอีเมลยืนยันการสั่งซื้อด้วย Resend
+    // ส่งอีเมลด้วย Resend
     await resend.emails.send({
-      from: 'Treetelu ต้นไม้ในกระถาง <onboarding@resend.dev>',
+      from: 'Treetelu <no-reply@treetelu.com>',
       to: orderData.customerInfo.email,
-      subject: `ยืนยันคำสั่งซื้อ #${orderData.orderNumber}`,
-      html: emailContent
+      subject: 'ขอบคุณสำหรับคำสั่งซื้อ',
+      html: emailContent,
     });
-    console.log('Order confirmation email sent successfully with Resend');
-    
-    // ส่งแจ้งเตือนไปยัง Discord
-    try {
-      const discordEmbed = createOrderNotificationEmbed(orderData);
-      await sendDiscordNotification(discordEmbed);
-      console.log('Discord notification sent successfully');
-    } catch (discordError) {
-      // หากการส่งแจ้งเตือน Discord ล้มเหลว ไม่ให้มีผลกับการส่งอีเมล
-      console.error('Error sending Discord notification:', discordError);
-    }
-    
-    return { success: true };
+
+    // อัปเดตข้อมูลอินสแตนซ์หรือบันทึกข้อมูลลงฐานข้อมูลหรืออื่นๆตามความต้องการ
+    // ตัวอย่าง: บันทึกข้อมูลลงฐานข้อมูล
+    // await saveOrderToDatabase(orderData);
+
+    // ตรวจสอบว่าส่งอีเมลได้สำเร็จหรือไม่
+    return NextResponse.json({ message: 'ส่งอีเมลสำเร็จ' }, { status: 200 });
   } catch (error) {
-    console.error('Error sending order confirmation email:', error);
-    throw error;
+    console.error('การส่งอีเมลล้มเหลว:', error);
+    return NextResponse.json({ message: 'การส่งอีเมลล้มเหลว' }, { status: 500 });
   }
 };
 
 export async function POST(request: NextRequest) {
   try {
-    // รับข้อมูลจาก request
+    // อ่านข้อมูลจาก request body
     const body = await request.json();
     
-    console.log('Received order data:', JSON.stringify(body, null, 2));
-
-    // Debug log for userId in the request body
-    console.log('Request body userId:', body.userId, 'type:', typeof body.userId);
-
-    // ตรวจสอบข้อมูลให้ถูกต้องตาม schema
-    try {
-      const validatedData = orderSchema.parse(body);
-      
-      // Debug log for userId after validation
-      console.log('Validated userId:', validatedData.userId, 'type:', typeof validatedData.userId);
-      
-      // แปลงวันที่จัดส่งเป็น UTC+7
-      if (validatedData.shippingInfo.deliveryDate) {
-        const deliveryDate = addHours(new Date(validatedData.shippingInfo.deliveryDate), 7);
-        validatedData.shippingInfo.deliveryDate = deliveryDate;
-      }
-      
-      console.log('Validated data:', JSON.stringify(validatedData, null, 2));
-
-      // ส่งต่อข้อมูลไปยังฟังก์ชันสร้างคำสั่งซื้อ
-      try {
-        const result = await createOrder(validatedData);
-
-        // Debug log: ตรวจสอบข้อมูลที่ส่งไปยัง sendOrderConfirmationEmail
-        console.log('Sending to email service:', {
-          orderNumber: result.order.orderNumber,
-          customerEmail: validatedData.customerInfo?.email,
-          hasCustomerInfo: !!validatedData.customerInfo
-        });
-
-        // ส่งอีเมลยืนยันการสั่งซื้อและแจ้งเตือน Discord
-        await sendOrderConfirmationEmail({
-          ...validatedData,
-          orderNumber: result.order.orderNumber,
-          id: result.order.id,
-          createdAt: result.order.createdAt,
-        });
-
-        // ต้องเรียก revalidate เพื่อให้ข้อมูลผ่านการ regenerate
-        revalidatePath('/orders');
-        
-        // คืนค่าผลลัพธ์
-        // Convert BigInt values to strings to avoid serialization issues
-        const serializedOrder = {
-          ...result.order,
-          id: result.order.id.toString(),
-          userId: result.order.userId ? result.order.userId.toString() : null,
-          items: validatedData.items,
-        };
-        
-        return NextResponse.json({
-          success: true,
-          order: serializedOrder,
-        }, { status: 201 });
-      } catch (orderError: any) {
-        console.error("Order creation error:", orderError);
-        return NextResponse.json({
-          success: false,
-          message: orderError.message || "เกิดข้อผิดพลาดในการสร้างคำสั่งซื้อ",
-        }, { status: 500 });
-      }
-    } catch (validationError) {
-      if (validationError instanceof z.ZodError) {
-        const formattedErrors = validationError.errors.map(err => ({
-          path: err.path.join('.'),
-          message: err.message,
-          code: err.code
-        }));
-        
-        console.error("Validation errors:", JSON.stringify(formattedErrors, null, 2));
-        
-        return NextResponse.json({
-          success: false,
-          message: "ข้อมูลไม่ถูกต้อง",
-          errors: formattedErrors
-        }, { status: 400 });
-      }
-      
-      throw validationError;
+    // ตรวจสอบข้อมูลด้วย schema
+    const validatedData = orderSchema.parse(body);
+    
+    // สร้างคำสั่งซื้อใหม่
+    const result = await createOrder(validatedData);
+    
+    if (!result.success || !result.order) {
+      return NextResponse.json(
+        { success: false, message: 'เกิดข้อผิดพลาดในการสร้างคำสั่งซื้อ' },
+        { status: 500 }
+      );
     }
-  } catch (error) {
-    console.error("Unhandled error in API:", error);
+    
+    // Generate order number from the order object
+    const orderNumber = result.order.orderNumber as string;
+    
+    // ส่งอีเมลยืนยันคำสั่งซื้อ
+    try {
+      await sendOrderConfirmationEmail(validatedData);
+    } catch (emailError) {
+      console.error('Error sending order confirmation email:', emailError);
+      // ไม่คืนค่า error ถ้าการส่งอีเมลล้มเหลว แต่คำสั่งซื้อยังคงถูกสร้าง
+    }
+    
+    // ส่งการแจ้งเตือนไปยัง Discord (ถ้ามีการตั้งค่า)
+    try {
+      if (process.env.DISCORD_WEBHOOK_URL) {
+        // ตรวจสอบให้แน่ใจว่า result.order มี orderNumber
+        const orderForNotification = {
+          ...result.order,
+          orderNumber: orderNumber || result.order.orderNumber
+        };
+        const embed = createOrderNotificationEmbed(orderForNotification);
+        await sendDiscordNotification(embed);
+      }
+    } catch (discordError) {
+      console.error('Error sending Discord notification:', discordError);
+      // ไม่คืนค่า error ถ้าการส่งแจ้งเตือน Discord ล้มเหลว
+    }
+    
+    // Revalidate เส้นทางเพื่ออัปเดตข้อมูล (ใช้แค่ 1 argument คือ path)
+    revalidatePath('/admin/orders');
     
     return NextResponse.json({
-      success: false,
-      message: error instanceof Error ? error.message : "เกิดข้อผิดพลาดในการเรียก API",
-    }, { status: 500 });
+      success: true,
+      message: 'สร้างคำสั่งซื้อสำเร็จ',
+      orderNumber,
+      orderId: result.order.id
+    });
+    
+  } catch (error) {
+    console.error('Order creation error:', error);
+    
+    // ตรวจสอบว่าเป็น Zod Error หรือไม่
+    if (error instanceof z.ZodError) {
+      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ');
+      return NextResponse.json(
+        { success: false, message: `ข้อมูลไม่ถูกต้อง: ${errorMessages}` },
+        { status: 400 }
+      );
+    }
+    
+    return NextResponse.json(
+      { success: false, message: `เกิดข้อผิดพลาด: ${(error as Error).message || 'Unknown error'}` },
+      { status: 500 }
+    );
   }
 }
 
-export async function GET() {
-  return NextResponse.json({
-    message: "API สำหรับสร้างคำสั่งซื้อ โปรดใช้ method POST"
-  });
-} 
+export { sendOrderConfirmationEmail };

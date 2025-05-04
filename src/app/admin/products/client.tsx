@@ -81,14 +81,17 @@ export default function AdminProductsClient() {
     searchTerm: ''
   });
 
-  // ตรวจสอบสิทธิ์ admin ด้วยการเรียก API แทนการใช้ state จาก AuthContext
+  // 1. ตรวจสอบว่าผู้ใช้เป็น admin และดึงข้อมูลสินค้า
   useEffect(() => {
-    // ฟังก์ชันสำหรับตรวจสอบสิทธิ์
+    // ตรวจสอบก่อนว่าผู้ใช้เป็น admin หรือไม่
     const checkAdminStatus = async () => {
       try {
-        console.log('Checking admin status via API...');
+        setLoading(true);
+        
+        console.log('Checking admin status...');
         // ใช้ token จาก AuthContext
         const token = getAuthToken();
+        console.log('Token available:', !!token);
         
         const response = await fetch('/api/admin/check-auth', {
           credentials: 'include', // ส่ง cookie ไปด้วย
@@ -97,14 +100,18 @@ export default function AdminProductsClient() {
           }
         });
         
+        // แสดงข้อมูลการตอบกลับจาก API
+        console.log('Admin check response status:', response.status);
+        const data = await response.json();
+        console.log('Admin check response data:', data);
+        
         if (response.ok) {
-          const data = await response.json();
-          console.log('Admin status check result:', data);
+          console.log('User is authorized as admin');
           setIsAdmin(true);
           // ถ้าเป็น admin ให้โหลดข้อมูลสินค้า
           fetchProducts();
         } else {
-          console.error('Not authorized as admin');
+          console.error('Not authorized as admin - Response not OK');
           setIsAdmin(false);
           router.push('/');
         }

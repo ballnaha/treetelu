@@ -86,7 +86,7 @@ type OrderDataInput = {
     unitPrice: number;
   }>;
   paymentMethod: PaymentMethodType;
-  userId?: number;
+  userId?: number | string;
   discount?: number;
   discountCode?: string;
 };

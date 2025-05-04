@@ -75,9 +75,14 @@ export default function AdminLayout({
       return;
     }
     
-    if (!user?.isAdmin) {
+    console.log('Admin layout - checking user:', user);
+    
+    // ตรวจสอบว่าเป็น admin จริงๆ (ต้องเป็น boolean true เท่านั้น)
+    if (user?.isAdmin !== true) {
+      console.log('User is not admin, redirecting to login');
       router.push('/login');
     } else {
+      console.log('User is admin, showing admin interface');
       setLoading(false);
     }
   }, [user, router]);

@@ -153,10 +153,10 @@ export default function UserMenu() {
         <MenuItem onClick={() => {router.push('/profile'); handleClose();}}>โปรไฟล์</MenuItem>
         <MenuItem onClick={() => {router.push('/order-history'); handleClose();}}>ประวัติการสั่งซื้อ</MenuItem>
         
-        {/* เมนูพิเศษสำหรับผู้ดูแลระบบ - แสดงตลอดเวลาสำหรับการทดสอบ */}
-        {user.isAdmin && <Divider />}
+        {/* เมนูพิเศษสำหรับผู้ดูแลระบบ - ตรวจสอบว่าเป็น admin จริงๆ และไม่ใช่ผู้ใช้ LINE */}
+        {user.isAdmin === true && !user.isLineUser && <Divider />}
         
-        {user.isAdmin && (
+        {user.isAdmin === true && !user.isLineUser && (
           <MenuItem 
             onClick={() => {router.push('/admin/products'); handleClose();}}
             sx={{ color: 'primary.main' }}
@@ -166,7 +166,7 @@ export default function UserMenu() {
           </MenuItem>
         )}
         
-        {user.isAdmin && (
+        {user.isAdmin === true && !user.isLineUser && (
           <MenuItem 
             onClick={() => {router.push('/admin/orders'); handleClose();}}
             sx={{ color: 'primary.main' }}

@@ -41,12 +41,14 @@ export async function validateAdminUser(request: NextRequest): Promise<{
     // ตรวจสอบว่าเป็น admin หรือไม่
     const isAdmin = typeof decoded.isAdmin === 'boolean'
       ? decoded.isAdmin
-      : decoded.isAdmin === 'true';
+      : String(decoded.isAdmin) === 'true';
     
     if (!isAdmin) {
+      console.log('User is not admin:', decoded);
       return { isAdmin: false, error: 'ไม่มีสิทธิ์เข้าถึงข้อมูล admin' };
     }
     
+    console.log('User is authorized as admin:', decoded.id);
     // ส่งข้อมูลกลับไปหาก user เป็น admin
     return { 
       isAdmin: true,
@@ -93,7 +95,7 @@ export async function validateUser(request: NextRequest): Promise<{
     // ตรวจสอบว่าเป็น admin หรือไม่ (เพื่อส่งข้อมูลกลับไป)
     const isAdmin = typeof decoded.isAdmin === 'boolean'
       ? decoded.isAdmin
-      : decoded.isAdmin === 'true';
+      : String(decoded.isAdmin) === 'true';
     
     // ส่งข้อมูลผู้ใช้กลับไป
     return { 

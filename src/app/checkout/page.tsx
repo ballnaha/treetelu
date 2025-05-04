@@ -672,7 +672,25 @@ export default function Checkout() {
         body: JSON.stringify(orderData),
       });
       
-      const result = await response.json();
+      // ตรวจสอบสถานะการตอบกลับและเนื้อหาก่อนแปลงเป็น JSON
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`เกิดข้อผิดพลาดในการสั่งซื้อ: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`);
+      }
+      
+      // ตรวจสอบว่ามีเนื้อหาก่อนแปลงเป็น JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('การตอบกลับจากเซิร์ฟเวอร์ไม่ใช่รูปแบบ JSON');
+      }
+      
+      let result;
+      try {
+        result = await response.json();
+      } catch (jsonError) {
+        console.error('JSON parsing error:', jsonError);
+        throw new Error('ไม่สามารถแปลงข้อมูลการตอบกลับเป็น JSON ได้');
+      }
       
       if (result.success) {
         // การสั่งซื้อสำเร็จ

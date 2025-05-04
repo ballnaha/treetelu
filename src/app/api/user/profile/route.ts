@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateUser } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
 // สร้าง schema สำหรับตรวจสอบข้อมูลส่วนตัว
@@ -25,29 +25,73 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // ดึงข้อมูลผู้ใช้จากฐานข้อมูล
-    const user = await prisma.users.findUnique({
-      where: {
-        id: Number(authResult.userId)
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        createdAt: true,
-        isAdmin: true
-      }
-    });
-    
-    if (!user) {
+    // ตรวจสอบว่า userId มีค่าหรือไม่
+    if (!authResult.userId) {
+      console.error('userId is missing in auth result:', authResult);
       return NextResponse.json(
-        { message: 'ไม่พบข้อมูลผู้ใช้' },
-        { status: 404 }
+        { message: 'ไม่พบข้อมูล userId ในการยืนยันตัวตน' },
+        { status: 400 }
       );
     }
     
-    return NextResponse.json({ user });
+    console.log('Fetching user profile with userId:', authResult.userId);
+    
+    // ตรวจสอบว่ามี email หรือไม่
+    if (authResult.email) {
+      // ถ้ามี email ให้ดึงข้อมูลโดยใช้ email แทน
+      try {
+        const userByEmail = await prisma.users.findUnique({
+          where: {
+            email: authResult.email
+          },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            createdAt: true,
+            isAdmin: true
+          }
+        });
+        
+        if (userByEmail) {
+          return NextResponse.json({ user: userByEmail });
+        }
+      } catch (emailError) {
+        console.error('Error fetching user by email:', emailError);
+        // ไม่ return ทันที แต่ลองใช้ id อีกครั้ง
+      }
+    }
+    
+    // ดึงข้อมูลผู้ใช้จากฐานข้อมูลโดยใช้ id
+    try {
+      const user = await prisma.users.findUnique({
+        where: {
+          id: Number(authResult.userId)
+        },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          createdAt: true,
+          isAdmin: true
+        }
+      });
+      
+      if (!user) {
+        console.error('User not found with id:', authResult.userId);
+        return NextResponse.json(
+          { message: 'ไม่พบข้อมูลผู้ใช้' },
+          { status: 404 }
+        );
+      }
+      
+      return NextResponse.json({ user });
+    } catch (findError) {
+      console.error('Error in findUnique operation:', findError);
+      throw findError;
+    }
   } catch (error) {
     console.error('Error fetching user profile:', error);
     
