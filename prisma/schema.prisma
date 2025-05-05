@@ -245,6 +245,7 @@ model users {
   updatedAt       DateTime      @updatedAt @db.Timestamp(0)
   avatar          String?       @db.VarChar(255)
   lineId          String?       @db.VarChar(100)
+  passwordReset   PasswordReset?
 
   @@map("users")
 }
@@ -286,6 +287,19 @@ model DiscountCode {
   updatedAt   DateTime  @updatedAt @db.DateTime(0)
 
   @@map("discount_codes")
+}
+
+model PasswordReset {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  token     String   @db.VarChar(255)
+  expiresAt DateTime @db.DateTime(0)
+  createdAt DateTime @default(now()) @db.DateTime(0)
+  updatedAt DateTime @updatedAt @db.DateTime(0)
+  user      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("password_resets")
 }
 
 enum OrderStatus {

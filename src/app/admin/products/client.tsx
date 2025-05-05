@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { checkAdminAuth } from '@/lib/auth';
 import ProductList from './components/ProductList';
 import ProductFilters from './components/ProductFilters';
 import ProductDialog from './components/ProductDialog';
@@ -81,14 +82,21 @@ export default function AdminProductsClient() {
     searchTerm: ''
   });
 
-  // 1. ตรวจสอบว่าผู้ใช้เป็น admin และดึงข้อมูลสินค้า
+  // 1. ตรวจสอบสิทธิ์แอดมินก่อนทำอย่างอื่น
   useEffect(() => {
-    // ตรวจสอบก่อนว่าผู้ใช้เป็น admin หรือไม่
+    const { isChecking } = checkAdminAuth(user, router, getAuthToken);
+    
+    // ถ้ากำลังตรวจสอบและ redirect ให้หยุดการทำงานที่นี่
+    if (isChecking) {
+      return;
+    }
+    
+    // ถ้าผ่านการตรวจสอบเบื้องต้นแล้ว จึงตรวจสอบกับ API
     const checkAdminStatus = async () => {
       try {
         setLoading(true);
         
-        console.log('Checking admin status...');
+        console.log('Checking admin status with API...');
         // ใช้ token จาก AuthContext
         const token = getAuthToken();
         console.log('Token available:', !!token);
@@ -125,7 +133,7 @@ export default function AdminProductsClient() {
     };
     
     checkAdminStatus();
-  }, [router, getAuthToken]); // เพิ่ม getAuthToken ใน dependency
+  }, [router, getAuthToken, user]); // เพิ่ม user ใน dependency
 
   // ปรับปรุงการโหลดข้อมูลสินค้า
   useEffect(() => {

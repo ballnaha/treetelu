@@ -110,4 +110,30 @@ export async function validateUser(request: NextRequest): Promise<{
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return { isAuthenticated: false, error: errorMessage };
   }
+}
+
+/**
+ * ฟังก์ชันสำหรับตรวจสอบการเข้าสู่ระบบและสิทธิ์แอดมินในฝั่งไคลเอนต์
+ * จะทำการ redirect ไปยังหน้า login หรือหน้าหลักตามสถานะของผู้ใช้
+ */
+export const checkAdminAuth = (
+  user: any, 
+  router: any, 
+  getAuthToken: () => string | null
+): { isChecking: boolean } => {
+  // ถ้าไม่มีข้อมูลผู้ใช้ หรือไม่มี token
+  if (!user || !getAuthToken()) {
+    console.log('No user or token, redirecting to login page');
+    router.push('/login');
+    return { isChecking: true }; // กำลังตรวจสอบและ redirect
+  }
+  
+  // ถ้ามีข้อมูลผู้ใช้ แต่ไม่ใช่แอดมิน
+  if (!user.isAdmin) {
+    console.log('User is not admin, redirecting to home page');
+    router.push('/');
+    return { isChecking: true }; // กำลังตรวจสอบและ redirect
+  }
+  
+  return { isChecking: false }; // ผ่านการตรวจสอบ
 } 

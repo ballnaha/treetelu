@@ -103,8 +103,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (!response.ok) {
         console.error('Logout failed with status:', response.status);
       }
+      
+      // หลังจาก logout สำเร็จ ให้ redirect ไปยังหน้า login
+      window.location.href = '/login';
     } catch (error) {
       console.error('Logout error:', error);
+      // กรณีเกิดข้อผิดพลาดก็ให้ redirect ไปยังหน้า login
+      window.location.href = '/login';
     }
   };
 

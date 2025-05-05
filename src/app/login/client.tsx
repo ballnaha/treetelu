@@ -376,64 +376,55 @@ export default function LoginClient() {
               label={<Typography sx={{ fontFamily: 'inherit', fontSize: '0.9rem' }}>จดจำฉัน</Typography>}
               sx={{ mb: 2 }}
             />
-            
-            <MuiLink 
-              component={Link} 
-              href="/forgot-password" 
-              color="primary"
-              sx={{ 
-                fontWeight: 500,
-                fontSize: '0.875rem'
-              }}
-            >
-              ลืมรหัสผ่าน?
-            </MuiLink>
           </Box>
           
           <StyledButton
             type="submit"
-            variant="contained"
             fullWidth
-            size="large"
+            variant="contained"
+            color="primary"
+            startIcon={!isSubmitting ? <LoginIcon /> : null}
             disabled={isSubmitting}
-            startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <LoginIcon />}
-            sx={{ mb: 2 }}
+            sx={{ mt: 3, mb: 2 }}
           >
-            {isSubmitting ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
+            {isSubmitting ? (
+              <>
+                <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+                กำลังเข้าสู่ระบบ
+              </>
+            ) : (
+              'เข้าสู่ระบบ'
+            )}
           </StyledButton>
           
-          
-          
-        </form>
-        
-        <Divider sx={{ my: 4 }} />
-        
-        <Box sx={{ textAlign: 'center' }}>
-          <Typography 
-            variant="body2" 
-            color="text.secondary"
-            sx={{ 
-              fontFamily: 'inherit',
-              fontSize: '0.875rem'
-            }}
-          >
-            ยังไม่มีบัญชี?{' '}
+          <Box sx={{ textAlign: 'center', mt: 2 }}>
+            <MuiLink 
+              component={Link} 
+              href="/forgot-password" 
+              variant="body2"
+              underline="hover"
+              color="primary"
+            >
+              ลืมรหัสผ่าน?
+            </MuiLink>
+          </Box>
+
+          <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Typography variant="body2" sx={{ display: 'inline' }}>
+              ยังไม่มีบัญชี? 
+            </Typography>
             <MuiLink 
               component={Link} 
               href="/register" 
-              color="primary" 
-              sx={{ 
-                fontWeight: 500,
-                '&:hover': {
-                  textDecoration: 'none',
-                  color: theme => theme.palette.primary.dark
-                }
-              }}
+              variant="body2"
+              underline="hover"
+              color="primary"
+              sx={{ ml: 0.5 }}
             >
               สมัครสมาชิก
             </MuiLink>
-          </Typography>
-        </Box>
+          </Box>
+        </form>
       </FormContainer>
     </Container>
   );
