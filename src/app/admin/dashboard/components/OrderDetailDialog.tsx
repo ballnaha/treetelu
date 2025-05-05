@@ -16,7 +16,9 @@ import {
   Paper,
   IconButton,
   Chip,
-  CircularProgress
+  CircularProgress,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 
@@ -134,6 +136,9 @@ const getStatusColor = (status: string) => {
 };
 
 export default function OrderDetailDialog({ open, order, onClose, loading = false }: OrderDetailDialogProps) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  
   if (!order && !loading) return null;
   
   return (
@@ -141,6 +146,7 @@ export default function OrderDetailDialog({ open, order, onClose, loading = fals
       open={open} 
       onClose={onClose}
       fullWidth
+      fullScreen={isMobile}
       maxWidth="md"
       scroll="paper"
     >

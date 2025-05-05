@@ -20,6 +20,7 @@ interface AuthContextType {
   isLoading: boolean;
   getAuthToken: () => string | null;
   getCsrfToken: () => string | null;
+  loginWithLine: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -130,7 +131,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     logout,
     isLoading,
     getAuthToken,
-    getCsrfToken
+    getCsrfToken,
+    loginWithLine: () => {
+      // ตรงนี้ใส่โค้ดสำหรับการล็อกอินด้วย LINE
+      window.location.href = '/api/auth/line';
+    }
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
