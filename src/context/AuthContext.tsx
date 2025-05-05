@@ -93,6 +93,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // ฟังก์ชันสำหรับการออกจากระบบ
   const logout = async (redirectMessage?: string, errorType?: string) => {
     try {
+      // ตรวจสอบว่าเป็นผู้ใช้ LINE หรือไม่
+      const userData = localStorage.getItem('user');
+      const isLineUser = userData ? JSON.parse(userData)?.isLineUser : false;
+      
       // ลบข้อมูลทั้งหมดออกจาก localStorage
       localStorage.removeItem('user');
       localStorage.removeItem('auth_token');
@@ -118,10 +122,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // ไม่ต้อง return ออกจากฟังก์ชันหลัก ให้ทำการ redirect ต่อไปได้
       }
       
-      // หลังจาก logout สำเร็จ ให้ redirect ไปยังหน้า login พร้อม error_type (ถ้ามี)
-      const redirectUrl = errorType 
-        ? `/login?error_type=${errorType}` // ส่งเฉพาะ error_type โดยไม่มีข้อความ 
-        : '/login';
+      // สำหรับผู้ใช้ LINE ให้ redirect ไปยังหน้า login เสมอ
+      // สำหรับผู้ใช้ทั่วไป ใช้ errorType ในการกำหนดหน้าปลายทาง
+      const redirectUrl = isLineUser || errorType === 'line_logout'
+        ? '/login'
+        : errorType 
+          ? `/login?error_type=${errorType}` 
+          : '/login';
       
       window.location.href = redirectUrl;
       
@@ -129,11 +136,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.error('Logout error:', error);
       
       // กรณีเกิดข้อผิดพลาดก็ให้ redirect ไปยังหน้า login
-      const redirectUrl = errorType 
-        ? `/login?error_type=${errorType}` // ส่งเฉพาะ error_type โดยไม่มีข้อความ
-        : '/login';
-      
-      window.location.href = redirectUrl;
+      window.location.href = '/login';
     }
   };
 

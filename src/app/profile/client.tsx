@@ -678,7 +678,7 @@ export default function ProfileClient() {
                 <ListItem sx={{ px: 0, py: 0.5 }}>
                   <Button
                     fullWidth
-                    onClick={() => logout()}
+                    onClick={() => profile?.isLineUser ? logout('', 'line_logout') : logout()}
                     startIcon={<LogoutIcon sx={{ color: 'error.main' }} />}
                     color="inherit"
                     sx={{ 
