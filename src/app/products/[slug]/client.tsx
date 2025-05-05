@@ -567,11 +567,11 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
                       autoplay={{ 
                         delay: 5000, 
                         disableOnInteraction: false,
-                        pauseOnMouseEnter: true
+                        pauseOnMouseEnter: true,
                       }}
                       effect="fade"
                       fadeEffect={{ crossFade: true }}
-                      loop={productImages.length > 1}
+                      
                       style={{ 
                         '--swiper-navigation-color': '#ffffff',
                         '--swiper-pagination-color': '#ffffff',
@@ -636,7 +636,8 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
                       fontWeight: 600,
                       fontSize: '0.9rem',
                       px: 1,
-                      zIndex: 5
+                      zIndex: 5,
+                      color: 'white'
                     }}
                   />
                 )}

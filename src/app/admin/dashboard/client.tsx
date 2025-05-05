@@ -399,7 +399,7 @@ export default function AdminDashboardClient() {
           },
           ticks: {
             font: {
-              family: 'Kanit, sans-serif',
+              family: 'Prompt, sans-serif',
               size: isMobile ? 8 : isTablet ? 10 : 12
             },
             maxRotation: isMobile ? 45 : 0,
@@ -416,7 +416,7 @@ export default function AdminDashboardClient() {
           },
           ticks: {
             font: {
-              family: 'Kanit, sans-serif',
+              family: 'Prompt, sans-serif',
               size: isMobile ? 8 : isTablet ? 10 : 12
             },
             maxTicksLimit: isMobile ? 5 : 8,

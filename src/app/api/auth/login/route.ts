@@ -43,7 +43,10 @@ export async function POST(request: NextRequest) {
     // Check if user exists
     if (!user) {
       return NextResponse.json(
-        { error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' },
+        { 
+          error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+          error_type: 'invalid_credentials' 
+        },
         { status: 401 }
       );
     }
@@ -53,7 +56,10 @@ export async function POST(request: NextRequest) {
     
     if (!isPasswordValid) {
       return NextResponse.json(
-        { error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' },
+        { 
+          error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง', 
+          error_type: 'invalid_credentials'
+        },
         { status: 401 }
       );
     }
@@ -69,12 +75,16 @@ export async function POST(request: NextRequest) {
     };
 
     const token = sign(tokenPayload, JWT_SECRET, { 
-      expiresIn: rememberMe ? '30d' : '24h' 
+      expiresIn: rememberMe ? '30d' : '1d' 
     });
     
     // Set cookie expiration
     const cookieExpires = new Date();
     cookieExpires.setDate(cookieExpires.getDate() + (rememberMe ? 30 : 1));
+    // ถ้าไม่ได้เลือก Remember Me ให้ cookie หมดอายุใน 5 นาที
+    if (!rememberMe) {
+      cookieExpires.setMinutes(cookieExpires.getMinutes() + 5);
+    }
     
     // Create safe user object without sensitive data
     const safeUser: SafeUser = {

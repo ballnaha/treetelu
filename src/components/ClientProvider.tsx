@@ -21,6 +21,12 @@ const DynamicCssBaseline = dynamic(() => Promise.resolve(CssBaseline), { ssr: fa
 // สร้าง clientSideEmotionCache สำหรับการใช้งานบน client
 const clientSideEmotionCache = createEmotionCache();
 
+// นำเข้า AuthStatusChecker แบบ dynamic เพื่อป้องกันปัญหา SSR
+const DynamicAuthStatusChecker = dynamic(
+  () => import('@/components/AuthStatusChecker'),
+  { ssr: false }
+);
+
 interface ClientProviderProps {
   children: ReactNode;
 }
@@ -65,6 +71,8 @@ export default function ClientProvider({ children }: ClientProviderProps) {
         {/* ห่อหุ้ม CssBaseline ไว้ในส่วนที่รันเฉพาะ client */}
         {isClient && <DynamicCssBaseline />}
         <AuthProvider>
+          {/* เพิ่ม AuthStatusChecker เพื่อตรวจสอบ API response สำหรับ auto logout */}
+          {isClient && <DynamicAuthStatusChecker />}
           <CartProvider>
             {isClient ? (
               <LayoutProviderClient>

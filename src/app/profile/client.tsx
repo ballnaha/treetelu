@@ -93,7 +93,7 @@ function a11yProps(index: number) {
 }
 
 export default function ProfileClient() {
-  const { user, isLoading: authLoading, logout, login } = useAuth();
+  const { user, isLoading: authLoading, logout, login, checkAuthAndLogout } = useAuth();
   const router = useRouter();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -150,6 +150,12 @@ export default function ProfileClient() {
             'Accept': 'application/json'
           }
         });
+        
+        // ตรวจสอบสถานะการตอบกลับและทำ auto logout ถ้าจำเป็น
+        const authValid = await checkAuthAndLogout(response);
+        if (!authValid) {
+          return; // ถ้าถูก logout ไปแล้ว ให้หยุดการทำงานของฟังก์ชัน
+        }
         
         // ตรวจสอบ content type
         const contentType = response.headers.get('content-type');
@@ -231,80 +237,72 @@ export default function ProfileClient() {
       
       setLoading(true);
       
-      try {
-        const response = await fetch('/api/user/profile', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify(editedProfile),
-          credentials: 'include'
-        });
-        
-        // ตรวจสอบ content type
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          throw new Error('ได้รับข้อมูลที่ไม่ใช่รูปแบบ JSON จาก API');
-        }
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(data.message || 'ไม่สามารถอัปเดตโปรไฟล์ได้');
-        }
-        
-        setProfile(data.user);
-        setEditedProfile(data.user);
-        setIsEditing(false);
-        
-        // อัปเดตชื่อผู้ใช้ใน AuthContext เพื่อแสดงบน navbar
-        if (user) {
-          // อัปเดตข้อมูลผู้ใช้แต่คงค่า properties อื่นๆ เดิมไว้
-          const updatedUser = {
-            ...user,
-            name: `${data.user.firstName} ${data.user.lastName}`
-          };
-          login(updatedUser);
-          console.log('Updated user in AuthContext:', updatedUser);
-        }
-        
-        setSnackbar({
-          open: true,
-          message: 'อัปเดตโปรไฟล์สำเร็จ',
-          severity: 'success'
-        });
-      } catch (apiError: any) {
-        console.error('API error when saving profile:', apiError);
-        
-        // ในกรณีที่ API ไม่ทำงาน ให้ใช้ข้อมูลที่ผู้ใช้แก้ไข
-        setProfile(editedProfile);
-        setIsEditing(false);
-        
-        // อัปเดตชื่อผู้ใช้ใน AuthContext เพื่อแสดงบน navbar ในกรณีออฟไลน์
-        if (user && editedProfile) {
-          // อัปเดตข้อมูลผู้ใช้แต่คงค่า properties อื่นๆ เดิมไว้
-          const updatedUser = {
-            ...user,
-            name: `${editedProfile.firstName} ${editedProfile.lastName}`
-          };
-          login(updatedUser);
-          console.log('Updated user in AuthContext (offline mode):', updatedUser);
-        }
-        
-        setSnackbar({
-          open: true,
-          message: 'บันทึกข้อมูลในโหมดออฟไลน์',
-          severity: 'warning'
-        });
+      const response = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: editedProfile.firstName,
+          lastName: editedProfile.lastName
+        }),
+        credentials: 'include'
+      });
+      
+      // ตรวจสอบสถานะการตอบกลับและทำ auto logout ถ้าจำเป็น
+      const authValid = await checkAuthAndLogout(response);
+      if (!authValid) {
+        return; // ถ้าถูก logout ไปแล้ว ให้หยุดการทำงานของฟังก์ชัน
       }
-    } catch (err: any) {
-      console.error('Error updating profile:', err);
+      
+      if (!response.ok) {
+        throw new Error('ไม่สามารถอัปเดตโปรไฟล์ได้');
+      }
+      
+      const data = await response.json();
+      
+      setProfile(data.user);
+      setEditedProfile(data.user);
+      setIsEditing(false);
+      
+      // อัปเดตชื่อผู้ใช้ใน AuthContext เพื่อแสดงบน navbar
+      if (user) {
+        // อัปเดตข้อมูลผู้ใช้แต่คงค่า properties อื่นๆ เดิมไว้
+        const updatedUser = {
+          ...user,
+          name: `${data.user.firstName} ${data.user.lastName}`
+        };
+        login(updatedUser);
+        console.log('Updated user in AuthContext:', updatedUser);
+      }
       
       setSnackbar({
         open: true,
-        message: err.message || 'เกิดข้อผิดพลาดในการอัปเดตโปรไฟล์',
-        severity: 'error'
+        message: 'อัปเดตโปรไฟล์สำเร็จ',
+        severity: 'success'
+      });
+    } catch (apiError: any) {
+      console.error('API error when saving profile:', apiError);
+      
+      // ในกรณีที่ API ไม่ทำงาน ให้ใช้ข้อมูลที่ผู้ใช้แก้ไข
+      setProfile(editedProfile);
+      setIsEditing(false);
+      
+      // อัปเดตชื่อผู้ใช้ใน AuthContext เพื่อแสดงบน navbar ในกรณีออฟไลน์
+      if (user && editedProfile) {
+        // อัปเดตข้อมูลผู้ใช้แต่คงค่า properties อื่นๆ เดิมไว้
+        const updatedUser = {
+          ...user,
+          name: `${editedProfile.firstName} ${editedProfile.lastName}`
+        };
+        login(updatedUser);
+        console.log('Updated user in AuthContext (offline mode):', updatedUser);
+      }
+      
+      setSnackbar({
+        open: true,
+        message: 'บันทึกข้อมูลในโหมดออฟไลน์',
+        severity: 'warning'
       });
     } finally {
       setLoading(false);
@@ -354,6 +352,12 @@ export default function ProfileClient() {
         body: JSON.stringify(passwordForm),
         credentials: 'include'
       });
+      
+      // ตรวจสอบสถานะการตอบกลับและทำ auto logout ถ้าจำเป็น
+      const authValid = await checkAuthAndLogout(response);
+      if (!authValid) {
+        return; // ถ้าถูก logout ไปแล้ว ให้หยุดการทำงานของฟังก์ชัน
+      }
       
       const data = await response.json();
       
@@ -674,7 +678,7 @@ export default function ProfileClient() {
                 <ListItem sx={{ px: 0, py: 0.5 }}>
                   <Button
                     fullWidth
-                    onClick={logout}
+                    onClick={() => logout()}
                     startIcon={<LogoutIcon sx={{ color: 'error.main' }} />}
                     color="inherit"
                     sx={{ 

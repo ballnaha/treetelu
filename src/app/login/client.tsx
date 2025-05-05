@@ -12,19 +12,22 @@ import {
   InputAdornment,
   IconButton,
   Alert,
+  AlertTitle,
   Link as MuiLink,
   FormControlLabel,
   Checkbox,
   CircularProgress
 } from '@mui/material';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { styled } from '@mui/material/styles';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import LoginIcon from '@mui/icons-material/Login';
 import { validateEmail } from '@/utils/validationUtils';
 import { useAuth } from '@/context/AuthContext';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
 // Styled components
 const FormContainer = styled(Paper)(({ theme }) => ({
@@ -91,8 +94,101 @@ const LineLoginButton = styled(Button)(({ theme }) => ({
   },
 }));
 
+// สร้าง component แยกสำหรับแสดงข้อความแจ้งเตือนสำหรับ session หมดอายุ
+const SessionExpiredAlert = () => (
+  <Alert 
+    severity="warning"
+    sx={{ 
+      mb: 3, 
+      borderRadius: 1.5, 
+      boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+      '& .MuiAlert-icon': {
+        fontSize: '1.3rem'
+      },
+      backgroundColor: '#fff8e1',
+      borderLeft: '4px solid #ffa000'
+    }}
+    icon={<AccessTimeIcon fontSize="inherit" />}
+  >
+    <AlertTitle sx={{ 
+      fontSize: '1rem', 
+      fontWeight: 600,
+      color: '#b78300'
+    }}>
+      เซสชันหมดอายุ
+    </AlertTitle>
+    <Typography 
+      variant="body2" 
+      sx={{ 
+        mt: 0.5,
+        lineHeight: 1.5
+      }}
+    >
+      เซสชันของท่านหมดอายุแล้ว กรุณาเข้าสู่ระบบใหม่อีกครั้ง
+    </Typography>
+  </Alert>
+);
+
+// สร้าง component แยกสำหรับแสดงข้อความแจ้งเตือนสำหรับรหัสผ่านไม่ถูกต้อง
+const InvalidCredentialsAlert = () => (
+  <Alert 
+    severity="error"
+    sx={{ 
+      mb: 3, 
+      borderRadius: 1.5, 
+      boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+      '& .MuiAlert-icon': {
+        fontSize: '1.3rem'
+      },
+      backgroundColor: '#fdecea',
+      borderLeft: '4px solid #d32f2f'
+    }}
+    icon={<ErrorOutlineIcon fontSize="inherit" />}
+  >
+    <AlertTitle sx={{ 
+      fontSize: '1rem', 
+      fontWeight: 600,
+      color: '#c62828'
+    }}>
+      ข้อมูลเข้าสู่ระบบไม่ถูกต้อง
+    </AlertTitle>
+    <Typography 
+      variant="body2" 
+      sx={{ 
+        mt: 0.5,
+        lineHeight: 1.5
+      }}
+    >
+      อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบและลองใหม่อีกครั้ง
+    </Typography>
+  </Alert>
+);
+
+// สร้าง component แยกสำหรับแสดงข้อความแจ้งเตือนทั่วไป
+const GeneralErrorAlert = ({ message }: { message: string }) => (
+  <Alert 
+    severity="error"
+    sx={{ 
+      mb: 3, 
+      borderRadius: 1.5, 
+      boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+      '& .MuiAlert-icon': {
+        fontSize: '1.3rem'
+      }
+    }}
+  >
+    <AlertTitle sx={{ fontSize: '1rem', fontWeight: 500 }}>
+      แจ้งเตือน
+    </AlertTitle>
+    <Typography variant="body2" sx={{ mt: 0.5 }}>
+      {message}
+    </Typography>
+  </Alert>
+);
+
 export default function LoginClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isMounted, setIsMounted] = useState(false);
   const { login, user } = useAuth();
   const [lineLoginUrl, setLineLoginUrl] = useState('');
@@ -108,7 +204,55 @@ export default function LoginClient() {
     // สร้าง LINE Login URL
     const loginUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${lineClientId}&redirect_uri=${encodeURIComponent(lineRedirectUri)}&state=12345&scope=profile&bot_prompt=normal`;
     setLineLoginUrl(loginUrl);
-  }, []);
+    
+    // ---------- แก้ไขส่วนการตรวจสอบ URL parameters ----------
+    // ดักแยกการแสดงผล error อย่างชัดเจน
+    const errorType = searchParams.get('error_type');
+    
+    // ทำตรรกะแยกชัดเจน
+    if (errorType === 'session_expired') {
+      // กรณี session หมดอายุ
+      setError({
+        message: '', // ไม่ต้องใช้ข้อความจาก URL
+        type: 'session_expired'
+      });
+    } 
+    else if (errorType === 'invalid_credentials') {
+      // กรณีรหัสผ่านผิด
+      setError({
+        message: '', // ไม่ต้องใช้ข้อความจาก URL
+        type: 'invalid_credentials'
+      });
+    }
+    else {
+      // กรณีอื่นๆ ดูที่ข้อความ
+      const message = searchParams.get('message');
+      if (message) {
+        const decodedMessage = decodeURIComponent(message);
+        
+        // พยายามวิเคราะห์ประเภท error จากข้อความ
+        if (decodedMessage.includes('เซสชัน') || decodedMessage.includes('หมดอายุ')) {
+          setError({
+            message: '',
+            type: 'session_expired'
+          });
+        }
+        else if (decodedMessage.includes('อีเมล') || decodedMessage.includes('รหัสผ่าน')) {
+          setError({
+            message: '',
+            type: 'invalid_credentials'
+          });
+        }
+        else {
+          // กรณีอื่นๆ ให้แสดงข้อความจาก URL
+          setError({
+            message: decodedMessage,
+            type: 'auth_error'
+          });
+        }
+      }
+    }
+  }, [searchParams]);
   
   // ถ้าผู้ใช้ล็อกอินอยู่แล้ว ให้เปลี่ยนหน้าไปที่หน้าหลัก
   useEffect(() => {
@@ -117,6 +261,12 @@ export default function LoginClient() {
     }
   }, [isMounted, user, router]);
   
+  // สร้าง interface สำหรับ error state
+  interface AuthError {
+    message: string;
+    type: string;
+  }
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -125,7 +275,7 @@ export default function LoginClient() {
   
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AuthError | null>(null);
   const [success, setSuccess] = useState(false);
   
   // Form validation states
@@ -217,7 +367,7 @@ export default function LoginClient() {
         localStorage.setItem('auth_token', data.token);
         
         // เพิ่มการเก็บ token ใน cookie ด้วยเพื่อให้ middleware สามารถเข้าถึงได้
-        document.cookie = `auth_token=${data.token}; path=/; max-age=${data.rememberMe ? 30*24*60*60 : 24*60*60}`;
+        document.cookie = `auth_token=${data.token}; path=/; max-age=${formData.rememberMe ? 30*24*60*60 : 24*60*60}`;
         
         // ใช้ AuthContext แทนการใช้ localStorage โดยตรง
         const userData = {
@@ -247,11 +397,30 @@ export default function LoginClient() {
           window.location.href = '/';
         }
       } else {
+        // ล็อกอินไม่สำเร็จ
         const data = await response.json();
-        setError(data.error || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
+        
+        // ตรวจสอบประเภทข้อผิดพลาด
+        if (data.error_type === 'invalid_credentials') {
+          // แจ้งเตือนรหัสผ่านไม่ถูกต้อง
+          setError({
+            message: '', // ไม่ใช้ข้อความจาก response เพื่อป้องกันการปนกัน
+            type: 'invalid_credentials'
+          });
+        } else {
+          // ข้อผิดพลาดอื่นๆ
+          setError({
+            message: data.error || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ',
+            type: 'auth_error'
+          });
+        }
       }
     } catch (err: any) {
-      setError(err.message || 'เกิดข้อผิดพลาด โปรดลองอีกครั้ง');
+      // ข้อผิดพลาดจากการเชื่อมต่อ
+      setError({
+        message: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาลองใหม่ภายหลัง',
+        type: 'system_error'
+      });
       console.error('Login error:', err);
     } finally {
       setIsSubmitting(false);
@@ -293,9 +462,13 @@ export default function LoginClient() {
       
       <FormContainer>
         {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
+          <>
+            {error.type === 'session_expired' && <SessionExpiredAlert />}
+            {error.type === 'invalid_credentials' && <InvalidCredentialsAlert />}
+            {error.type !== 'session_expired' && error.type !== 'invalid_credentials' && (
+              <GeneralErrorAlert message={error.message} />
+            )}
+          </>
         )}
         
         {/* แบบที่ 1: วางปุ่ม LINE Login ไว้ด้านบนของฟอร์ม */}

@@ -84,6 +84,9 @@ export default function ProductCard({ product }: ProductCardProps) {
   // ตรวจสอบว่ามีส่วนลดหรือไม่
   const hasDiscount = originalPrice > 0 && salesPrice > 0 && originalPrice > salesPrice;
   
+  // คำนวณเปอร์เซ็นต์ส่วนลด
+  const discountPercent = hasDiscount ? Math.round((1 - salesPrice / originalPrice) * 100) : 0;
+  
   return (
     <StyledCard 
       onMouseEnter={() => setIsHovered(true)}
@@ -106,8 +109,8 @@ export default function ProductCard({ product }: ProductCardProps) {
               left: 0,
             }}
           />
-          {hasDiscount && (
-            <DiscountBadge size="small" label="-15%" />
+          {hasDiscount && discountPercent > 0 && (
+            <DiscountBadge size="small" label={`-${discountPercent}%`} />
           )}
         </ProductImageWrapper>
       </Link>
