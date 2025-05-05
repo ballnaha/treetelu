@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { validateAdminUser } from '@/lib/auth';
 
 // ใช้ global variable สำหรับรันไทม์ของ Next.js เพื่อแก้ปัญหา hot-reloading
@@ -54,12 +54,55 @@ export async function GET(req: NextRequest) {
       );
     }
     
-    // 1. ดึงข้อมูลจำนวนคำสั่งซื้อทั้งหมด
-    const totalOrders = await prisma.order.count();
+    // รับพารามิเตอร์การกรอง
+    const url = new URL(req.url);
+    const yearParam = url.searchParams.get('year');
+    const monthParam = url.searchParams.get('month');
     
-    // 2. ดึงข้อมูลจำนวนคำสั่งซื้อที่รอดำเนินการ
+    // แปลงเป็นตัวเลขหรือค่าเริ่มต้น
+    const filterYear = yearParam ? parseInt(yearParam) : null;
+    const filterMonth = monthParam ? parseInt(monthParam) : null;
+    
+    console.log(`Filter params: year=${filterYear}, month=${filterMonth}`);
+    
+    // สร้างเงื่อนไขสำหรับกรองตามปีและเดือน
+    const dateFilterCondition: any = {};
+    
+    if (filterYear !== null) {
+      // กรองตามปี
+      dateFilterCondition.createdAt = {
+        gte: new Date(filterYear, 0, 1),
+        lt: new Date(filterYear + 1, 0, 1)
+      };
+      
+      // ถ้ามีการระบุเดือนด้วย
+      if (filterMonth !== null && filterMonth > 0 && filterMonth <= 12) {
+        // เปลี่ยนการกรองเป็นเฉพาะเดือนที่ระบุในปีที่ระบุ
+        dateFilterCondition.createdAt = {
+          gte: new Date(filterYear, filterMonth - 1, 1),
+          lt: new Date(
+            filterMonth === 12 ? filterYear + 1 : filterYear,
+            filterMonth === 12 ? 0 : filterMonth,
+            1
+          )
+        };
+      }
+    }
+    
+    // เพิ่ม logging ตรวจสอบเงื่อนไขการกรอง
+    console.log('Date filter condition:', JSON.stringify(dateFilterCondition));
+    
+    // 1. ดึงข้อมูลจำนวนคำสั่งซื้อทั้งหมด (กรองตามเงื่อนไขถ้ามี)
+    const totalOrders = await prisma.order.count({
+      where: dateFilterCondition
+    });
+    
+    console.log(`Total orders after filtering: ${totalOrders}`);
+    
+    // 2. ดึงข้อมูลจำนวนคำสั่งซื้อที่รอดำเนินการ (กรองตามเงื่อนไขถ้ามี)
     const pendingOrders = await prisma.order.count({
       where: {
+        ...dateFilterCondition,
         status: 'PENDING'
       }
     });
@@ -68,6 +111,7 @@ export async function GET(req: NextRequest) {
     // หา order ที่มี payment confirmation อย่างน้อย 1 รายการ แต่ยังมีสถานะการชำระเงินเป็น PENDING
     const pendingPayments = await prisma.order.findMany({
       where: {
+        ...dateFilterCondition,
         paymentStatus: 'PENDING'
       }
     });
@@ -90,21 +134,22 @@ export async function GET(req: NextRequest) {
     // จำนวนคำสั่งซื้อที่มีหลักฐานการชำระเงินที่รอการตรวจสอบ
     const pendingPaymentsCount = orderNumbersWithConfirmation.size;
     
-    // 3. ดึงข้อมูลยอดขายทั้งหมด
+    // 3. ดึงข้อมูลยอดขายทั้งหมด (กรองตามเงื่อนไขถ้ามี)
     const salesData = await prisma.order.aggregate({
       _sum: {
         finalAmount: true
       },
       where: {
+        ...dateFilterCondition,
         paymentStatus: 'CONFIRMED'
       }
     });
     const totalSales = salesData._sum.finalAmount || 0;
     
-    // 4. ดึงข้อมูลจำนวนสินค้าทั้งหมด
+    // 4. ดึงข้อมูลจำนวนสินค้าทั้งหมด (ไม่กรองตามวันที่)
     const totalProducts = await prisma.product.count();
     
-    // 5. ดึงข้อมูลจำนวนสินค้าที่ใกล้หมด (stock < 5)
+    // 5. ดึงข้อมูลจำนวนสินค้าที่ใกล้หมด (stock < 5) (ไม่กรองตามวันที่)
     const lowStockProducts = await prisma.product.count({
       where: {
         stock: {
@@ -114,17 +159,17 @@ export async function GET(req: NextRequest) {
       }
     });
     
-    // 5.1 ดึงข้อมูลจำนวนสินค้าที่หมดสต๊อก (stock = 0)
+    // 5.1 ดึงข้อมูลจำนวนสินค้าที่หมดสต๊อก (stock = 0) (ไม่กรองตามวันที่)
     const outOfStockProducts = await prisma.product.count({
       where: {
         stock: 0
       }
     });
     
-    // 6. ดึงข้อมูลจำนวนลูกค้าทั้งหมด
+    // 6. ดึงข้อมูลจำนวนลูกค้าทั้งหมด (ไม่กรองตามวันที่)
     const totalCustomers = await prisma.users.count();
     
-    // 7. ดึงข้อมูลคำสั่งซื้อล่าสุด 5 รายการ
+    // 7. ดึงข้อมูลคำสั่งซื้อล่าสุด (กรองตามเงื่อนไขถ้ามี) สูงสุด 5 รายการ
     const recentOrders = await prisma.order.findMany({
       select: {
         id: true,
@@ -139,6 +184,7 @@ export async function GET(req: NextRequest) {
           }
         }
       },
+      where: dateFilterCondition,
       orderBy: {
         createdAt: 'desc'
       },
@@ -153,64 +199,17 @@ export async function GET(req: NextRequest) {
         `${order.customerInfo.firstName} ${order.customerInfo.lastName}` : 'ไม่ระบุ',
       amount: Number(order.finalAmount),
       status: order.status,
-      date: order.createdAt.toISOString()
+      date: order.createdAt.toISOString(),
+      createdAt: order.createdAt.toISOString() // เพิ่มเพื่อให้ client ใช้ในการกรอง
     }));
-    
-    // 7.1 ดึงข้อมูลคำสั่งซื้อแยกตามปี (สำหรับการกรองตามปี)
-    // ดึงคำสั่งซื้อย้อนหลัง 5 ปี หรือนับตั้งแต่มีคำสั่งซื้อแรก
-    const startYear = 2022; // ปีเริ่มต้นที่มีข้อมูล
-    
-    // ดึงข้อมูลคำสั่งซื้อ 30 รายการล่าสุดเพื่อใช้แบ่งตามปี
-    const ordersForYearFilter = await prisma.order.findMany({
-      select: {
-        id: true,
-        orderNumber: true,
-        status: true,
-        finalAmount: true,
-        createdAt: true,
-        customerInfo: {
-          select: {
-            firstName: true,
-            lastName: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      take: 30
-    });
-    
-    // แบ่งคำสั่งซื้อตามปีและเก็บเฉพาะ 5 รายการในแต่ละปี
-    const recentOrdersByYear: Record<string, any[]> = {};
-    
-    for (const order of ordersForYearFilter) {
-      const year = new Date(order.createdAt).getFullYear().toString();
-      
-      if (!recentOrdersByYear[year]) {
-        recentOrdersByYear[year] = [];
-      }
-      
-      // เก็บเฉพาะ 5 รายการแรกของแต่ละปี
-      if (recentOrdersByYear[year].length < 5) {
-        recentOrdersByYear[year].push({
-          id: order.id.toString(),
-          orderNumber: order.orderNumber,
-          customerName: order.customerInfo ? 
-            `${order.customerInfo.firstName} ${order.customerInfo.lastName}` : 'ไม่ระบุ',
-          amount: Number(order.finalAmount),
-          status: order.status,
-          date: order.createdAt.toISOString()
-        });
-      }
-    }
-    
-    // 8. ดึงข้อมูลการกระจายสถานะคำสั่งซื้อ
+
+    // 8. ดึงข้อมูลการกระจายสถานะคำสั่งซื้อ (กรองตามเงื่อนไขถ้ามี)
     const orderStatusCounts = await prisma.order.groupBy({
       by: ['status'],
       _count: {
         status: true
-      }
+      },
+      where: dateFilterCondition
     });
     
     const orderStatusDistribution = orderStatusCounts.map(item => ({
@@ -218,38 +217,22 @@ export async function GET(req: NextRequest) {
       count: item._count.status
     }));
     
-    // 8.1 ดึงข้อมูลการกระจายสถานะคำสั่งซื้อแยกตามปี
-    // Query ข้อมูลสถานะคำสั่งซื้อจากฐานข้อมูลพร้อมปีที่สร้าง
-    const orderStatusByYear = await prisma.$queryRaw`
-      SELECT 
-        status, 
-        EXTRACT(YEAR FROM createdAt) as year, 
-        COUNT(*) as count
-      FROM orders 
-      GROUP BY status, EXTRACT(YEAR FROM createdAt)
-      ORDER BY EXTRACT(YEAR FROM createdAt) DESC, count DESC
-    `;
-    
-    // แปลงข้อมูลเป็นรูปแบบที่ต้องการ {year: [{status, count}, ...]}
-    const orderStatusDistributionByYear: Record<string, any[]> = {};
-    
-    for (const item of orderStatusByYear as any[]) {
-      const year = item.year.toString();
-      
-      if (!orderStatusDistributionByYear[year]) {
-        orderStatusDistributionByYear[year] = [];
-      }
-      
-      orderStatusDistributionByYear[year].push({
-        status: item.status,
-        count: Number(item.count)
-      });
-    }
-    
-    // 9. ดึงข้อมูลยอดขายรายเดือนย้อนหลัง 6 เดือน
+    // 9. ดึงข้อมูลยอดขายรายเดือน (ตามเงื่อนไขการกรอง)
     const now = new Date();
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(now.getMonth() - 5);
+    let startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1); // ย้อนหลัง 6 เดือน
+    let endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0); // วันสุดท้ายของเดือนปัจจุบัน
+    
+    // ถ้ามีการกรองตามปี ให้ใช้ปีที่กรอง
+    if (filterYear !== null) {
+      startDate = new Date(filterYear, 0, 1); // 1 มกราคมของปีที่กรอง
+      endDate = new Date(filterYear, 11, 31); // 31 ธันวาคมของปีที่กรอง
+      
+      // ถ้ามีการกรองตามเดือนด้วย ให้แสดงเฉพาะเดือนนั้น
+      if (filterMonth !== null && filterMonth > 0 && filterMonth <= 12) {
+        startDate = new Date(filterYear, filterMonth - 1, 1); // วันแรกของเดือนที่กรอง
+        endDate = new Date(filterYear, filterMonth, 0); // วันสุดท้ายของเดือนที่กรอง
+      }
+    }
     
     // ฟังก์ชันสำหรับดึงชื่อเดือนไทย
     const getThaiMonth = (date: Date) => {
@@ -269,17 +252,33 @@ export async function GET(req: NextRequest) {
       return `${thaiMonths[date.getMonth()]} ${date.getFullYear() + 543}`;
     };
     
-    // สร้างอาเรย์ของเดือนย้อนหลัง 6 เดือน
-    const last6Months = Array.from({ length: 6 }, (_, i) => {
-      const date = new Date();
-      date.setMonth(now.getMonth() - i);
-      return date;
-    }).reverse();
+    // สร้างช่วงเดือนที่ต้องการแสดง
+    const monthRange: Date[] = [];
+    
+    // ถ้ามีการกรองแค่เดือนเดียว
+    if (filterYear !== null && filterMonth !== null && filterMonth > 0) {
+      monthRange.push(new Date(filterYear, filterMonth - 1, 1));
+    } else {
+      // ถ้ากรองเฉพาะปี หรือไม่มีการกรอง ให้แสดงทุกเดือนในปีนั้น หรือ 6 เดือนล่าสุด
+      if (filterYear !== null) {
+        // แสดงทุกเดือนในปีที่กรอง
+        for (let month = 0; month < 12; month++) {
+          monthRange.push(new Date(filterYear, month, 1));
+        }
+      } else {
+        // แสดง 6 เดือนล่าสุด
+        for (let i = 5; i >= 0; i--) {
+          const date = new Date();
+          date.setMonth(date.getMonth() - i);
+          monthRange.push(new Date(date.getFullYear(), date.getMonth(), 1));
+        }
+      }
+    }
     
     // ดึงข้อมูลยอดขายแต่ละเดือน
-    const monthlySalesPromises = last6Months.map(async (month) => {
-      const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
-      const endOfMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59);
+    const monthlySalesPromises = monthRange.map(async (monthDate) => {
+      const startOfMonth = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+      const endOfMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59);
       
       // ดึงข้อมูลรายการคำสั่งซื้อในเดือนนี้
       const monthlyOrders = await prisma.order.findMany({
@@ -305,26 +304,25 @@ export async function GET(req: NextRequest) {
       }, 0);
       
       return {
-        month: getThaiMonth(month),
-        monthFull: getFormattedThaiMonth(month),
+        month: getThaiMonth(monthDate),
+        monthFull: getFormattedThaiMonth(monthDate),
         sales: totalSales,
-        year: month.getFullYear(), // ปี ค.ศ.
+        year: monthDate.getFullYear(), // ปี ค.ศ.
         numOrders: monthlyOrders.length
       };
     });
     
     const salesByMonth = await Promise.all(monthlySalesPromises);
     
-    // เตรียมข้อมูลเพิ่มเติมสำหรับการแสดงผลกราฟ
-    const maxSales = Math.max(...salesByMonth.map(m => m.sales));
-    const totalSalesAllMonths = salesByMonth.reduce((sum, month) => sum + month.sales, 0);
-    const averageMonthlySales = salesByMonth.length > 0 
-      ? totalSalesAllMonths / salesByMonth.length 
-      : 0;
+    // 10. ดึงข้อมูลสินค้าขายดี (กรองตามเงื่อนไขถ้ามี)
+    // สร้างเงื่อนไขการกรองสำหรับคำสั่งซื้อ
+    const orderDateFilter: any = {};
+    if (dateFilterCondition.createdAt) {
+      orderDateFilter.createdAt = dateFilterCondition.createdAt;
+    }
     
-    // 10. ดึงข้อมูลสินค้าขายดี 10 อันดับ
-    // ต้องเชื่อมข้อมูลจาก orderItem กับข้อมูลสินค้า
-    const topSellingProducts = await prisma.$queryRaw`
+    // ค่อนข้างซับซ้อนในการใช้ Raw SQL กับตัวกรอง อาจต้องปรับตามฐานข้อมูลที่ใช้
+    let baseQuery = `
       SELECT 
         p.id,
         p.productName as name,
@@ -340,46 +338,55 @@ export async function GET(req: NextRequest) {
       WHERE 
         o.status != 'CANCELLED'
         AND o.paymentStatus = 'CONFIRMED'
+    `;
+    
+    // สร้าง condition และพารามิเตอร์
+    let conditions = [];
+    let queryParams: any[] = [];
+    
+    // เพิ่มเงื่อนไขตามการกรอง
+    if (filterYear !== null) {
+      if (filterMonth !== null && filterMonth > 0) {
+        // กรองทั้งปีและเดือน
+        conditions.push(`EXTRACT(YEAR FROM o.createdAt) = ? AND EXTRACT(MONTH FROM o.createdAt) = ?`);
+        queryParams.push(filterYear, filterMonth);
+      } else {
+        // กรองเฉพาะปี
+        conditions.push(`EXTRACT(YEAR FROM o.createdAt) = ?`);
+        queryParams.push(filterYear);
+      }
+    }
+    
+    // เพิ่ม conditions เข้าไปใน query (ถ้ามี)
+    if (conditions.length > 0) {
+      baseQuery += ` AND ${conditions.join(' AND ')}`;
+    }
+    
+    baseQuery += `
       GROUP BY 
         p.id, p.productName, EXTRACT(YEAR FROM o.createdAt)
       ORDER BY 
-        EXTRACT(YEAR FROM o.createdAt) DESC, totalSold DESC
-      LIMIT 30
+        totalSold DESC
+      LIMIT 10
     `;
     
-    // กรองและจัดกลุ่มสินค้าขายดีตามปี
-    const topSellingProductsByYear: Record<string, any[]> = {};
+    // ใช้ $queryRawUnsafe สำหรับคำสั่ง SQL ที่มีตัวแปร
+    // เนื่องจากคำสั่ง SQL มีความซับซ้อน เราจะใช้ $queryRawUnsafe ซึ่งปลอดภัยน้อยกว่า
+    // แต่เนื่องจากค่า filterYear และ filterMonth มาจากระบบภายใน จึงมีความเสี่ยงต่ำ
+    const topSellingProducts = await prisma.$queryRawUnsafe(baseQuery, ...queryParams);
+    
+    // กรองและแปลงข้อมูลสินค้าขายดี
+    let formattedTopSellingProducts: any[] = [];
     
     if (Array.isArray(topSellingProducts)) {
-      // จัดกลุ่มตามปี
-      topSellingProducts.forEach(product => {
-        const productYear = Number(product.year);
-        const yearKey = String(productYear); // แปลงเป็น string เพื่อใช้เป็น key
-        
-        if (!topSellingProductsByYear[yearKey]) {
-          topSellingProductsByYear[yearKey] = [];
-        }
-        
-        if (topSellingProductsByYear[yearKey].length < 10) {
-          topSellingProductsByYear[yearKey].push({
-            id: String(product.id),
-            name: product.name,
-            totalSold: Number(product.totalSold),
-            totalAmount: Number(product.totalAmount),
-            year: productYear
-          });
-        }
-      });
+      formattedTopSellingProducts = topSellingProducts.map(product => ({
+        id: String(product.id),
+        name: product.name,
+        totalSold: Number(product.totalSold),
+        totalAmount: Number(product.totalAmount),
+        year: Number(product.year)
+      }));
     }
-    
-    // Debug log แสดงปีและจำนวนสินค้าแต่ละปี
-    console.log('topSellingProductsByYear:', 
-      Object.keys(topSellingProductsByYear).map(year => ({ 
-        year, 
-        count: topSellingProductsByYear[year].length,
-        sample: topSellingProductsByYear[year][0] ? topSellingProductsByYear[year][0].name : 'none'
-      }))
-    );
     
     // สร้างข้อมูลสำหรับส่งกลับ
     let dashboardData = {
@@ -396,13 +403,15 @@ export async function GET(req: NextRequest) {
       salesByMonth,
       salesGrowthRate: 0,
       customersGrowthRate: 0,
-      topSellingProducts: topSellingProductsByYear[String(now.getFullYear())] || [],
-      topSellingProductsByYear,
-      recentOrdersByYear,
-      orderStatusDistributionByYear
+      topSellingProducts: formattedTopSellingProducts,
+      // ข้อมูลเพิ่มเติมสำหรับ debugging
+      filterParams: {
+        year: filterYear,
+        month: filterMonth
+      }
     };
     
-    // คำนวณอัตราการเติบโตเทียบกับเดือนก่อนหน้า
+    // คำนวณอัตราการเติบโตเทียบกับเดือนก่อนหน้า (ถ้ามีข้อมูลพอ)
     if (salesByMonth.length >= 2) {
       const currentMonth = salesByMonth[salesByMonth.length - 1].sales;
       const prevMonth = salesByMonth[salesByMonth.length - 2].sales;
@@ -415,9 +424,6 @@ export async function GET(req: NextRequest) {
     
     // คำนวณอัตราการเติบโตของลูกค้า (สมมติให้เป็น 3.2%)
     let customersGrowthRate = 3.2;
-    
-    // ถ้ามีข้อมูลย้อนหลังเพียงพอ ให้คำนวณจากข้อมูลจริง
-    // ในตัวอย่างนี้กำหนดค่าสมมติไว้ก่อน
     dashboardData.customersGrowthRate = parseFloat(customersGrowthRate.toFixed(1));
     
     return NextResponse.json({

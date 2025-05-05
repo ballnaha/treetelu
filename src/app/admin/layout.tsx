@@ -121,7 +121,7 @@ export default function AdminLayout({
       return;
     }
     
-    console.log('Admin layout - checking user:', user);
+    //console.log('Admin layout - checking user:', user);
     
     // ตรวจสอบว่าเป็น admin จริงๆ (ต้องเป็น boolean true เท่านั้น)
     if (user?.isAdmin !== true) {

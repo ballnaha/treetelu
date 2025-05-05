@@ -65,6 +65,23 @@ const blinking = keyframes`
   }
 `;
 
+// เพิ่มข้อมูลเดือนไทย
+const ThaiMonths = [
+  { id: 0, name: 'ทุกเดือน' },
+  { id: 1, name: 'มกราคม' },
+  { id: 2, name: 'กุมภาพันธ์' },
+  { id: 3, name: 'มีนาคม' },
+  { id: 4, name: 'เมษายน' },
+  { id: 5, name: 'พฤษภาคม' },
+  { id: 6, name: 'มิถุนายน' },
+  { id: 7, name: 'กรกฎาคม' },
+  { id: 8, name: 'สิงหาคม' },
+  { id: 9, name: 'กันยายน' },
+  { id: 10, name: 'ตุลาคม' },
+  { id: 11, name: 'พฤศจิกายน' },
+  { id: 12, name: 'ธันวาคม' }
+];
+
 // สถิติแบบจำลอง
 interface DashboardStats {
   totalOrders: number;
@@ -294,6 +311,9 @@ export default function AdminDashboardClient() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
   
+  // เพิ่มตัวแปรเก็บปีปัจจุบัน
+  const currentYear = new Date().getFullYear();
+  
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -305,7 +325,8 @@ export default function AdminDashboardClient() {
   const chartRef = useRef(null);
   
   // เปลี่ยนค่าเริ่มต้นเป็นปีปัจจุบันในระบบปฏิทิน (ค.ศ.)
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState<number>(0); // 0 หมายถึงทุกเดือน
   const [showUnit, setShowUnit] = useState<string>('amount'); // 'amount' หรือ 'orders'
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [filteredStats, setFilteredStats] = useState<DashboardStats | null>(null);
@@ -472,16 +493,113 @@ export default function AdminDashboardClient() {
     };
   }, [isMobile]);
   
-  // ฟังก์ชันกรองข้อมูลตามปีที่เลือก
+  // ฟังก์ชันกรองข้อมูลตามปีและเดือนที่เลือก
   const getFilteredSalesData = () => {
     if (!stats || !stats.salesByMonth) return [];
-    return stats.salesByMonth.filter(item => item.year === selectedYear);
+    
+    // กรองตามปีที่เลือก
+    let filtered = stats.salesByMonth.filter(item => item.year === selectedYear);
+    
+    // กรองตามเดือนที่เลือก (ถ้าเลือกเดือนใดเดือนหนึ่ง)
+    if (selectedMonth > 0) {
+      filtered = filtered.filter(item => {
+        // ต้องแปลงชื่อเดือนเป็นตัวเลข
+        // สมมติว่า item.month เป็น 'ม.ค.', 'ก.พ.', ... ถ้าเป็น 'Jan', 'Feb', ... ต้องปรับให้เหมาะสม
+        const monthIndex = ThaiMonths.findIndex(m => 
+          item.month.includes(m.name.substring(0, 3)) || 
+          (item.monthFull && item.monthFull.includes(m.name))
+        );
+        return monthIndex === selectedMonth;
+      });
+    }
+    
+    return filtered;
+  };
+
+  // ฟังก์ชันควบคุมการเปลี่ยนเดือน
+  const handleMonthChange = (event: SelectChangeEvent<number>) => {
+    const newMonth = event.target.value as number;
+    setSelectedMonth(newMonth);
+    
+    // ถ้ามีการเลือกเดือนให้โหลดข้อมูลใหม่จาก API
+    if (selectedYear) {
+      fetchDashboardDataWithFilters(selectedYear, newMonth);
+    }
   };
 
   // ฟังก์ชันควบคุมการเปลี่ยนปี
   const handleYearChange = (event: SelectChangeEvent<number>) => {
     const newYear = event.target.value as number;
     setSelectedYear(newYear);
+    
+    // เมื่อเปลี่ยนปีให้โหลดข้อมูลใหม่จาก API และส่งเดือนที่เลือกไปด้วย
+    fetchDashboardDataWithFilters(newYear, selectedMonth);
+  };
+
+  // ฟังก์ชันดึงข้อมูลแดชบอร์ดพร้อมตัวกรอง
+  const fetchDashboardDataWithFilters = async (year: number, month: number) => {
+    try {
+      setLoading(true);
+      
+      // สร้าง query parameters สำหรับการกรอง
+      const queryParams = new URLSearchParams();
+      if (year) queryParams.append('year', year.toString());
+      if (month > 0) queryParams.append('month', month.toString());
+      
+      const queryString = queryParams.toString();
+      const apiUrl = `/api/admin/dashboard${queryString ? `?${queryString}` : ''}`;
+      
+      // แสดง URL ที่จะเรียกเพื่อตรวจสอบ
+      console.log(`Fetching dashboard data with filters: ${apiUrl}`);
+      
+      // ใช้ API ที่สร้างขึ้น
+      const token = getAuthToken();
+      const response = await fetch(apiUrl, {
+        credentials: 'include',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลแดชบอร์ด');
+      }
+      
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        console.log('Received filtered data:', result.data);
+        setStats(result.data);
+        
+        // อัปเดตปีที่มีข้อมูล (เฉพาะเมื่อยังไม่ได้ตั้งค่า)
+        if (availableYears.length === 0 && result.data.salesByMonth && result.data.salesByMonth.length > 0) {
+          // ดึงปีที่มีข้อมูลและกรองให้เป็นตัวเลขเท่านั้น
+          const yearsData: number[] = result.data.salesByMonth
+            .map((item: any) => item.year)
+            .filter((year: any) => typeof year === 'number' && !isNaN(year));
+          
+          // ใช้ Set เพื่อกำจัดค่าซ้ำและแปลงกลับเป็น array และเรียงลำดับจากมากไปน้อย
+          const uniqueYears: number[] = Array.from(new Set(yearsData)).sort((a, b) => b - a);
+          setAvailableYears(uniqueYears);
+        }
+        
+        setError('');
+      } else {
+        throw new Error(result.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลแดชบอร์ด');
+      }
+      
+    } catch (err) {
+      console.error('Error fetching dashboard data with filters:', err);
+      
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ฟังก์ชันดึงข้อมูลแดชบอร์ด
@@ -666,34 +784,45 @@ export default function AdminDashboardClient() {
     checkAdminStatus();
   }, [router, getAuthToken]);
 
-  // ใช้ useEffect เพื่ออัปเดตข้อมูลเมื่อมีการเปลี่ยนปีหรือโหลดข้อมูลใหม่
+  // ปรับปรุงฟังก์ชันนี้ให้ใช้วันที่ได้อย่างถูกต้อง
+  const getOrderDate = (order: RecentOrder): Date => {
+    // หาวันที่จากฟิลด์ต่างๆ ที่อาจมี
+    const dateStr = order.date || order.createdAt;
+    if (!dateStr) {
+      // กรณีไม่พบวันที่ให้ใช้วันที่ปัจจุบัน (ควรจะไม่เกิดขึ้น แต่ป้องกันไว้)
+      console.warn('Order has no date field:', order);
+      return new Date();
+    }
+    return new Date(dateStr);
+  };
+  
+  // กรอง allYearOrders ให้ใช้ฟังก์ชัน getOrderDate
   useEffect(() => {
     if (!stats) return;
     
-    // กำหนดค่าปีปัจจุบัน
-    const currentYear = 2025;  // ปีปัจจุบันที่เซิร์ฟเวอร์คือ 2025
-    
-    // สร้างข้อมูลสถิติที่กรองตามปี
+    // ข้อมูล debugging
+    console.log('Current filter:', { selectedYear, selectedMonth });
+    console.log('Stats received:', stats);
+
+    // สร้างข้อมูลสถิติที่กรองตามปีและเดือน
     const salesByMonth = getFilteredSalesData();
     
-    // คำนวณข้อมูลของปีที่เลือก
-    let totalSalesForYear = 0;
-    let totalOrdersForYear = 0;
+    // คำนวณข้อมูลของปีและเดือนที่เลือก
+    let totalSalesForPeriod = 0;
     
     salesByMonth.forEach(month => {
-      totalSalesForYear += month.sales;
-      totalOrdersForYear += month.numOrders || 0;
+      totalSalesForPeriod += month.sales;
     });
     
-    // สร้าง stats ใหม่ที่กรองตามปี
+    // สร้าง stats ใหม่ที่กรองตามปีและเดือน
     const filteredStatsData: DashboardStats = {
       ...stats,
       salesByMonth: salesByMonth,
-      // ถ้าเป็นปีปัจจุบันให้ใช้ข้อมูลปัจจุบัน ถ้าเป็นปีอื่นให้ใช้ข้อมูลที่คำนวณจากยอดขายรายเดือน
-      totalSales: selectedYear === currentYear ? stats.totalSales : totalSalesForYear,
-      totalOrders: selectedYear === currentYear ? stats.totalOrders : totalOrdersForYear,
+      // ใช้ข้อมูลจาก API โดยตรงเสมอ เนื่องจาก API จะส่งค่าที่กรองตามปีและเดือนมาให้แล้ว
+      totalSales: stats.totalSales,
+      totalOrders: stats.totalOrders,
     };
-    
+
     // กรองสินค้าขายดีตามปีที่เลือก
     if ((stats as any).topSellingProductsByYear) {
       // ดึงข้อมูลรายปีจาก topSellingProductsByYear
@@ -702,97 +831,221 @@ export default function AdminDashboardClient() {
       // ทำให้แน่ใจว่า selectedYear เป็น string key
       const yearKey = String(selectedYear);
       
-      // console.log('Debug topSellingProductsByYear:', {
-      //   selectedYear,
-      //   yearKey,
-      //   productsByYear,
-      //   availableYears: Object.keys(productsByYear),
-      //   hasYear: productsByYear[yearKey] !== undefined,
-      //   yearData: productsByYear[yearKey]
-      // });
-      
       // ใช้ข้อมูล topSellingProductsByYear เพื่อดึงข้อมูลสินค้าขายดีตามปีที่เลือก
       const productsForYear = productsByYear[yearKey] || [];
-      filteredStatsData.topSellingProducts = productsForYear;
       
-      //console.log(`ข้อมูลสินค้าขายดีปี ${yearKey}:`, productsForYear);
+      // ถ้าเลือกเดือนให้กรองข้อมูลสินค้าขายดีตามเดือน (ถ้ามีข้อมูล)
+      if (selectedMonth > 0 && (stats as any).topSellingProductsByMonth) {
+        const productsByMonth = (stats as any).topSellingProductsByMonth[yearKey];
+        if (productsByMonth && productsByMonth[selectedMonth]) {
+          filteredStatsData.topSellingProducts = productsByMonth[selectedMonth];
+        } else {
+          filteredStatsData.topSellingProducts = [];
+        }
+      } else {
+        filteredStatsData.topSellingProducts = productsForYear;
+      }
     } else if (stats.topSellingProducts) {
-      // ถ้าไม่มี topSellingProductsByYear ให้ใช้วิธีเดิม เพื่อความเข้ากันได้กับ API เวอร์ชันเก่า
-      filteredStatsData.topSellingProducts = selectedYear === currentYear 
-        ? stats.topSellingProducts 
-        : [];
+      // ใช้ข้อมูลโดยตรงจาก API โดยไม่มีการกรองเพิ่มเติม
+      // topSellingProducts จาก API มีการกรองตามปีและเดือนจาก query parameters แล้ว
+      filteredStatsData.topSellingProducts = stats.topSellingProducts;
+      console.log('Using topSellingProducts directly from API');
+    }
+
+    // ตรวจสอบข้อมูล stats ก่อนการกรอง
+    console.log('Order status distribution before filtering:', stats.orderStatusDistribution);
+    
+    // กรองคำสั่งซื้อทั้งหมดตามปีและเดือนที่เลือก - เพื่อใช้ในการคำนวณการกระจายสถานะและอื่นๆ
+    const yearKey = String(selectedYear);
+    let allYearOrders: RecentOrder[] = [];
+    
+    // พยายามดึงข้อมูลคำสั่งซื้อทั้งหมดในปีที่เลือกจากแหล่งข้อมูลต่างๆ
+    if ((stats as any).allOrdersByYear && (stats as any).allOrdersByYear[yearKey]) {
+      // ถ้ามีข้อมูลคำสั่งซื้อทั้งหมดแยกตามปีโดยตรง ให้ใช้ข้อมูลนั้น
+      allYearOrders = (stats as any).allOrdersByYear[yearKey];
+    } else if ((stats as any).recentOrdersByYear && (stats as any).recentOrdersByYear[yearKey]) {
+      // ถ้ามีข้อมูลคำสั่งซื้อล่าสุดแยกตามปี ให้ใช้ข้อมูลนั้น
+      allYearOrders = (stats as any).recentOrdersByYear[yearKey];
+    } else {
+      // ถ้าไม่มีข้อมูลแยกตามปี ให้กรองจากข้อมูลทั้งหมดที่มี
+      const allOrders = (stats as any).allOrders || stats.recentOrders;
+      allYearOrders = allOrders.filter((order: RecentOrder) => {
+        const orderDate = getOrderDate(order);
+        return orderDate.getFullYear() === selectedYear;
+      });
     }
     
-    // กรองคำสั่งซื้อล่าสุดตามปีที่เลือก
+    // แสดง console log สำหรับการกรองคำสั่งซื้อ
+    console.log(`Filtering orders for year: ${selectedYear}, month: ${selectedMonth}`);
+    console.log(`All year orders count: ${allYearOrders.length}`);
+    
+    // กรองคำสั่งซื้อล่าสุดตามปีและเดือนที่เลือก
     if (stats.recentOrders) {
       if ((stats as any).recentOrdersByYear) {
         // ใช้ข้อมูลคำสั่งซื้อแยกตามปี ถ้ามี API ส่งมา
-        const yearKey = String(selectedYear);
-        filteredStatsData.recentOrders = (stats as any).recentOrdersByYear[yearKey] || [];
-      } else if (selectedYear === currentYear) {
-        // ถ้าเป็นปีปัจจุบันใช้ข้อมูลเดิม
+        let filteredOrders = (stats as any).recentOrdersByYear[yearKey] || [];
+        
+        // ถ้าเลือกเดือน ให้กรองเฉพาะข้อมูลของเดือนนั้น
+        if (selectedMonth > 0) {
+          filteredOrders = filteredOrders.filter((order: any) => {
+            const orderDate = getOrderDate(order);
+            return orderDate.getMonth() + 1 === selectedMonth;
+          });
+        }
+        
+        filteredStatsData.recentOrders = filteredOrders;
+      } else if (selectedYear === currentYear && selectedMonth === 0) {
+        // ถ้าเป็นปีปัจจุบันและทุกเดือนใช้ข้อมูลเดิม
         filteredStatsData.recentOrders = stats.recentOrders;
       } else {
-        // กรองคำสั่งซื้อตามปีที่เลือก
+        // กรองคำสั่งซื้อตามปีและเดือนที่เลือก
         filteredStatsData.recentOrders = stats.recentOrders.filter(order => {
-          const orderDate = new Date(order.date);
-          return orderDate.getFullYear() === selectedYear;
+          const orderDate = getOrderDate(order);
+          const matchYear = orderDate.getFullYear() === selectedYear;
+          const matchMonth = selectedMonth === 0 || orderDate.getMonth() + 1 === selectedMonth;
+          return matchYear && matchMonth;
         });
       }
     }
 
-    // กรองการกระจายสถานะคำสั่งซื้อตามปีที่เลือก
+    // กรองการกระจายสถานะคำสั่งซื้อตามปีและเดือนที่เลือก
     if (stats.orderStatusDistribution) {
       if ((stats as any).orderStatusDistributionByYear) {
-        // ใช้ข้อมูลการกระจายสถานะตามปี ถ้ามี API ส่งมา
-        const yearKey = String(selectedYear);
+        // ใช้ข้อมูลการกระจายสถานะตามปี
         const statusesForYear = (stats as any).orderStatusDistributionByYear[yearKey] || [];
         
-        // ถ้าไม่มีข้อมูลสำหรับปีนี้ ให้สร้างข้อมูลว่าง
-        if (statusesForYear.length === 0 && filteredStatsData.recentOrders.length > 0) {
-          // คำนวณข้อมูลสถานะจากคำสั่งซื้อที่มีในปีนั้น
-          const statusCounts: Record<string, number> = {};
+        // ถ้าเลือกเดือนใดเดือนหนึ่งและมีข้อมูลรายเดือน
+        if (selectedMonth > 0 && (stats as any).orderStatusDistributionByMonth 
+            && (stats as any).orderStatusDistributionByMonth[yearKey] 
+            && (stats as any).orderStatusDistributionByMonth[yearKey][selectedMonth]) {
+          // ใช้ข้อมูลสถานะตามเดือนที่เลือก
+          filteredStatsData.orderStatusDistribution = (stats as any).orderStatusDistributionByMonth[yearKey][selectedMonth];
+          console.log('Using month-specific status distribution from API');
+        } else if (selectedMonth > 0) {
+          // ถ้าเลือกเดือนแต่ไม่มีข้อมูลรายเดือนจาก API ให้คำนวณจากคำสั่งซื้อที่กรองแล้ว
+          // กรองคำสั่งซื้อทั้งหมดในปีนั้นตามเดือน
+          const filteredMonthOrders = allYearOrders.filter((order: RecentOrder) => {
+            const orderDate = getOrderDate(order);
+            return orderDate.getMonth() + 1 === selectedMonth;
+          });
           
-          // นับจำนวนออเดอร์แต่ละสถานะ
-          filteredStatsData.recentOrders.forEach(order => {
+          console.log(`Filtered month orders for ${selectedMonth}: ${filteredMonthOrders.length}`);
+          
+          // นับจำนวนสถานะ
+          const statusCounts: Record<string, number> = {};
+          filteredMonthOrders.forEach((order: RecentOrder) => {
             statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
           });
           
-          // แปลงเป็น array ของ StatusData
-          filteredStatsData.orderStatusDistribution = Object.keys(statusCounts).map(status => ({
+          console.log('Calculated status counts:', statusCounts);
+          
+          // แปลงเป็นรูปแบบที่ต้องการ และเพิ่มการตรวจสอบสถานะที่สำคัญเพื่อให้แสดงแม้ไม่มีคำสั่งซื้อในสถานะนั้น
+          const importantStatuses = ['PENDING', 'PROCESSING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+          filteredStatsData.orderStatusDistribution = importantStatuses.map(status => ({
             status,
-            count: statusCounts[status]
+            count: statusCounts[status] || 0
           }));
-        } else {
+          
+          console.log('Generated status distribution:', filteredStatsData.orderStatusDistribution);
+          
+          // กรองสถานะที่มีจำนวน 0 ออก เพื่อให้ UI สะอาดขึ้น เว้นแต่เป็นสถานะที่สำคัญมาก
+          // ให้เก็บสถานะที่มีคำสั่งซื้อมากกว่า 0 รายการเสมอ และเก็บสถานะที่สำคัญบางรายการไว้
+          const criticalStatuses = ['PENDING', 'PROCESSING', 'DELIVERED', 'CANCELLED'];
+          filteredStatsData.orderStatusDistribution = filteredStatsData.orderStatusDistribution.filter(item => 
+            item.count > 0 || criticalStatuses.includes(item.status)
+          );
+        } else if (statusesForYear.length > 0) {
+          // ถ้าเลือกทุกเดือนและมีข้อมูลรายปี ให้ใช้ข้อมูลรายปี
           filteredStatsData.orderStatusDistribution = statusesForYear;
+          console.log('Using year-specific status distribution from API');
+        } else {
+          // ถ้าไม่มีข้อมูลเลย ให้ใช้อาร์เรย์ว่าง
+          filteredStatsData.orderStatusDistribution = [];
+          console.log('No status distribution data available');
         }
-      } else if (selectedYear === currentYear) {
-        // ถ้าเป็นปีปัจจุบันใช้ข้อมูลเดิม
+      } else if (selectedYear === currentYear && selectedMonth === 0) {
+        // ถ้าเป็นปีปัจจุบันและทุกเดือนใช้ข้อมูลเดิม
         filteredStatsData.orderStatusDistribution = stats.orderStatusDistribution;
+        console.log('Using original status distribution data');
       } else {
-        // คำนวณข้อมูลสถานะจากคำสั่งซื้อที่กรองตามปีที่เลือก
-        const filteredOrders = stats.recentOrders.filter(order => {
-          const orderDate = new Date(order.date);
-          return orderDate.getFullYear() === selectedYear;
+        // กรองจากข้อมูลคำสั่งซื้อทั้งหมดที่มี
+        // คำนวณข้อมูลสถานะจากคำสั่งซื้อที่กรองตามปีและเดือนที่เลือก
+        const filteredOrders = allYearOrders.filter((order: RecentOrder) => {
+          const orderDate = getOrderDate(order);
+          const matchMonth = selectedMonth === 0 || orderDate.getMonth() + 1 === selectedMonth;
+          return matchMonth;
         });
         
-        // นับจำนวนออเดอร์แต่ละสถานะ
-        const statusCounts: Record<string, number> = {};
+        console.log(`Filtered orders for calculation: ${filteredOrders.length}`);
         
-        filteredOrders.forEach(order => {
+        // นับจำนวนสถานะแต่ละประเภท
+        const statusCounts: Record<string, number> = {};
+        filteredOrders.forEach((order: RecentOrder) => {
           statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
         });
         
-        // แปลงเป็น array ของ StatusData
-        filteredStatsData.orderStatusDistribution = Object.keys(statusCounts).map(status => ({
+        console.log('Calculated status counts:', statusCounts);
+        
+        // แปลงเป็นรูปแบบที่ต้องการ
+        const importantStatuses = ['PENDING', 'PROCESSING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+        filteredStatsData.orderStatusDistribution = importantStatuses.map(status => ({
           status,
-          count: statusCounts[status]
+          count: statusCounts[status] || 0
         }));
+        
+        // กรองสถานะที่มีจำนวน 0 ออก เพื่อให้ UI สะอาดขึ้น เว้นแต่เป็นสถานะที่สำคัญมาก
+        const criticalStatuses = ['PENDING', 'PROCESSING', 'DELIVERED', 'CANCELLED'];
+        filteredStatsData.orderStatusDistribution = filteredStatsData.orderStatusDistribution.filter(item => 
+          item.count > 0 || criticalStatuses.includes(item.status)
+        );
+        
+        console.log('Generated status distribution:', filteredStatsData.orderStatusDistribution);
       }
     }
     
     setFilteredStats(filteredStatsData);
-  }, [stats, selectedYear]);
+    
+    // อัปเดตข้อมูลกราฟเท่านั้น ไม่มีการกรองข้อมูลเพิ่มเติม
+    if (salesByMonth.length > 0) {
+      setChartData(prepareSalesChartData(salesByMonth, showUnit));
+    }
+    
+    // ตรวจสอบว่าในเดือนที่เลือกมียอดขายหรือไม่
+    let hasOrdersInPeriod = true;
+    let filteredMonthOrders: RecentOrder[] = [];
+    
+    if (selectedMonth > 0) {
+      // กรองคำสั่งซื้อตามเดือนที่เลือก เพื่อตรวจสอบว่ามีคำสั่งซื้อในเดือนนี้หรือไม่
+      filteredMonthOrders = allYearOrders.filter((order: RecentOrder) => {
+        const orderDate = getOrderDate(order);
+        return orderDate.getMonth() + 1 === selectedMonth;
+      });
+      
+      // ถ้าไม่มีคำสั่งซื้อในเดือนนี้
+      hasOrdersInPeriod = filteredMonthOrders.length > 0;
+      console.log(`Orders in month ${selectedMonth}: ${filteredMonthOrders.length}`);
+      
+      // ตรวจสอบข้อมูลที่ได้รับจาก API
+      console.log('API data - topSellingProducts:', filteredStatsData.topSellingProducts);
+    }
+    
+    // สำหรับสินค้าขายดี ใช้ข้อมูลจาก API โดยตรง ไม่มีการกรองเพิ่มเติมที่ client
+    // โดยทาง API มีการกรองตามปีและเดือนให้แล้ว
+    if (filteredStatsData.topSellingProducts && filteredStatsData.topSellingProducts.length > 0) {
+      setProductChartData(prepareTopProductsChartData(filteredStatsData.topSellingProducts));
+      console.log('Product chart data updated with API data');
+    } else {
+      setProductChartData(null);
+      console.log('No product data available from API for chart');
+    }
+
+    // ตรวจสอบข้อมูล stats ก่อนการกรอง
+    console.log('Order status distribution before filtering:', stats.orderStatusDistribution);
+    
+    // ลบส่วนซ้ำซ้อนที่กรองสินค้าขายดีอีกครั้ง ซึ่งเป็นการทำงานซ้ำซ้อนกับด้านบน
+    // เนื่องจากได้กรองและกำหนดค่า filteredStatsData.topSellingProducts ไปแล้ว
+    
+  }, [stats, selectedYear, selectedMonth, showUnit]);
   
   // แสดงหน้าโหลดข้อมูล
   if (isAdmin === null || (loading && !stats)) {
@@ -887,15 +1140,35 @@ export default function AdminDashboardClient() {
         </Alert>
       )}
       
-      {/* ตัวเลือกปี แสดงด้านบนของแดชบอร์ด */}
+      {/* ตัวเลือกปีและเดือน แสดงด้านบนของแดชบอร์ด */}
       {availableYears.length > 0 && (
         <Box sx={{ 
           display: 'flex', 
           justifyContent: 'flex-end', 
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 2,
           mb: 3,
           mt: -2,
         }}>
-          <FormControl variant="outlined" size="small" sx={{ minWidth: { xs: 150, sm: 200 } }}>
+          <FormControl variant="outlined" size="small" sx={{ minWidth: { xs: 120, sm: 150 } }}>
+            <InputLabel id="month-filter-label">เลือกเดือน</InputLabel>
+            <Select
+              labelId="month-filter-label"
+              id="month-filter"
+              value={selectedMonth}
+              onChange={handleMonthChange}
+              label="เลือกเดือน"
+            >
+              {ThaiMonths.map(month => (
+                <MenuItem key={month.id} value={month.id}>
+                  {month.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
+          <FormControl variant="outlined" size="small" sx={{ minWidth: { xs: 150, sm: 180 } }}>
             <InputLabel id="year-filter-label">เลือกปี</InputLabel>
             <Select
               labelId="year-filter-label"
@@ -948,24 +1221,24 @@ export default function AdminDashboardClient() {
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <ShoppingCartIcon sx={{ color: 'primary.main', mr: 1 }} />
                     <Typography variant="subtitle2" color="text.secondary">
-                      คำสั่งซื้อทั้งหมด {selectedYear !== 2025 && formatThaiYear(selectedYear)}
+                      คำสั่งซื้อทั้งหมด {selectedYear !== currentYear && formatThaiYear(selectedYear)}
                     </Typography>
                   </Box>
                   <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
                     {filteredStats.totalOrders}
                   </Typography>
                   
-                  {selectedYear === 2025 && (
+                  {selectedYear === currentYear && (
                   <Typography variant="body2" color="text.secondary">
                       มี {filteredStats.pendingOrders} คำสั่งซื้อที่รอดำเนินการ
                   </Typography>
                   )}
                   
-                  {selectedYear === 2025 && filteredStats.pendingPaymentsCount > 0 && (
+                  {selectedYear === currentYear && filteredStats.pendingPaymentsCount > 0 && (
                     <Chip
                       color="warning"
                       variant="filled"
-                      label={`รอตรวจสอบ ${filteredStats.pendingPaymentsCount} รายการ`}
+                      label={`รอตรวจสอบ แนบ slip : ${filteredStats.pendingPaymentsCount} รายการ`}
                       onClick={() => router.push('/admin/orders')}
                       icon={<NotificationsActiveIcon />}
                       sx={{
@@ -1010,14 +1283,14 @@ export default function AdminDashboardClient() {
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <MonetizationOnIcon sx={{ color: 'success.main', mr: 1 }} />
                     <Typography variant="subtitle2" color="text.secondary">
-                      ยอดขายทั้งหมด {selectedYear !== 2025 && formatThaiYear(selectedYear)}
+                      ยอดขายทั้งหมด {selectedYear !== currentYear && formatThaiYear(selectedYear)}
                     </Typography>
                   </Box>
                   <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
                     {formatCurrency(filteredStats.totalSales)}
                   </Typography>
                   
-                  {selectedYear === 2025 && (
+                  {selectedYear === currentYear && (
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       {filteredStats.salesGrowthRate >= 0 ? (
                       <>
@@ -1162,7 +1435,7 @@ export default function AdminDashboardClient() {
                 <CardHeader 
                   title={
                     <Typography variant="h6" component="div">
-                      คำสั่งซื้อล่าสุด {selectedYear !== 2025 && `ปี ${formatThaiYear(selectedYear)}`}
+                      คำสั่งซื้อล่าสุด {selectedYear !== currentYear && `ปี ${formatThaiYear(selectedYear)}`}
                     </Typography>
                   }
                   action={
@@ -1209,7 +1482,7 @@ export default function AdminDashboardClient() {
                               ยอดรวม: {formatCurrency(order.amount)}
                             </Typography>
                             <Typography variant="body2" component="span" color="text.secondary">
-                              วันที่: {new Date(order.date).toLocaleDateString('th-TH')}
+                              วันที่: {new Date(order.date || order.createdAt).toLocaleDateString('th-TH')}
                             </Typography>
                           </Box>
                         </ListItem>
@@ -1259,7 +1532,8 @@ export default function AdminDashboardClient() {
                 <CardHeader 
                   title={
                     <Typography variant="h6" component="div">
-                      สถานะคำสั่งซื้อ {selectedYear !== 2025 && `ปี ${formatThaiYear(selectedYear)}`}
+                      สถานะคำสั่งซื้อ {selectedYear !== currentYear && `ปี ${formatThaiYear(selectedYear)}`}
+                      {selectedMonth > 0 && ` เดือน${ThaiMonths[selectedMonth].name}`}
                     </Typography>
                   }
                 />
@@ -1267,50 +1541,75 @@ export default function AdminDashboardClient() {
                 <CardContent>
                   {filteredStats.orderStatusDistribution.length > 0 ? (
                   <List>
-                      {filteredStats.orderStatusDistribution.map((item, index) => (
-                      <ListItem key={item.status} disablePadding sx={{ py: 1 }}>
-                        <Box sx={{ width: '100%' }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2" component="span">
-                              {translateOrderStatus(item.status)}
-                            </Typography>
-                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <Typography variant="body2" component="span" fontWeight="medium" sx={{ mr: 1 }}>
-                              {item.count}
-                            </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  ({Math.round((item.count / filteredStats.totalOrders) * 100)}%)
+                      {(() => {
+                        // คำนวณยอดรวมของคำสั่งซื้อจากทุกสถานะที่แสดง
+                        const totalStatusOrders = filteredStats.orderStatusDistribution
+                          .reduce((sum, item) => sum + item.count, 0);
+                          
+                        // เรียงสถานะตามลำดับที่เหมาะสม: รอดำเนินการ, กำลังดำเนินการ, ชำระเงินแล้ว, จัดส่งแล้ว, จัดส่งสำเร็จ, ยกเลิก
+                        const statusOrder = {
+                          'PENDING': 1,
+                          'PROCESSING': 2,
+                          'PAID': 3,
+                          'SHIPPED': 4,
+                          'DELIVERED': 5,
+                          'CANCELLED': 6
+                        };
+                        
+                        // สร้างอาร์เรย์ข้อมูลสถานะที่เรียงลำดับแล้ว
+                        const sortedStatusData = [...filteredStats.orderStatusDistribution]
+                          .sort((a, b) => {
+                            const orderA = statusOrder[a.status as keyof typeof statusOrder] || 99;
+                            const orderB = statusOrder[b.status as keyof typeof statusOrder] || 99;
+                            return orderA - orderB;
+                          });
+                          
+                        return sortedStatusData.map((item, index) => (
+                          <ListItem key={item.status} disablePadding sx={{ py: 1 }}>
+                            <Box sx={{ width: '100%' }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="body2" component="span">
+                                  {translateOrderStatus(item.status)}
                                 </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                  <Typography variant="body2" component="span" fontWeight="medium" sx={{ mr: 1 }}>
+                                    {item.count}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    ({totalStatusOrders > 0 ? Math.round((item.count / totalStatusOrders) * 100) : 0}%)
+                                  </Typography>
+                                </Box>
                               </Box>
-                          </Box>
-                          <Box sx={{ width: '100%', mt: 1 }}>
-                            <Box 
-                              sx={{ 
-                                width: '100%', 
-                                height: 4, 
-                                bgcolor: 'background.neutral',
-                                borderRadius: 2,
-                                overflow: 'hidden'
-                              }}
-                            >
-                              <Box 
-                                sx={{ 
-                                    width: `${(item.count / filteredStats.totalOrders) * 100}%`,
-                                  height: '100%',
-                                  bgcolor: getStatusColor(item.status) + '.main',
-                                  borderRadius: 2
-                                }}
-                              />
+                              <Box sx={{ width: '100%', mt: 1 }}>
+                                <Box 
+                                  sx={{ 
+                                    width: '100%', 
+                                    height: 4, 
+                                    bgcolor: 'background.neutral',
+                                    borderRadius: 2,
+                                    overflow: 'hidden'
+                                  }}
+                                >
+                                  <Box 
+                                    sx={{ 
+                                        width: `${totalStatusOrders > 0 ? (item.count / totalStatusOrders) * 100 : 0}%`,
+                                      height: '100%',
+                                      bgcolor: getStatusColor(item.status) + '.main',
+                                      borderRadius: 2
+                                    }}
+                                  />
+                                </Box>
+                              </Box>
                             </Box>
-                          </Box>
-                        </Box>
-                      </ListItem>
-                    ))}
+                          </ListItem>
+                        ));
+                      })()}
                   </List>
                   ) : (
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
                       <Typography variant="body1" color="text.secondary">
                         ไม่มีข้อมูลสถานะคำสั่งซื้อในปี {formatThaiYear(selectedYear)}
+                        {selectedMonth > 0 && ` เดือน${ThaiMonths[selectedMonth].name}`}
                       </Typography>
                     </Box>
                   )}
@@ -1371,9 +1670,17 @@ export default function AdminDashboardClient() {
                   title={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Typography variant="h6">สินค้าขายดี</Typography>
-                      {selectedYear !== 2025 && (
+                      {selectedYear !== currentYear && (
                         <Chip 
                           label={formatThaiYear(selectedYear)} 
+                          size="small" 
+                          color="primary" 
+                          variant="outlined" 
+                        />
+                      )}
+                      {selectedMonth > 0 && (
+                        <Chip 
+                          label={ThaiMonths[selectedMonth].name} 
                           size="small" 
                           color="primary" 
                           variant="outlined" 
@@ -1390,8 +1697,8 @@ export default function AdminDashboardClient() {
                     justifyContent: 'center',
                     alignItems: 'center' 
                   }}>
-                    {filteredStats?.topSellingProducts && filteredStats.topSellingProducts.length > 0 ? (
-                      <Doughnut data={prepareTopProductsChartData(filteredStats.topSellingProducts)} options={doughnutChartOptions} />
+                    {productChartData && productChartData.datasets[0].data.length > 0 ? (
+                      <Doughnut data={productChartData} options={doughnutChartOptions} />
                     ) : (
                       <Box sx={{ 
                         display: 'flex', 
@@ -1402,9 +1709,9 @@ export default function AdminDashboardClient() {
                       }}>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                           ไม่มีข้อมูลสินค้าขายดีในปี {formatThaiYear(selectedYear)}
-                          </Typography>
-                        
-                        </Box>
+                          {selectedMonth > 0 && ` เดือน${ThaiMonths[selectedMonth].name}`}
+                        </Typography>
+                      </Box>
                     )}
                   </Box>
                 </CardContent>

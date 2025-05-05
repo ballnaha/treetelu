@@ -25,6 +25,7 @@ interface FiltersProps {
   dateTo: string;
   searchTerm: string;
   paymentStatus: string;
+  hasSlip: string;
 }
 
 interface OrderFiltersProps {
@@ -55,7 +56,7 @@ export default function OrderFilters({ filters, onFilterChange }: OrderFiltersPr
   
   // ปรับปรุง localFilters เมื่อ props filters เปลี่ยนแปลง
   useEffect(() => {
-    console.log('Filters from props changed:', filters);
+    
     setLocalFilters(filters);
     
     // คำนวณจำนวนตัวกรองที่ใช้งานอยู่
@@ -70,7 +71,7 @@ export default function OrderFilters({ filters, onFilterChange }: OrderFiltersPr
     setLocalFilters(newFilters);
     // เรียกใช้ onFilterChange ทันทีเมื่อมีการเปลี่ยนแปลงค่า
     onFilterChange(newFilters);
-    console.log('Filter changed automatically:', name, value);
+    
   };
   
   // Reset filters
@@ -80,7 +81,8 @@ export default function OrderFilters({ filters, onFilterChange }: OrderFiltersPr
       dateFrom: '',
       dateTo: '',
       searchTerm: '',
-      paymentStatus: ''
+      paymentStatus: '',
+      hasSlip: ''
     };
     setLocalFilters(resetFilters);
     onFilterChange(resetFilters);
@@ -215,6 +217,37 @@ export default function OrderFilters({ filters, onFilterChange }: OrderFiltersPr
           <MenuItem value="REJECTED">ปฏิเสธการชำระเงิน</MenuItem>
         </TextField>
         
+        {/* Has Slip filter */}
+        <TextField
+          select
+          fullWidth
+          id="hasSlip"
+          name="hasSlip"
+          label="หลักฐานการโอนเงิน"
+          variant="outlined"
+          size="small"
+          value={localFilters.hasSlip}
+          onChange={handleInputChange}
+          InputProps={{
+            endAdornment: localFilters.hasSlip ? (
+              <InputAdornment position="end">
+                <IconButton
+                  size="small"
+                  onClick={() => clearSingleFilter('hasSlip')}
+                  edge="end"
+                  aria-label="clear has slip"
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            ) : null
+          }}
+        >
+          <MenuItem value="">ทั้งหมด</MenuItem>
+          <MenuItem value="yes">มีหลักฐานการโอนเงิน</MenuItem>
+          <MenuItem value="no">ไม่มีหลักฐานการโอนเงิน</MenuItem>
+        </TextField>
+        
         {/* Date range */}
         <TextField
           fullWidth
@@ -314,6 +347,15 @@ export default function OrderFilters({ filters, onFilterChange }: OrderFiltersPr
                 label={`ถึงวันที่: ${localFilters.dateTo}`}
                 size="small"
                 onDelete={() => clearSingleFilter('dateTo')}
+                color="primary"
+                variant="outlined"
+              />
+            )}
+            {localFilters.hasSlip && (
+              <Chip 
+                label={`หลักฐานการโอนเงิน: ${localFilters.hasSlip === 'yes' ? 'มี' : 'ไม่มี'}`}
+                size="small"
+                onDelete={() => clearSingleFilter('hasSlip')}
                 color="primary"
                 variant="outlined"
               />

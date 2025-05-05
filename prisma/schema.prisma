@@ -115,6 +115,7 @@ model Order {
   finalAmount   Decimal       @db.Decimal(10, 2)
   paymentMethod PaymentMethod @default(BANK_TRANSFER)
   paymentStatus PaymentStatus @default(PENDING)
+  adminComment  String?       @db.Text
   createdAt     DateTime      @default(now()) @db.DateTime(0)
   updatedAt     DateTime      @updatedAt @db.DateTime(0)
   discountCode  String?       @db.VarChar(50)
@@ -171,7 +172,7 @@ model ShippingInfo {
   addressLine2     String?       @db.VarChar(255)
   provinceId       Int
   provinceName     String        @db.VarChar(100)
-  amphureId        Int
+  amphureId         Int
   amphureName      String        @db.VarChar(100)
   tambonId         Int
   tambonName       String        @db.VarChar(100)

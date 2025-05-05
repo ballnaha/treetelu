@@ -49,6 +49,7 @@ export interface Order {
   finalAmount: number;
   createdAt: string;
   updatedAt: string;
+  adminComment?: string | null;
   customerInfo: CustomerInfo;
   shippingInfo: ShippingInfo;
   orderItems: OrderItem[];
@@ -124,13 +125,14 @@ interface OrderDialogProps {
   open: boolean;
   order: Order | null;
   onClose: () => void;
-  onUpdateStatus: (orderId: string, status: string, paymentStatus: string) => void;
+  onUpdateStatus: (orderId: string, status: string, paymentStatus: string, adminComment?: string) => void;
   onDeleteOrder?: (orderId: string) => void;
 }
 
 export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDeleteOrder }: OrderDialogProps) {
-  const [status, setStatus] = useState<string>(order?.status || 'PENDING');
-  const [paymentStatus, setPaymentStatus] = useState<string>(order?.paymentStatus || 'PENDING');
+  const [status, setStatus] = useState<string>('PENDING');
+  const [paymentStatus, setPaymentStatus] = useState<string>('PENDING');
+  const [adminComment, setAdminComment] = useState<string>('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [paymentImage, setPaymentImage] = useState<string | null>(null);
   const [showImageModal, setShowImageModal] = useState(false);
@@ -142,6 +144,19 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
     if (order) {
       setStatus(order.status);
       setPaymentStatus(order.paymentStatus);
+      
+      // Debug: แสดงค่า order.adminComment ก่อนกำหนดค่า
+      console.log('Order in OrderDialog:', order);
+      console.log('adminComment before setting:', order.adminComment, typeof order.adminComment);
+      
+      // กำหนดค่า adminComment ตรวจสอบทั้ง null และ undefined
+      const commentValue = order.adminComment !== undefined && order.adminComment !== null 
+                        ? order.adminComment 
+                        : '';
+      setAdminComment(commentValue);
+      
+      // Debug: แสดงค่าหลังกำหนด
+      console.log('adminComment after setting:', commentValue);
       
       // หารูปหลักฐานการชำระเงิน
       const slipUrl = order.paymentInfo?.slipUrl || 
@@ -166,7 +181,12 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
   // Handle status update
   const handleUpdateStatus = () => {
     if (order) {
-      onUpdateStatus(order.id, status, paymentStatus);
+      // แสดงค่า adminComment ก่อนส่งไปอัพเดต
+      console.log('Sending adminComment to update:', adminComment);
+      
+      // ส่ง adminComment ให้ API โดยใช้ค่าจาก state โดยตรง
+      // แม้เป็นค่าว่างก็จะส่งไป เพื่อให้ API รู้ว่าต้องการอัพเดตค่านี้
+      onUpdateStatus(order.id, status, paymentStatus, adminComment);
       onClose();
     }
   };
@@ -274,12 +294,50 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
               </TextField>
             </Box>
           </Box>
+          
+          {/* เพิ่มช่องสำหรับข้อความถึงลูกค้า */}
+          <Box sx={{ mt: 2 }}>
+            <TextField
+              fullWidth
+              id="adminComment"
+              label="ข้อความถึงลูกค้า"
+              value={adminComment}
+              onChange={(e) => setAdminComment(e.target.value)}
+              multiline
+              rows={3}
+              placeholder="ใส่ข้อความที่ต้องการสื่อสารกับลูกค้า เช่น ข้อมูลการจัดส่ง วิธีการติดต่อกลับ หรือหมายเหตุต่างๆ"
+              size="small"
+              helperText="ข้อความนี้จะแสดงให้ลูกค้าเห็นในหน้าสถานะคำสั่งซื้อ"
+            />
+          </Box>
         </Paper>
         
         {/* Order Items */}
         <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
           รายการสินค้า
         </Typography>
+        
+        {/* แสดงข้อความถึงลูกค้าจากแอดมิน (ถ้ามี) */}
+        {order.adminComment !== undefined && order.adminComment !== null && order.adminComment !== '' && (
+          <Paper 
+            elevation={0} 
+            sx={{ 
+              p: 2, 
+              mb: 3, 
+              borderRadius: 2,
+              border: '1px dashed',
+              borderColor: 'primary.main',
+              bgcolor: 'primary.lighter'
+            }}
+          >
+            <Typography variant="subtitle2" fontWeight={600} color="primary.dark" sx={{ mb: 1 }}>
+              ข้อความจากทีมงาน
+            </Typography>
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+              {order.adminComment}
+            </Typography>
+          </Paper>
+        )}
         
         <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
           <Table size="small">

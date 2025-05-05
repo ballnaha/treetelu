@@ -74,7 +74,8 @@ export default function AdminOrdersClient() {
     dateFrom: '',
     dateTo: '',
     searchTerm: '',
-    paymentStatus: ''
+    paymentStatus: '',
+    hasSlip: ''
   });
 
   // ตรวจสอบพารามิเตอร์ URL จาก searchParams
@@ -85,14 +86,16 @@ export default function AdminOrdersClient() {
       const searchTermParam = searchParams.get('search');
       const dateFromParam = searchParams.get('dateFrom');
       const dateToParam = searchParams.get('dateTo');
+      const hasSlipParam = searchParams.get('hasSlip');
       
-      console.log('URL Parameters from searchParams:', { 
-        statusParam, 
-        paymentStatusParam,
-        searchTermParam,
-        dateFromParam,
-        dateToParam
-      });
+      // console.log('URL Parameters from searchParams:', { 
+      //   statusParam, 
+      //   paymentStatusParam,
+      //   searchTermParam,
+      //   dateFromParam,
+      //   dateToParam,
+      //   hasSlipParam
+      // });
       
       // สร้าง object filters ใหม่ทั้งหมด ไม่ใช้ ...filters ซึ่งอาจอ้างอิงค่าเก่า
       const newFilters = {
@@ -100,14 +103,15 @@ export default function AdminOrdersClient() {
         dateFrom: dateFromParam || '',
         dateTo: dateToParam || '',
         searchTerm: searchTermParam || '',
-        paymentStatus: paymentStatusParam || ''
+        paymentStatus: paymentStatusParam || '',
+        hasSlip: hasSlipParam || ''
       };
       
       // ตรวจสอบว่าค่า filters เปลี่ยนไปจากเดิมหรือไม่
       const filtersChanged = JSON.stringify(newFilters) !== JSON.stringify(filters);
       
       if (filtersChanged) {
-        console.log('Setting filters from URL params:', newFilters);
+        //console.log('Setting filters from URL params:', newFilters);
         setFilters(newFilters);
       }
     }
@@ -124,7 +128,7 @@ export default function AdminOrdersClient() {
   useEffect(() => {
     if (!user?.isAdmin) return;
     
-    console.log('Fetching orders with filters:', filters);
+    //console.log('Fetching orders with filters:', filters);
     fetchOrders();
   }, [pagination.page, pagination.limit, filters, user]);
 
@@ -148,19 +152,43 @@ export default function AdminOrdersClient() {
       if (filters.dateFrom) queryParams.append('dateFrom', filters.dateFrom);
       if (filters.dateTo) queryParams.append('dateTo', filters.dateTo);
       if (filters.searchTerm) queryParams.append('search', filters.searchTerm);
+      if (filters.hasSlip) queryParams.append('hasSlip', filters.hasSlip);
+      
+      // URL ที่จะเรียก API
+      const apiUrl = `/api/admin/orders?${queryParams.toString()}`;
+      console.log('Fetching orders from:', apiUrl);
       
       // Fetch orders from API
-      console.log('Fetching orders with params:', queryParams.toString());
-      const response = await fetch(`/api/admin/orders?${queryParams.toString()}`, {
+      const response = await fetch(apiUrl, {
         credentials: 'include' // Include cookies in the request
       });
       
-      const data = await response.json();
-      //console.log('API response status:', response.status, response.statusText);
-      //console.log('API response data:', data);
+      // ตรวจสอบ response status ก่อน
+      console.log('API response status:', response.status, response.statusText);
       
+      // อ่าน response text ก่อนแปลงเป็น JSON
+      const responseText = await response.text();
+      //console.log('Raw response text:', responseText.substring(0, 250) + '...'); // ดูแค่ 250 ตัวอักษรแรก
+      
+      // แปลง response เป็น JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (jsonError) {
+        console.error('Error parsing JSON response:', jsonError);
+        throw new Error('เกิดข้อผิดพลาดในการแปลงข้อมูล JSON');
+      }
+      
+      // ตรวจสอบว่า response เป็น ok หรือไม่
       if (!response.ok) {
-        throw new Error(data.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลคำสั่งซื้อ');
+        console.error('API Error:', data);
+        throw new Error(data.message || data.error || 'เกิดข้อผิดพลาดในการดึงข้อมูลคำสั่งซื้อ');
+      }
+      
+      // ตรวจสอบว่ามีข้อมูล orders หรือไม่
+      if (!data.orders) {
+        console.error('No orders data in response:', data);
+        throw new Error('ไม่พบข้อมูลคำสั่งซื้อในการตอบกลับ');
       }
       
       setOrders(data.orders);
@@ -204,6 +232,7 @@ export default function AdminOrdersClient() {
     if (newFilters.dateFrom) queryParams.set('dateFrom', newFilters.dateFrom);
     if (newFilters.dateTo) queryParams.set('dateTo', newFilters.dateTo);
     if (newFilters.searchTerm) queryParams.set('search', newFilters.searchTerm);
+    if (newFilters.hasSlip) queryParams.set('hasSlip', newFilters.hasSlip);
     
     // อัปเดต URL โดยไม่โหลดหน้าใหม่
     const queryString = queryParams.toString();
@@ -212,15 +241,49 @@ export default function AdminOrdersClient() {
   };
 
   // Function to handle order selection
-  const handleOrderSelect = (order: Order) => {
-    setSelectedOrder(order);
-    setDialogOpen(true);
+  const handleOrderSelect = async (order: Order) => {
+    try {
+      // ดึงข้อมูล order สดจาก API
+      const response = await fetch(`/api/admin/orders?orderId=${order.id}`, {
+        credentials: 'include'
+      });
+      
+      const responseText = await response.text();
+      //console.log('Raw select response text:', responseText);
+      
+      const data = JSON.parse(responseText);
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลคำสั่งซื้อ');
+      }
+      
+      // Debug แสดงค่า adminComment
+     // console.log('Order from API:', data.order);
+     // console.log('adminComment from API:', data.order.adminComment);
+      
+      // ตั้งค่า selectedOrder ด้วยข้อมูลสดจาก API - ใช้ deep copy
+      const orderCopy = JSON.parse(JSON.stringify(data.order));
+      setSelectedOrder(orderCopy);
+      setDialogOpen(true);
+    } catch (err) {
+      console.error('Error fetching order details:', err);
+      // ถ้าเกิดข้อผิดพลาด ใช้ข้อมูลที่มีอยู่
+      setSelectedOrder(JSON.parse(JSON.stringify(order)));
+      setDialogOpen(true);
+      
+      if (err instanceof Error) {
+        showSnackbar(`ไม่สามารถดึงข้อมูลล่าสุดได้: ${err.message}`, 'warning');
+      }
+    }
   };
 
   // Function to update order status
-  const handleUpdateOrderStatus = async (orderId: string, status: string, paymentStatus: string) => {
+  const handleUpdateOrderStatus = async (orderId: string, status: string, paymentStatus: string, adminComment?: string) => {
     try {
       setLoading(true);
+      
+      // Debug: ตรวจสอบค่า adminComment ที่จะส่งไปอัพเดต
+     // console.log('Updating order with adminComment:', adminComment);
       
       const response = await fetch('/api/admin/orders', {
         method: 'PUT',
@@ -230,21 +293,31 @@ export default function AdminOrdersClient() {
         body: JSON.stringify({
           orderId,
           status,
-          paymentStatus
+          paymentStatus,
+          adminComment
         })
       });
       
-      const data = await response.json();
+      const responseText = await response.text();
+      //console.log('Raw response text:', responseText);
+      
+      const data = JSON.parse(responseText);
       
       if (!response.ok) {
         throw new Error(data.message || 'เกิดข้อผิดพลาดในการอัปเดตสถานะคำสั่งซื้อ');
       }
       
-      // Update orders list and selected order
-      fetchOrders();
+      // Debug: ตรวจสอบข้อมูลที่ได้รับกลับมาจาก API
+      //console.log('Updated order from API:', data.order);
+      //console.log('adminComment in updated order:', data.order.adminComment);
       
+      // Update orders list
+      await fetchOrders();
+      
+      // ดึงข้อมูล order ใหม่หลังจากอัพเดต
       if (selectedOrder && selectedOrder.id === orderId) {
-        setSelectedOrder(data.order);
+        // เรียกใช้ handleOrderSelect เพื่อดึงข้อมูล order ใหม่
+        await handleOrderSelect({...selectedOrder, id: orderId});
       }
       
       showSnackbar('อัปเดตสถานะคำสั่งซื้อเรียบร้อย', 'success');
@@ -424,8 +497,7 @@ export default function AdminOrdersClient() {
                 order={selectedOrder}
                 onClose={() => {
                   setDialogOpen(false);
-                  // Optional: Keep the selected order in state or clear it
-                  // setSelectedOrder(null);
+                  // เมื่อปิด Dialog ให้รักษา selectedOrder ไว้
                 }}
                 onUpdateStatus={handleUpdateOrderStatus}
                 onDeleteOrder={handleDeleteOrder}

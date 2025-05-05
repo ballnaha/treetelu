@@ -174,7 +174,7 @@ export default function OrderList({
       case OrderStatus.SHIPPED:
         return 'จัดส่งแล้ว';
       case OrderStatus.DELIVERED:
-        return 'ส่งมอบแล้ว';
+        return 'จัดส่งสำเร็จ';
       case OrderStatus.CANCELLED:
         return 'ยกเลิก';
       default:

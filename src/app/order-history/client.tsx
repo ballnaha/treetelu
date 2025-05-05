@@ -87,6 +87,7 @@ interface Order {
   finalAmount: number;
   createdAt: string;
   updatedAt: string;
+  adminComment?: string;
   customerInfo: CustomerInfo;
   shippingInfo: ShippingInfo;
   orderItems: OrderItem[];
@@ -723,10 +724,34 @@ export default function OrderHistoryClient() {
                 </Box>
               </Box>
               
+              {/* แสดงข้อความจากแอดมิน (ถ้ามี) */}
+              {selectedOrder.adminComment && (
+                <Paper 
+                  elevation={0} 
+                  sx={{ 
+                    p: 2, 
+                    mb: 3, 
+                    borderRadius: 2,
+                    border: '1px dashed',
+                    borderColor: 'primary.main',
+                    bgcolor: 'primary.lighter'
+                  }}
+                >
+                  <Typography variant="subtitle2" fontWeight={600} color="primary.dark" sx={{ mb: 1 }}>
+                    ข้อความจากทีมงาน
+                  </Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+                    {selectedOrder.adminComment}
+                  </Typography>
+                </Paper>
+              )}
+
               {/* รายการสินค้า */}
               <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
                 รายการสินค้า
               </Typography>
+
+
               
               <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
                 <Table size="small">
