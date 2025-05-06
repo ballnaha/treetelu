@@ -14,72 +14,45 @@ const resend = new Resend(process.env.RESEND_API_KEY as string);
 // สร้าง schema สำหรับตรวจสอบข้อมูลคำสั่งซื้อ
 const orderSchema = z.object({
   customerInfo: z.object({
-    firstName: z.string().min(1, "กรุณากรอกชื่อ"),
-    lastName: z.string().min(1, "กรุณากรอกนามสกุล"),
-    email: z.string().email("รูปแบบอีเมลไม่ถูกต้อง"),
-    phone: z.string().regex(/^0\d{9}$/, "เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลัก และขึ้นต้นด้วย 0"),
-    note: z.string().optional().default(""),
+    firstName: z.string().min(2, 'กรุณาระบุชื่อให้ถูกต้อง'),
+    lastName: z.string().min(2, 'กรุณาระบุนามสกุลให้ถูกต้อง'),
+    email: z.string().email('กรุณาระบุอีเมลให้ถูกต้อง'),
+    phone: z.string().min(9, 'กรุณาระบุเบอร์โทรศัพท์ให้ถูกต้อง'),
+    note: z.string().optional()
   }),
   shippingInfo: z.object({
-    receiverName: z.string().min(1, "กรุณากรอกชื่อผู้รับ"),
-    receiverLastname: z.string().min(1, "กรุณากรอกนามสกุลผู้รับ"),
-    receiverPhone: z.string().regex(/^0\d{9}$/, "เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลัก และขึ้นต้นด้วย 0"),
-    addressLine: z.string().min(1, "กรุณากรอกที่อยู่"),
-    addressLine2: z.string().optional().default(""),
-    provinceId: z.number({
-      required_error: "กรุณาเลือกจังหวัด",
-      invalid_type_error: "provinceId ต้องเป็นตัวเลข",
-    }).int().min(0, "provinceId ต้องเป็นตัวเลขที่ไม่ติดลบ"),
-    provinceName: z.string({
-      required_error: "กรุณาระบุชื่อจังหวัด",
-    }).min(1, "กรุณาระบุชื่อจังหวัด"),
-    amphureId: z.number({
-      required_error: "กรุณาเลือกอำเภอ/เขต",
-      invalid_type_error: "amphureId ต้องเป็นตัวเลข",
-    }).int().min(0, "amphureId ต้องเป็นตัวเลขที่ไม่ติดลบ"),
-    amphureName: z.string({
-      required_error: "กรุณาระบุชื่ออำเภอ/เขต", 
-    }).min(1, "กรุณาระบุชื่ออำเภอ/เขต"),
-    tambonId: z.number({
-      required_error: "กรุณาเลือกตำบล/แขวง",
-      invalid_type_error: "tambonId ต้องเป็นตัวเลข",
-    }).int().min(0, "tambonId ต้องเป็นตัวเลขที่ไม่ติดลบ"),
-    tambonName: z.string({
-      required_error: "กรุณาระบุชื่อตำบล/แขวง",
-    }).min(1, "กรุณาระบุชื่อตำบล/แขวง"),
-    zipCode: z.string().regex(/^\d{5}$/, "รหัสไปรษณีย์ต้องเป็นตัวเลข 5 หลัก"),
-    deliveryDate: z.coerce.date().optional(),
-    deliveryTime: z.string().optional().default(""),
-    cardMessage: z.string().optional().default(""),
-    additionalNote: z.string().optional().default(""),
+    receiverName: z.string().min(2, 'กรุณาระบุชื่อผู้รับให้ถูกต้อง'),
+    receiverLastname: z.string().min(2, 'กรุณาระบุนามสกุลผู้รับให้ถูกต้อง'),
+    receiverPhone: z.string().min(9, 'กรุณาระบุเบอร์โทรศัพท์ผู้รับให้ถูกต้อง'),
+    addressLine: z.string().min(1, 'กรุณาระบุที่อยู่ให้ครบถ้วน'),
+    addressLine2: z.string().optional(),
+    provinceId: z.number(),
+    provinceName: z.string(),
+    amphureId: z.number(),
+    amphureName: z.string(),
+    tambonId: z.number(),
+    tambonName: z.string(),
+    zipCode: z.string().min(5, 'กรุณาระบุรหัสไปรษณีย์ให้ถูกต้อง'),
+    deliveryDate: z.union([z.string(), z.date(), z.null()]).optional(),
+    deliveryTime: z.string().optional(),
+    cardMessage: z.string().optional(),
+    additionalNote: z.string().optional()
   }),
-  items: z.array(
-    z.object({
-      productId: z.number({
-        required_error: "กรุณาระบุ ID สินค้า",
-        invalid_type_error: "productId ต้องเป็นตัวเลข",
-      }),
-      productName: z.string().min(1, "กรุณาระบุชื่อสินค้า"),
-      productImg: z.string().optional().default(""),
-      quantity: z.number({
-        required_error: "กรุณาระบุจำนวนสินค้า",
-        invalid_type_error: "quantity ต้องเป็นตัวเลข",
-      }).min(1, "จำนวนสินค้าต้องมากกว่า 0"),
-      unitPrice: z.number({
-        required_error: "กรุณาระบุราคาสินค้า",
-        invalid_type_error: "unitPrice ต้องเป็นตัวเลข",
-      }).min(0, "ราคาสินค้าต้องไม่ติดลบ"),
-    })
-  ).min(1, "กรุณาเลือกสินค้าอย่างน้อย 1 รายการ"),
-  paymentMethod: z.enum(["BANK_TRANSFER", "CREDIT_CARD", "PROMPTPAY", "COD"], {
-    errorMap: () => ({ message: "กรุณาเลือกวิธีการชำระเงินที่ถูกต้อง" }),
-  }),
-  userId: z.union([
-    z.number(),
-    z.string().transform((val) => Number(val))
-  ]).optional(),
-  discount: z.number().optional(),
+  items: z.array(z.object({
+    productId: z.number(),
+    productName: z.string(),
+    productImg: z.string().optional(),
+    quantity: z.number().min(1, 'จำนวนสินค้าต้องมากกว่า 0'),
+    unitPrice: z.number()
+  })).min(1, 'กรุณาเลือกสินค้าอย่างน้อย 1 รายการ'),
+  paymentMethod: z.enum(['BANK_TRANSFER', 'CREDIT_CARD', 'PROMPTPAY', 'COD']),
+  userId: z.union([z.number(), z.string()]).optional(),
+  discount: z.number().default(0),
   discountCode: z.string().optional(),
+  paymentStatus: z.enum(['PENDING', 'CONFIRMED', 'REJECTED']).optional(),
+  paymentReference: z.string().optional(),
+  omiseToken: z.string().optional(), // สำหรับ Omise token (card token หรือ charge id สำหรับ promptpay)
+  returnUri: z.string().optional() // สำหรับกรณี 3DS redirect
 });
 
 // แทนที่ส่วนของการส่งอีเมลด้วย Resend
@@ -181,10 +154,20 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
           <div style="background: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 4px;">
             <h3 style="margin-top: 0; color: #24B493;">ข้อมูลการชำระเงิน</h3>
             <p style="margin: 0;">
+              ${orderData.paymentMethod === 'CREDIT_CARD' ? `
+              การชำระเงินด้วยบัตรเครดิต/เดบิตเรียบร้อยแล้ว<br>
+              รหัสการชำระเงิน: ${orderData.paymentReference || '-'}<br>
+              สถานะ: ชำระเงินแล้ว
+              ` : orderData.paymentMethod === 'PROMPTPAY' ? `
+              การชำระเงินด้วย PromptPay<br>
+              รหัสการชำระเงิน: ${orderData.paymentReference || '-'}<br>
+              สถานะ: ${orderData.paymentStatus === 'CONFIRMED' ? 'ชำระเงินแล้ว' : 'รอการชำระเงิน'}<br>
+              ${orderData.paymentStatus !== 'CONFIRMED' ? 'กรุณาสแกน QR code เพื่อชำระเงิน' : ''}
+              ` : `
               ธนาคารไทยพาณิชย์ (SCB)<br>
               เลขที่บัญชี: 264-221037-2<br>
               ชื่อบัญชี: นายธัญญา รัตนาวงศ์ไชยา<br>
-              
+              `}
             </p>
           </div>
 
@@ -257,6 +240,134 @@ export async function POST(request: NextRequest) {
     // ตรวจสอบข้อมูลด้วย schema
     const validatedData = orderSchema.parse(body);
     
+    // ถ้ามีการชำระเงินด้วยบัตรเครดิต/เดบิต (Omise)
+    if (validatedData.paymentMethod === 'CREDIT_CARD' && validatedData.omiseToken) {
+      try {
+        // คำนวณยอดเงินทั้งหมด (รวมค่าจัดส่ง หักส่วนลด)
+        const subtotal = validatedData.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+        const shippingCost = subtotal >= 1500 ? 0 : 100; // ฟรีค่าจัดส่งเมื่อซื้อมากกว่า 1,500 บาท
+        const discount = validatedData.discount || 0;
+        const totalAmount = subtotal + shippingCost - discount;
+        
+        // เรียกใช้ Omise API เพื่อทำการชำระเงิน
+        const omise = require('omise')({
+          publicKey: process.env.OMISE_PUBLIC_KEY,
+          secretKey: process.env.OMISE_SECRET_KEY,
+        });
+        
+        // สร้าง charge ผ่าน Omise
+        const charge = await omise.charges.create({
+          amount: Math.round(totalAmount * 100), // แปลงเป็นสตางค์ (1 บาท = 100 สตางค์)
+          currency: 'thb',
+          card: validatedData.omiseToken,
+          capture: true, // จัดเก็บเงินทันที
+          return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/orders/complete`,
+          metadata: {
+            order_id: 'pending', // ยังไม่มี order ID จึงใช้ pending ไปก่อน
+            customer_email: validatedData.customerInfo.email,
+            customer_name: `${validatedData.customerInfo.firstName} ${validatedData.customerInfo.lastName}`
+          }
+        });
+        
+        console.log('Credit card charge created:', {
+          id: charge.id,
+          status: charge.status,
+          amount: charge.amount / 100,
+          hasAuthorizeUri: !!charge.authorize_uri
+        });
+        
+        // ตรวจสอบสถานะการชำระเงิน
+        if (charge.status === 'successful') {
+          // กรณีไม่ต้องทำ 3DS - เงินถูกเก็บเรียบร้อยแล้ว
+          validatedData.paymentStatus = 'CONFIRMED';
+        } else if (charge.status === 'pending' && charge.authorize_uri) {
+          // กรณีต้องทำ 3DS - ต้องรอการยืนยันตัวตน
+          validatedData.paymentStatus = 'PENDING'; // รอการยืนยันตัวตน 3DS
+          
+          // หมายเหตุ: ในกรณีนี้ ระบบจะต้องอาศัย webhook ในการอัพเดทสถานะการชำระเงินเป็น CONFIRMED หลังจากยืนยันตัวตนสำเร็จ
+        } else {
+          // กรณีการชำระเงินล้มเหลวด้วยเหตุผลอื่น
+          validatedData.paymentStatus = 'REJECTED';
+          return NextResponse.json(
+            { success: false, message: 'การชำระเงินไม่สำเร็จ: ' + (charge.failure_message || 'กรุณาตรวจสอบข้อมูลบัตรและลองใหม่อีกครั้ง') },
+            { status: 400 }
+          );
+        }
+        
+        // เพิ่มข้อมูลการชำระเงินลงในข้อมูลสำหรับสร้างคำสั่งซื้อ
+        validatedData.paymentReference = charge.id; // เก็บ Omise Charge ID
+        
+        // ถ้ามีการทำ 3DS ให้เก็บ authorize_uri ไว้สำหรับ redirect ไปยังหน้ายืนยันตัวตน
+        if (charge.authorize_uri) {
+          // สร้าง order ก่อน แล้วจึง redirect ไปยังหน้ายืนยันตัวตน
+          // โดยค่านี้จะถูกส่งกลับไปให้ client เพื่อทำการ redirect
+          validatedData.returnUri = charge.authorize_uri;
+        }
+      } catch (omiseError: any) {
+        console.error('Omise payment error:', omiseError);
+        return NextResponse.json(
+          { success: false, message: 'เกิดข้อผิดพลาดในการชำระเงิน: ' + (omiseError.message || 'กรุณาลองใหม่อีกครั้ง') },
+          { status: 500 }
+        );
+      }
+    }
+    // ถ้ามีการชำระเงินด้วย PromptPay
+    else if (validatedData.paymentMethod === 'PROMPTPAY' && validatedData.omiseToken) {
+      try {
+        // คำนวณยอดเงินทั้งหมด (รวมค่าจัดส่ง หักส่วนลด)
+        const subtotal = validatedData.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+        const shippingCost = subtotal >= 1500 ? 0 : 100; // ฟรีค่าจัดส่งเมื่อซื้อมากกว่า 1,500 บาท
+        const discount = validatedData.discount || 0;
+        const totalAmount = subtotal + shippingCost - discount;
+        
+        // เรียกใช้ Omise API เพื่อเช็คสถานะ charge
+        const omise = require('omise')({
+          publicKey: process.env.OMISE_PUBLIC_KEY,
+          secretKey: process.env.OMISE_SECRET_KEY,
+        });
+        
+        // ตรวจสอบ charge ที่ได้รับจาก client (validatedData.omiseToken คือ charge.id)
+        const charge = await omise.charges.retrieve(validatedData.omiseToken);
+        
+        // ตรวจสอบว่า charge มีอยู่จริงและมียอดเงินตรงกัน
+        const expectedAmount = Math.round(totalAmount * 100); // แปลงเป็นสตางค์
+        if (!charge || charge.amount !== expectedAmount) {
+          console.error('PromptPay charge validation failed:', {
+            chargeId: validatedData.omiseToken,
+            chargeAmount: charge ? charge.amount : null,
+            expectedAmount
+          });
+          
+          return NextResponse.json(
+            { success: false, message: 'ข้อมูลการชำระเงินไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง' },
+            { status: 400 }
+          );
+        }
+        
+        // อัพเดท metadata ของ charge เพื่อเชื่อมกับ order ที่กำลังจะสร้าง
+        await omise.charges.update(charge.id, {
+          metadata: {
+            ...charge.metadata,
+            order_id: 'pending', // จะอัพเดทเป็น order ID จริงหลังจากสร้าง order
+            customer_email: validatedData.customerInfo.email,
+            customer_name: `${validatedData.customerInfo.firstName} ${validatedData.customerInfo.lastName}`
+          }
+        });
+        
+        // ในกรณีของ PromptPay สถานะจะเป็น pending จนกว่าลูกค้าจะสแกนจ่าย
+        validatedData.paymentStatus = 'PENDING'; // รอการชำระเงิน
+        validatedData.paymentReference = charge.id; // เก็บ Omise Charge ID
+        
+        // ใช้ webhook ในการติดตามสถานะการชำระเงิน (ต้องตั้งค่า webhook ที่ Omise dashboard)
+      } catch (omiseError: any) {
+        console.error('Omise PromptPay payment error:', omiseError);
+        return NextResponse.json(
+          { success: false, message: 'เกิดข้อผิดพลาดในการตรวจสอบข้อมูล PromptPay: ' + (omiseError.message || 'กรุณาลองใหม่อีกครั้ง') },
+          { status: 500 }
+        );
+      }
+    }
+    
     // สร้างคำสั่งซื้อใหม่
     const result = await createOrder(validatedData);
     
@@ -315,11 +426,36 @@ export async function POST(request: NextRequest) {
     // Revalidate เส้นทางเพื่ออัปเดตข้อมูล (ใช้แค่ 1 argument คือ path)
     revalidatePath('/admin/orders');
     
+    // ถ้าเป็น Omise payment (บัตรเครดิตหรือ PromptPay) ให้อัพเดท metadata เพื่อเชื่อมกับ order
+    if ((validatedData.paymentMethod === 'CREDIT_CARD' || validatedData.paymentMethod === 'PROMPTPAY') && 
+        validatedData.paymentReference) {
+      try {
+        const omise = require('omise')({
+          publicKey: process.env.OMISE_PUBLIC_KEY,
+          secretKey: process.env.OMISE_SECRET_KEY,
+        });
+        
+        // อัพเดท metadata ของ charge ด้วย order ID
+        await omise.charges.update(validatedData.paymentReference, {
+          metadata: {
+            order_id: result.order.id.toString(), // เปลี่ยนจาก 'pending' เป็น order ID จริง
+            order_number: orderNumber
+          }
+        });
+        
+        console.log(`Updated Omise charge ${validatedData.paymentReference} with order ID ${result.order.id}`);
+      } catch (omiseError) {
+        // ถึงแม้จะไม่สามารถอัพเดท metadata ได้ แต่คำสั่งซื้อยังคงถูกสร้าง
+        console.error('Error updating Omise charge metadata:', omiseError);
+      }
+    }
+    
     return NextResponse.json({
       success: true,
       message: 'สร้างคำสั่งซื้อสำเร็จ',
       orderNumber,
-      orderId: result.order.id
+      orderId: result.order.id,
+      ...(validatedData.returnUri ? { returnUri: validatedData.returnUri } : {})
     });
     
   } catch (error) {

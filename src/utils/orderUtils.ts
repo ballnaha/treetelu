@@ -79,7 +79,7 @@ type OrderDataInput = {
     tambonId: number;
     tambonName: string;
     zipCode: string;
-    deliveryDate?: Date;
+    deliveryDate?: Date | string | null;
     deliveryTime?: string;
     cardMessage?: string;
     additionalNote?: string;
@@ -95,13 +95,15 @@ type OrderDataInput = {
   userId?: number | string;
   discount?: number;
   discountCode?: string;
+  paymentStatus?: 'PENDING' | 'CONFIRMED' | 'REJECTED';
+  paymentReference?: string; // Omise charge ID
 };
 
 /**
  * บันทึกข้อมูลคำสั่งซื้อลงฐานข้อมูล
  */
 export async function createOrder(orderData: OrderDataInput) {
-  const { customerInfo, shippingInfo, items, paymentMethod, userId, discount = 0, discountCode } = orderData;
+  const { customerInfo, shippingInfo, items, paymentMethod, userId, discount = 0, discountCode, paymentStatus = 'PENDING', paymentReference } = orderData;
   
   try {
     // Debug log for userId
@@ -230,7 +232,8 @@ export async function createOrder(orderData: OrderDataInput) {
         discount: new Decimal(discount),
         discountCode: discountCode || null,
         finalAmount: new Decimal(finalAmount),
-        paymentMethod: paymentMethod as any, // แปลงเป็น enum ของ Prisma
+        paymentMethod: paymentMethod,
+        paymentStatus: paymentStatus,
         createdAt: bangkokNow,
         updatedAt: bangkokNow,
         customerInfo: {
@@ -239,7 +242,7 @@ export async function createOrder(orderData: OrderDataInput) {
             lastName: customerInfo.lastName,
             email: customerInfo.email,
             phone: customerInfo.phone,
-            note: customerInfo.note,
+            note: customerInfo.note || '',
             createdAt: bangkokNow,
             updatedAt: bangkokNow
           }
@@ -250,19 +253,22 @@ export async function createOrder(orderData: OrderDataInput) {
             receiverLastname: shippingInfo.receiverLastname,
             receiverPhone: shippingInfo.receiverPhone,
             addressLine: shippingInfo.addressLine,
-            addressLine2: shippingInfo.addressLine2,
-            // ใช้ ID และชื่อที่กำหนดไว้ข้างต้น
+            addressLine2: shippingInfo.addressLine2 || '',
             provinceId: provinceId,
             provinceName: provinceName,
             amphureId: amphureId,
             amphureName: amphureName,
             tambonId: tambonId,
             tambonName: tambonName,
-            zipCode: isGiftShipping ? '10200' : shippingInfo.zipCode,
-            deliveryDate: shippingInfo.deliveryDate ? convertToBangkokTime(new Date(shippingInfo.deliveryDate)) : null,
-            deliveryTime: shippingInfo.deliveryTime,
-            cardMessage: shippingInfo.cardMessage,
-            additionalNote: shippingInfo.additionalNote,
+            zipCode: shippingInfo.zipCode,
+            deliveryDate: shippingInfo.deliveryDate ? 
+              (typeof shippingInfo.deliveryDate === 'string' ? 
+               new Date(shippingInfo.deliveryDate) : 
+               shippingInfo.deliveryDate) : 
+              null,
+            deliveryTime: shippingInfo.deliveryTime || '',
+            cardMessage: shippingInfo.cardMessage || '',
+            additionalNote: shippingInfo.additionalNote || '',
             createdAt: bangkokNow,
             updatedAt: bangkokNow
           }
@@ -287,12 +293,28 @@ export async function createOrder(orderData: OrderDataInput) {
         }
       };
       
-      // Debug log for final orderCreateData with userId
-      console.log('Final orderCreateData with userId:', {
+      // เพิ่มข้อมูลการชำระเงินถ้ามี paymentReference
+      if (paymentReference) {
+        orderCreateData.paymentInfo = {
+          create: {
+            paymentMethod: paymentMethod,
+            transactionId: paymentReference,
+            amount: new Decimal(finalAmount),
+            status: paymentStatus,
+            paymentDate: paymentStatus === 'CONFIRMED' ? bangkokNow : null,
+            createdAt: bangkokNow,
+            updatedAt: bangkokNow
+          }
+        };
+      }
+      
+      // Debug log for final orderCreateData with userId and paymentStatus
+      console.log('Final orderCreateData with userId and paymentStatus:', {
         orderNumber: orderCreateData.orderNumber,
         userId: orderCreateData.userId,
-        userId_type: typeof orderCreateData.userId,
-        userId_toString: orderCreateData.userId ? orderCreateData.userId.toString() : 'undefined'
+        paymentMethod: orderCreateData.paymentMethod,
+        paymentStatus: orderCreateData.paymentStatus,
+        hasPaymentInfo: !!orderCreateData.paymentInfo
       });
       
       // บันทึกข้อมูลคำสั่งซื้อแบบ Transaction เพื่อให้ข้อมูลสมบูรณ์

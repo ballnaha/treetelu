@@ -475,7 +475,7 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
       {product && (
         <Head>
           <title>{product.productName} | Tree Telu</title>
-          <meta name="description" content={product.productDesc?.substring(0, 160) || 'รายละเอียดสินค้าจาก Tree Telu'} />
+          <meta name="description" content={product.productDesc?.substring(0, 160) || 'รายละเอียดสินค้าจาก TreeTelu'} />
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{ __html: generateStructuredData() || '' }}
@@ -697,7 +697,7 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
                     } 
                   }}
                 >
-                  <FacebookIcon />
+                  <FacebookIcon sx={{ fontSize: 30 }} />
                 </IconButton>
               </Tooltip>
             </Box>

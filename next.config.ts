@@ -26,6 +26,8 @@ const nextConfig = {
         hostname: '**',
       },
     ],
+    dangerouslyAllowSVG: true, // อนุญาตให้แสดงรูปภาพ SVG จาก Omise
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;", // เพิ่ม CSP เพื่อรักษาความปลอดภัย
     unoptimized: false, // เปิดใช้งานการ optimize รูปภาพของ Next.js เพื่อให้รูปภาพโหลดเร็วขึ้น
     formats: ['image/webp'], // แปลงรูปภาพเป็น WebP เพื่อให้ขนาดไฟล์เล็กลง
     deviceSizes: [640, 750, 828, 1080, 1200, 1920], // ขนาดของอุปกรณ์ที่จะใช้ในการสร้างรูปภาพ

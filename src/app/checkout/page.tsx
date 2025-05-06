@@ -1,6 +1,13 @@
+// เพิ่ม type definition สำหรับ Omise
+declare global {
+  interface Window {
+    OmiseCard?: any;
+  }
+}
+
 "use client";
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
@@ -39,6 +46,7 @@ import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import PaymentIcon from '@mui/icons-material/Payment';
 import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
 import AddressForm from '@/components/AddressForm';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
@@ -141,6 +149,10 @@ export default function Checkout() {
   const [isMounted, setIsMounted] = useState(false);
   const [openQRDialog, setOpenQRDialog] = useState(false);
   
+  // เพิ่ม state สำหรับ Omise
+  const [isProcessingOmise, setIsProcessingOmise] = useState(false);
+  const [omiseToken, setOmiseToken] = useState<string | null>(null);
+  
   // เพิ่ม state สำหรับส่วนลด
   const [discountCode, setDiscountCode] = useState('');
   const [discountAmount, setDiscountAmount] = useState(0);
@@ -148,6 +160,12 @@ export default function Checkout() {
   const [discountErrorMsg, setDiscountErrorMsg] = useState('');
   const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
   const [discountDetails, setDiscountDetails] = useState<any>(null);
+  
+  // เพิ่ม state สำหรับ PromptPay QR code
+  const [promptpayQrCode, setPromptpayQrCode] = useState<string | null>(null);
+  
+  // เพิ่ม state สำหรับ dialog ของ PromptPay
+  const [openPromptPayDialog, setOpenPromptPayDialog] = useState(false);
   
   // ใช้ useRef เพื่อป้องกันการเรียก setState ซ้ำซ้อน
   const initialRenderRef = useRef(true);
@@ -159,6 +177,15 @@ export default function Checkout() {
   
   const handleCloseQRDialog = () => {
     setOpenQRDialog(false);
+  };
+  
+  // เพิ่มฟังก์ชันสำหรับเปิด/ปิด dialog ของ PromptPay
+  const handleOpenPromptPayDialog = () => {
+    setOpenPromptPayDialog(true);
+  };
+  
+  const handleClosePromptPayDialog = () => {
+    setOpenPromptPayDialog(false);
   };
   
   // ข้อมูลผู้สั่ง
@@ -369,7 +396,129 @@ export default function Checkout() {
     setCardMessage(e.target.value);
   };
 
-  // จัดการการกรอกเบอร์โทรศัพท์ให้รับเฉพาะตัวเลขเท่านั้น
+  // ฟังก์ชันสำหรับการชำระเงินด้วย Omise
+  const handleOmisePayment = async () => {
+    if (!window.OmiseCard) {
+      setShowAlert(true);
+      setAlertMessage('ไม่พบ Omise Card Library กรุณารีเฟรชหน้าและลองใหม่อีกครั้ง');
+      return;
+    }
+
+    setIsProcessingOmise(true);
+    
+    // เริ่มกระบวนการชำระเงินด้วย Omise
+    const omiseCard = window.OmiseCard;
+    
+    // ตรวจสอบว่าเป็นการชำระเงินด้วยบัตรเครดิต/เดบิต หรือ PromptPay
+    if (paymentMethod === 'credit_card') {
+      // สำหรับการชำระเงินด้วยบัตรเครดิต/เดบิต
+      omiseCard.configure({
+        publicKey: process.env.NEXT_PUBLIC_OMISE_PUBLIC_KEY || '',
+        currency: 'thb',
+        frameLabel: 'TreeTelu - ต้นไม้ในกระถาง',
+        submitLabel: 'ชำระเงิน',
+        buttonLabel: 'ชำระเงินด้วยบัตรเครดิต/เดบิต',
+        defaultPaymentMethod: 'credit_card',
+        otherPaymentMethods: [], // ไม่ต้องแสดงวิธีการชำระเงินอื่น
+        // เพิ่ม return_uri สำหรับ 3DS
+        location: window.location.href,
+        // ระบุ return_uri เพื่อให้ redirect กลับมาที่หน้า order/complete
+        return_uri: `${window.location.origin}/orders/complete`
+      });
+  
+      omiseCard.open({
+        amount: Math.round(prices.totalPrice * 100), // แปลงเป็นสตางค์ (เช่น 1,000 บาท = 100,000 สตางค์)
+        onCreateTokenSuccess: (token: string) => {
+          // เก็บ token ไว้สำหรับส่งไปยัง API
+          setOmiseToken(token);
+          
+          // ดำเนินการต่อไปยังขั้นตอนถัดไป
+          setActiveStep(2);
+          setIsProcessingOmise(false);
+        },
+        onFormClosed: () => {
+          // เมื่อฟอร์มถูกปิด
+          setIsProcessingOmise(false);
+        },
+        onError: (error: any) => {
+          // จัดการข้อผิดพลาดที่เกิดขึ้นระหว่างกระบวนการสร้าง token
+          console.error('Omise error:', error);
+          setShowAlert(true);
+          setAlertMessage(`การยืนยันตัวตนล้มเหลว: ${error.message || 'กรุณาตรวจสอบข้อมูลบัตรและลองใหม่อีกครั้ง'}`);
+          setIsProcessingOmise(false);
+        }
+      });
+    } else if (paymentMethod === 'promptpay') {
+      // สำหรับการชำระเงินด้วย PromptPay
+      // ส่ง API request ไปยังเซิร์ฟเวอร์เพื่อสร้าง source และ QR code
+      try {
+        setIsProcessingOmise(true);
+        
+        const response = await fetch('/api/payment/create-promptpay-source', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount: prices.totalPrice,
+            name: `${customerInfo.firstName} ${customerInfo.lastName}`,
+            email: customerInfo.email,
+            phone: customerInfo.phone,
+          }),
+        });
+        
+        if (!response.ok) {
+          throw new Error('ไม่สามารถสร้าง PromptPay QR code ได้');
+        }
+        
+        const result = await response.json();
+        
+        // Debug: ตรวจสอบข้อมูลที่ได้รับจาก API
+        console.log('PromptPay source result:', result);
+        
+        // ตรวจสอบว่ามีข้อมูล QR code หรือไม่
+        if (!result.success || !result.source || !result.source.qrCode) {
+          throw new Error('ไม่พบข้อมูล QR code');
+        }
+        
+        console.log('QR Code URL:', result.source.qrCode);
+        
+        // เก็บ charge id ไว้สำหรับส่งไปยัง API (ตอนนี้ source.id คือ charge.id)
+        setOmiseToken(result.source.id);
+        
+        // เก็บ QR code URL
+        setPromptpayQrCode(result.source.qrCode);
+        
+        // เปิด dialog แสดง QR code
+        handleOpenPromptPayDialog();
+        
+        // ไม่ต้องไปยังขั้นตอนถัดไปทันที
+        setIsProcessingOmise(false);
+      } catch (error) {
+        console.error('Error creating PromptPay source:', error);
+        setShowAlert(true);
+        setAlertMessage('ไม่สามารถสร้าง PromptPay QR code ได้ กรุณาลองใหม่อีกครั้ง');
+        setIsProcessingOmise(false);
+      }
+    }
+  };
+
+  // เพิ่มฟังก์ชันโหลด Omise script
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !window.OmiseCard) {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.omise.co/omise.js';
+      script.async = true;
+      
+      document.body.appendChild(script);
+      
+      return () => {
+        // ทำความสะอาดเมื่อ component unmount
+        document.body.removeChild(script);
+      };
+    }
+  }, []);
+
   const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, isReceiverPhone = false) => {
     const { value } = e.target;
     
@@ -544,6 +693,12 @@ export default function Checkout() {
         setAlertMessage('กรุณาเลือกวิธีการชำระเงิน');
         return;
       }
+      
+      // ถ้าเลือกจ่ายด้วยบัตรเครดิต/เดบิต หรือ PromptPay ให้เรียกใช้ handleOmisePayment แทนการไปขั้นตอนถัดไป
+      if (paymentMethod === 'credit_card' || paymentMethod === 'promptpay') {
+        handleOmisePayment();
+        return;
+      }
     }
 
     setActiveStep((prevActiveStep) => prevActiveStep + 1);
@@ -649,7 +804,7 @@ export default function Checkout() {
               tambonId: 0,
               tambonName: "จัดส่งให้ผู้รับโดยตรง",
               zipCode: "10200",
-              deliveryDate: deliveryDate ? format(deliveryDate, 'yyyy-MM-dd') : undefined,
+              deliveryDate: deliveryDate ? format(new Date(deliveryDate), 'yyyy-MM-dd') : undefined,
               deliveryTime: deliveryTime ? format(deliveryTime, 'HH:mm') : undefined,
               cardMessage: cardMessage || undefined
             },
@@ -664,7 +819,9 @@ export default function Checkout() {
                       paymentMethod === 'credit_card' ? 'CREDIT_CARD' : 
                       paymentMethod === 'promptpay' ? 'PROMPTPAY' : 'COD',
         discount: prices.discount,
-        discountCode: discountAmount > 0 ? discountCode : undefined
+        discountCode: discountAmount > 0 ? discountCode : undefined,
+        // เพิ่ม omiseToken สำหรับกรณีชำระด้วยบัตรเครดิตหรือ PromptPay
+        omiseToken: (paymentMethod === 'credit_card' || paymentMethod === 'promptpay') ? omiseToken : undefined,
       };
       
       // ถ้ามีการใช้รหัสส่วนลด ให้เรียกใช้ API สำหรับเพิ่มจำนวนการใช้งาน
@@ -715,6 +872,12 @@ export default function Checkout() {
       }
       
       if (result.success) {
+        // ถ้ามี returnUri (3DS redirect) ให้เปลี่ยนไปที่หน้ายืนยันตัวตน
+        if (result.returnUri) {
+          window.location.href = result.returnUri;
+          return; // หยุดการทำงานเพื่อให้เกิดการ redirect
+        }
+
         // การสั่งซื้อสำเร็จ
         setOrderNumber(result.orderNumber);
         clearCart(); // ล้างตะกร้าสินค้า
@@ -815,10 +978,60 @@ export default function Checkout() {
     );
   }
 
+  // ฟังก์ชันสำหรับสร้าง PromptPay QR code ใหม่
+  const handleRegeneratePromptpayQRCode = async () => {
+    setIsProcessingOmise(true);
+    setPromptpayQrCode(null);
+    
+    try {
+      const response = await fetch('/api/payment/create-promptpay-source', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: prices.totalPrice,
+          name: `${customerInfo.firstName} ${customerInfo.lastName}`,
+          email: customerInfo.email,
+          phone: customerInfo.phone,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('ไม่สามารถสร้าง PromptPay QR code ได้');
+      }
+      
+      const result = await response.json();
+      
+      // Debug: ตรวจสอบข้อมูลที่ได้รับจาก API
+      console.log('PromptPay regenerate result:', result);
+      
+      if (!result.success || !result.source || !result.source.qrCode) {
+        throw new Error('ไม่พบข้อมูล QR code ที่ถูกต้อง');
+      }
+      
+      // เก็บ charge id ไว้สำหรับส่งไปยัง API (ตอนนี้ source.id คือ charge.id)
+      setOmiseToken(result.source.id);
+      
+      // เก็บ QR code URL
+      setPromptpayQrCode(result.source.qrCode);
+      
+      console.log('Updated QR Code URL:', result.source.qrCode);
+    } catch (error) {
+      console.error('Error regenerating PromptPay QR code:', error);
+      
+      // แสดงข้อความผิดพลาดใน dialog แทนที่จะแสดงเป็น alert
+      setAlertMessage('ไม่สามารถสร้าง PromptPay QR code ได้ กรุณาลองใหม่อีกครั้ง');
+      setShowAlert(true);
+    } finally {
+      setIsProcessingOmise(false);
+    }
+  };
+
   // แสดงหน้าชำระเงินปกติ
   return (
     <Container maxWidth="lg" sx={{ py: 0 }}>
-      {/* QR Code Dialog */}
+      {/* QR Code Dialog สำหรับการโอนเงินธนาคาร */}
       <Dialog
         open={openQRDialog}
         onClose={handleCloseQRDialog}
@@ -865,6 +1078,113 @@ export default function Checkout() {
           <Typography variant="body2" color="primary.main" align="center" sx={{ mt: 2, fontWeight: 500 }}>
             สแกน QR Code นี้เพื่อชำระเงิน
           </Typography>
+        </DialogContent>
+      </Dialog>
+      
+      {/* PromptPay QR Code Dialog */}
+      <Dialog
+        open={openPromptPayDialog}
+        onClose={handleClosePromptPayDialog}
+        maxWidth="md"
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: 2,
+              p: 1,
+              backgroundColor: '#fff',
+              position: 'relative'
+            }
+          }
+        }}
+      >
+        <IconButton
+          onClick={handleClosePromptPayDialog}
+          sx={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            color: 'grey.700',
+            bgcolor: 'rgba(255, 255, 255, 0.8)',
+            '&:hover': {
+              bgcolor: 'white',
+              boxShadow: '0 0 8px rgba(0,0,0,0.1)'
+            },
+            zIndex: 10,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+        <DialogContent sx={{ p: 2 }}>
+          <Typography variant="h6" align="center" gutterBottom>
+            ชำระเงินด้วย PromptPay
+          </Typography>
+          
+          {promptpayQrCode ? (
+            <Box sx={{ 
+              position: 'relative', 
+              width: { xs: 250, sm: 300, md: 350 }, 
+              height: { xs: 250, sm: 300, md: 350 }, 
+              mx: 'auto',
+              border: '1px solid #eee',
+              borderRadius: 2,
+              overflow: 'hidden'
+            }}>
+              <Image
+                src={promptpayQrCode}
+                alt="PromptPay QR Code"
+                fill
+                style={{ objectFit: 'contain' }}
+                priority={true}
+              />
+            </Box>
+          ) : (
+            <Box sx={{ 
+              width: { xs: 250, sm: 300, md: 350 }, 
+              height: { xs: 250, sm: 300, md: 350 }, 
+              mx: 'auto',
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              border: '1px solid #eee', 
+              borderRadius: 2 
+            }}>
+              <CircularProgress size={50} />
+              <Typography variant="body2" sx={{ mt: 2 }}>
+                กำลังโหลด QR code...
+              </Typography>
+            </Box>
+          )}
+          
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Typography variant="subtitle1" color="primary.main" gutterBottom>
+              ยอดเงิน: ฿{prices.totalPrice.toLocaleString()}
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              กรุณาเปิดแอปธนาคารของท่านและสแกน QR code นี้เพื่อชำระเงิน
+            </Typography>
+            
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center', gap: 2 }}>
+              <Button
+                variant="outlined"
+                onClick={handleRegeneratePromptpayQRCode}
+                startIcon={<CreditCardIcon />}
+              >
+                สร้าง QR code ใหม่
+              </Button>
+              
+              <Button
+                variant="contained"
+                onClick={() => {
+                  handleClosePromptPayDialog();
+                  setActiveStep(2);
+                }}
+              >
+                ต่อไป
+              </Button>
+            </Box>
+          </Box>
         </DialogContent>
       </Dialog>
       
@@ -1535,6 +1855,52 @@ export default function Checkout() {
                                 sx={{ width: '100%' }}
                               />
                             </Paper>
+                            
+                            {/* ตัวเลือกชำระเงินด้วยบัตรเครดิต/เดบิตผ่าน Omise */}
+                            <Paper variant="outlined" sx={{ mb: 2, p: 2, borderRadius: 1 }}>
+                              <FormControlLabel
+                                value="credit_card"
+                                control={<Radio color="primary" />}
+                                label={
+                                  <Box>
+                                    <Typography variant="subtitle1" fontWeight={500}>
+                                      บัตรเครดิต / เดบิต
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                      ชำระเงินออนไลน์ผ่านบัตรเครดิตหรือเดบิต (Powered by Omise)
+                                    </Typography>
+                                    <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                      <Box component="img" src="/visa.svg" alt="VISA" sx={{ height: 24 }} />
+                                      <Box component="img" src="/mastercard.svg" alt="MasterCard" sx={{ height: 24 }} />
+                                      
+                                    </Box>
+                                  </Box>
+                                }
+                                sx={{ width: '100%' }}
+                              />
+                            </Paper>
+                            
+                            {/* ตัวเลือกชำระเงินด้วย PromptPay ผ่าน Omise */}
+                            <Paper variant="outlined" sx={{ mb: 2, p: 2, borderRadius: 1 }}>
+                              <FormControlLabel
+                                value="promptpay"
+                                control={<Radio color="primary" />}
+                                label={
+                                  <Box>
+                                    <Typography variant="subtitle1" fontWeight={500}>
+                                      พร้อมเพย์ (PromptPay)
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                      ชำระเงินผ่าน QR Code พร้อมเพย์ (Powered by Omise)
+                                    </Typography>
+                                    <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                      <Box component="img" src="/promptpay-logo.png" alt="PromptPay" sx={{ height: 40 }} />
+                                    </Box>
+                                  </Box>
+                                }
+                                sx={{ width: '100%' }}
+                              />
+                            </Paper>
                           </RadioGroup>
                         </FormControl>
                       </Box>
@@ -1608,9 +1974,24 @@ export default function Checkout() {
                           <Typography variant="subtitle2" gutterBottom>
                             วิธีการชำระเงิน
                           </Typography>
-                          <Typography variant="body2">
-                            {paymentMethod === 'bank_transfer' && 'โอนเงินผ่านธนาคาร'}
-                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                            <Typography variant="body2" sx={{ mr: 1 }}>
+                              {paymentMethod === 'bank_transfer' && 'โอนเงินผ่านธนาคาร'}
+                              {paymentMethod === 'credit_card' && 'บัตรเครดิต / เดบิต (Omise)'}
+                              {paymentMethod === 'promptpay' && 'พร้อมเพย์ (PromptPay)'}
+                            </Typography>
+                            
+                            {paymentMethod === 'bank_transfer' && (
+                              <Button 
+                                variant="outlined" 
+                                size="small"
+                                onClick={handleOpenQRDialog}
+                                startIcon={<CreditCardIcon />}
+                              >
+                                แสดง QR code
+                              </Button>
+                            )}
+                          </Box>
                         </Box>
                         
                         <Alert severity="info" sx={{ mb: 2 }}>
