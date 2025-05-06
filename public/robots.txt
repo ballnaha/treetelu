@@ -1,0 +1,22 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Disallow admin area
+Disallow: /admin/
+Disallow: /api/
+
+# Disallow authentication pages
+Disallow: /login/
+Disallow: /register/
+Disallow: /forgot-password/
+Disallow: /reset-password/
+
+# Protected pages
+Disallow: /profile/
+Disallow: /checkout/
+Disallow: /order-history/
+Disallow: /payment-confirmation/
+
+# Sitemap
+Sitemap: https://treetelu.com/sitemap.xml 

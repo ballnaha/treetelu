@@ -1,6 +1,10 @@
 /* eslint-disable */ 
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+import type { NextConfig } from 'next';
+
+/**
+ * การตั้งค่า Next.js แบบ TypeScript
+ */
+const nextConfig: NextConfig = {
   allowedDevOrigins: [
     'http://168.231.118.94:3001',
     'http://168.231.118.94',
@@ -18,8 +22,12 @@ const nextConfig = {
   // ย้ายจาก experimental.serverComponentsExternalPackages ไปเป็น serverExternalPackages ตามคำแนะนำ
   serverExternalPackages: ['fs', 'path'],
   images: {
-    domains: ['localhost', '168.231.118.94', 'treetelu.com'],
-    // รองรับการแสดงรูปภาพจากแหล่งภายนอก
+    domains: [
+      'localhost',
+      'treetelu.com', 
+      'cdn.treetelu.com',
+      'res.cloudinary.com'
+    ],
     remotePatterns: [
       {
         protocol: 'https',
@@ -101,63 +109,36 @@ const nextConfig = {
     }
   },
   // แก้ไขการตั้งค่า headers เพื่อเน้นไม่ให้มีการ cache สำหรับทุกเส้นทาง
-  headers: async () => {
+  async headers() {
     return [
       {
-        source: '/:path*',
+        source: '/sitemap.xml',
         headers: [
           {
+            key: 'Content-Type',
+            value: 'application/xml',
+          },
+          {
             key: 'Cache-Control',
-            value: 'no-store, no-cache, must-revalidate',
+            value: 'public, max-age=86400, s-maxage=86400', // 1 day caching
           },
-          {
-            key: 'Pragma',
-            value: 'no-cache',
-          },
-          {
-            key: 'Expires',
-            value: '0',
-          }
         ],
       },
       {
-        // เปิดใช้งาน cache สำหรับรูปภาพใน /images/ 
-        source: '/images/:path*',
+        source: '/robots.txt',
         headers: [
           {
+            key: 'Content-Type',
+            value: 'text/plain',
+          },
+          {
             key: 'Cache-Control',
-            value: 'public, max-age=86400, stale-while-revalidate=604800, immutable',
+            value: 'public, max-age=86400, s-maxage=86400', // 1 day caching
           },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Expires',
-            value: new Date(Date.now() + 86400000).toUTCString(), // เพิ่ม expires header 1 วัน
-          }
         ],
       },
-      {
-        // เปิดใช้งาน cache สำหรับรูปภาพใน /uploads/
-        source: '/uploads/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=86400, stale-while-revalidate=604800, immutable',
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Expires',
-            value: new Date(Date.now() + 86400000).toUTCString(), // เพิ่ม expires header 1 วัน
-          }
-        ],
-      }
-    ]
+    ];
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;

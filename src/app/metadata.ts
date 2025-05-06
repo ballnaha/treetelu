@@ -50,6 +50,14 @@ export const metadata: Metadata = {
     follow: true
   },
   alternates: {
-    canonical: "https://treetelu.com"
+    canonical: "https://treetelu.com",
+    types: {
+      'application/xml': [
+        {
+          url: 'https://treetelu.com/sitemap.xml',
+          title: 'Sitemap',
+        },
+      ],
+    },
   }
 };
