@@ -69,9 +69,9 @@ export default function OrderComplete() {
         if (orderId) {
           // ใช้ order_id ในการตรวจสอบสถานะการชำระเงิน
           verifyPaymentByOrderId(orderId);
-          return;
-        }
-        
+      return;
+    }
+
         setLoading(false);
         setError('ไม่พบข้อมูลการชำระเงิน กรุณาติดต่อเจ้าหน้าที่หากคุณเชื่อว่านี่เป็นข้อผิดพลาด');
       }
@@ -140,8 +140,8 @@ export default function OrderComplete() {
         // ถ้าเป็นการตรวจสอบปกติ
         setPaymentData(data);
         setLoading(false);
-      }
-    } catch (error) {
+        }
+      } catch (error) {
       console.error('Error verifying payment with charge_id:', error);
       
       if (isAutoVerify) {
