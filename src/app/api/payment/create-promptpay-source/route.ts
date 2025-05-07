@@ -26,10 +26,13 @@ export async function POST(request: NextRequest) {
     const charge = await omise.charges.create({
       amount: Math.round(amount * 100), // แปลงเป็นสตางค์ (เช่น 1,000 บาท = 100,000 สตางค์)
       currency: 'thb',
-      return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/checkout/complete`,
+      return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/orders/complete?source=pp&ref=${Date.now()}`,
       metadata: {
         ref_id: referenceId,
-        order_id: 'pending' // จะอัพเดทเป็นเลข order id จริงเมื่อมีการสร้าง order
+        order_id: 'pending', // จะอัพเดทเป็นเลข order id จริงเมื่อมีการสร้าง order
+        customer_email: email || '',
+        customer_name: name || '',
+        customer_phone: phone || ''
       },
       source: {
         type: 'promptpay'
@@ -85,7 +88,8 @@ export async function POST(request: NextRequest) {
       success: true,
       source: {
         id: charge.id, // ใช้ charge.id แทน source.id
-        qrCode: qrCodeUrl // URL ของ QR code
+        qrCode: qrCodeUrl, // URL ของ QR code
+        return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/orders/complete?source=pp&ref=${Date.now()}`
       },
       charge: {
         id: charge.id // charge id สำหรับติดตามสถานะการชำระเงิน

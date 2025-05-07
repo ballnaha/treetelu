@@ -30,6 +30,7 @@ import ContactSupportIcon from '@mui/icons-material/ContactSupport';
 import dynamic from "next/dynamic";
 import CookieConsent from '@/components/CookieConsent';
 import UserMenu from '@/components/UserMenu';
+import { CartProvider } from '@/contexts/CartContext';
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const prompt = Prompt({ 
@@ -79,12 +80,14 @@ export default function RootLayout({
         <link rel="manifest" href="/site.webmanifest" />
       </head>
       <body className={`${inter.variable} ${prompt.variable} font-sans`} suppressHydrationWarning>
-        <ClientOnly>
-          <ClientProvider>
-            {children}
-            <CookieConsent />
-          </ClientProvider>
-        </ClientOnly>
+        <CartProvider>
+          <ClientOnly>
+            <ClientProvider>
+              {children}
+              <CookieConsent />
+            </ClientProvider>
+          </ClientOnly>
+        </CartProvider>
       </body>
     </html>
   );

@@ -420,10 +420,12 @@ export default function Checkout() {
         buttonLabel: 'ชำระเงินด้วยบัตรเครดิต/เดบิต',
         defaultPaymentMethod: 'credit_card',
         otherPaymentMethods: [], // ไม่ต้องแสดงวิธีการชำระเงินอื่น
+        country: 'th', // กำหนดประเทศเป็นไทยเพื่อป้องกันปัญหาเมื่อเลือกประเทศ
+        hideCardLogos: false, // แสดงโลโก้บัตรเครดิต
         // เพิ่ม return_uri สำหรับ 3DS
         location: window.location.href,
-        // ระบุ return_uri เพื่อให้ redirect กลับมาที่หน้า order/complete
-        return_uri: `${window.location.origin}/orders/complete`
+        // ระบุ return_uri เพื่อให้ redirect กลับมาที่หน้า orders/complete หลังการชำระเงิน
+        return_uri: `${window.location.origin}/orders/complete?source=cc&ref=${new Date().getTime()}`
       });
   
       omiseCard.open({
@@ -842,13 +844,47 @@ export default function Checkout() {
         }
       }
       
+      // กรณีของ PromptPay ให้ตรวจสอบว่ามีการชำระเงินล่าสุดที่ยังไม่ได้นำมาใช้หรือไม่
+      let finalOrderData = { ...orderData } as any; // ใช้ Type Assertion เป็น any เพื่อให้สามารถเพิ่มคุณสมบัติได้
+      
+      if (paymentMethod === 'promptpay' && omiseToken) {
+        try {
+          // เพิ่ม charge_id เข้าไปใน orderData
+          finalOrderData.chargeId = omiseToken;
+          
+          console.log('Checking if PromptPay payment already confirmed:', omiseToken);
+          
+          // ตรวจสอบสถานะการชำระเงินก่อนส่งข้อมูล
+          const verifyResponse = await fetch(`/api/payment/verify?charge_id=${omiseToken}&_t=${Date.now()}`, {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache'
+            }
+          });
+          
+          if (verifyResponse.ok) {
+            const verifyResult = await verifyResponse.json();
+            console.log('PromptPay payment verification result:', verifyResult);
+            
+            // ถ้าชำระเงินเรียบร้อยแล้ว กำหนดสถานะให้เป็น CONFIRMED
+            if (verifyResult.success && verifyResult.status === 'successful') {
+              finalOrderData.paymentStatus = 'CONFIRMED';
+              console.log('PromptPay payment is already confirmed');
+            }
+          }
+        } catch (error) {
+          console.error('Error verifying PromptPay payment:', error);
+          // ถ้าตรวจสอบไม่สำเร็จก็ไม่เป็นไร ยังคงดำเนินการสร้าง order ต่อไป
+        }
+      }
+      
       // ส่งข้อมูลการสั่งซื้อไปยัง API
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(orderData),
+        body: JSON.stringify(finalOrderData),
       });
       
       // ตรวจสอบสถานะการตอบกลับและเนื้อหาก่อนแปลงเป็น JSON
@@ -935,15 +971,42 @@ export default function Checkout() {
         <Box sx={{ textAlign: 'center', p: 3 }}>
           <CheckCircleOutlineIcon sx={{ fontSize: 80, color: 'success.main', mb: 2 }} />
           <Typography variant="h4" gutterBottom>สั่งซื้อสำเร็จ!</Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-            ขอบคุณสำหรับการสั่งซื้อ เราจะดำเนินการจัดส่งสินค้าให้คุณโดยเร็วที่สุด
-          </Typography>
+          
+          <Paper sx={{ p: 4, mt: 3, mb: 4, mx: 'auto', maxWidth: 500, borderRadius: 2, boxShadow: '0 3px 10px rgba(0,0,0,0.08)' }}>
+            <Typography variant="h6" gutterBottom color="primary.main">
+              ขอบคุณสำหรับการสั่งซื้อ
+            </Typography>
+            
+            <Typography variant="body1" sx={{ mb: 3 }}>
+              เลขที่คำสั่งซื้อ: <Typography component="span" fontWeight="bold">{orderNumber}</Typography>
+            </Typography>
+            
+            {paymentMethod === 'bank_transfer' ? (
+              <Alert severity="info" sx={{ mb: 3, textAlign: 'left' }}>
+                <Typography variant="subtitle2">กรุณาชำระเงินภายใน 24 ชั่วโมง</Typography>
+                <Typography variant="body2">
+                  หากท่านชำระเงินแล้ว กรุณาส่งหลักฐานการโอนเงินผ่านทางไลน์ @treetelu หรืออีเมล info@treetelu.com
+                </Typography>
+              </Alert>
+            ) : (
+              <Alert severity="success" sx={{ mb: 3, textAlign: 'left' }}>
+                <Typography variant="subtitle2">การชำระเงินสำเร็จแล้ว</Typography>
+                <Typography variant="body2">
+                  เราได้ส่งอีเมลยืนยันการสั่งซื้อไปที่อีเมลของท่าน กรุณาตรวจสอบอีเมลเพื่อดูรายละเอียดการสั่งซื้อ
+                </Typography>
+              </Alert>
+            )}
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              เราจะดำเนินการจัดส่งสินค้าให้คุณโดยเร็วที่สุด หากมีข้อสงสัย สามารถติดต่อเราได้ที่ Line: @treetelu
+            </Typography>
+          </Paper>
           
           <Button
             variant="contained"
             component={Link}
             href="/"
-            sx={{ mt: 3 }}
+            sx={{ mt: 2 }}
           >
             กลับไปยังหน้าหลัก
           </Button>

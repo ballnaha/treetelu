@@ -318,9 +318,200 @@ export async function POST(request: NextRequest) {
     // สำหรับการชำระเงินผ่าน PromptPay ที่สำเร็จ
     else if (body.key === 'source.complete' && body.data && body.data.flow === 'offline' && body.data.type === 'promptpay') {
       console.log('[source.complete] PromptPay payment completed:', body.data);
-      await logToFile(body.data, 'omise-promptpay-complete');
       
-      // ทำการค้นหา charge ที่เกี่ยวข้องและอัพเดทสถานะ
+      try {
+        // สร้าง Omise instance
+        const omise = require('omise')({
+          publicKey: process.env.OMISE_PUBLIC_KEY,
+          secretKey: process.env.OMISE_SECRET_KEY,
+        });
+        
+        // ต้องค้นหา charge ที่เกี่ยวข้องกับ source นี้
+        console.log('[source.complete] Looking for charges linked to source:', body.data.id);
+        
+        // เพิ่ม timestamp ในการค้นหาเพื่อลดปัญหาการใช้ cache
+        const timestamp = Date.now();
+        const charges = await omise.charges.list({ limit: 10, order: 'reverse_chronological', _t: timestamp });
+        
+        // ค้นหา charge ที่ใช้ source นี้
+        const charge = charges.data.find((c: any) => 
+          c.source?.id === body.data.id || 
+          (c.metadata && c.metadata.source_id === body.data.id)
+        );
+
+        if (charge) {
+          console.log('[source.complete] Found charge linked to this source:', charge.id);
+          console.log('[source.complete] Charge status:', charge.status);
+          console.log('[source.complete] Charge amount:', charge.amount / 100, 'THB');
+
+          // ค้นหา order และ payment info
+          let order = null;
+          let paymentInfo = null;
+          
+          // 1. ค้นหา order จาก paymentInfo ที่มี transactionId เท่ากับ charge id
+          try {
+            paymentInfo = await prisma.paymentInfo.findFirst({
+              where: {
+                transactionId: charge.id
+              },
+              include: {
+                order: true
+              }
+            });
+            
+            if (paymentInfo?.order) {
+              order = paymentInfo.order;
+              console.log('[source.complete] Found order via payment_info:', order.id);
+              
+              // อัพเดทสถานะการชำระเงิน
+              await prisma.order.update({
+                where: { id: order.id },
+                data: {
+                  paymentStatus: 'CONFIRMED',
+                  updatedAt: new Date()
+                }
+              });
+              
+              // อัพเดท payment info
+              await prisma.paymentInfo.update({
+                where: { id: paymentInfo.id },
+                data: {
+                  status: 'CONFIRMED',
+                  paymentDate: new Date(),
+                  updatedAt: new Date()
+                }
+              });
+              
+              console.log('[source.complete] Updated order and payment info for PromptPay payment');
+              
+              return NextResponse.json({
+                success: true,
+                message: 'PromptPay payment confirmed and order updated',
+                orderId: order.id,
+                orderNumber: order.orderNumber
+              });
+            }
+          } catch (err) {
+            console.error('[source.complete] Error searching payment_info:', err);
+          }
+          
+          // 2. ถ้าไม่พบจาก paymentInfo ให้ค้นหาโดยตรงจาก order
+          if (!order) {
+            order = await prisma.order.findFirst({
+              where: {
+                paymentInfo: {
+                  transactionId: charge.id
+                }
+              }
+            });
+            
+            if (order) {
+              console.log('[source.complete] Found order via paymentInfo:', order.id);
+              
+              // อัพเดทสถานะการชำระเงิน
+              await prisma.order.update({
+                where: { id: order.id },
+                data: {
+                  paymentStatus: 'CONFIRMED',
+                  updatedAt: new Date()
+                }
+              });
+              
+              // สร้าง payment info ถ้ายังไม่มี
+              const paymentInfoExists = await prisma.paymentInfo.findUnique({
+                where: { orderId: order.id }
+              });
+              
+              if (!paymentInfoExists) {
+                await prisma.paymentInfo.create({
+                  data: {
+                    orderId: order.id,
+                    paymentMethod: 'PROMPTPAY',
+                    transactionId: charge.id,
+                    amount: parseFloat((charge.amount / 100).toFixed(2)),
+                    status: 'CONFIRMED',
+                    paymentDate: new Date(),
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                  }
+                });
+              }
+              
+              console.log('[source.complete] Updated order for PromptPay payment');
+              
+              return NextResponse.json({
+                success: true,
+                message: 'PromptPay payment confirmed and order updated',
+                orderId: order.id,
+                orderNumber: order.orderNumber
+              });
+            }
+          }
+          
+          // กรณีไม่พบ order ให้บันทึกลงในตาราง pending_payment เพื่อรอการประมวลผลในภายหลัง
+          // ตรวจสอบว่ามีข้อมูลใน pending_payment แล้วหรือไม่
+          const pendingPayment = await prisma.pendingPayment.findFirst({
+            where: { charge_id: charge.id }
+          });
+          
+          if (pendingPayment) {
+            // อัพเดทสถานะถ้าพบ
+            await prisma.pendingPayment.update({
+              where: { id: pendingPayment.id },
+              data: {
+                status: 'CONFIRMED',
+                updated_at: new Date()
+              }
+            });
+            
+            console.log('[source.complete] Updated existing pending payment for PromptPay');
+            
+            // เพิ่ม log ข้อมูลเพื่อการดีบัก
+            await logToFile({
+              event: 'promptpay.payment.pending_updated',
+              charge_id: charge.id,
+              amount: charge.amount / 100,
+              metadata: charge.metadata,
+              timestamp: new Date().toISOString()
+            }, 'omise-promptpay-pending');
+          } else {
+            // สร้าง pending payment ใหม่
+            try {
+              await prisma.pendingPayment.create({
+                data: {
+                  charge_id: charge.id,
+                  amount: charge.amount / 100,
+                  payment_method: 'PROMPTPAY',
+                  status: 'CONFIRMED',
+                  metadata: charge,
+                  processed: false,
+                  created_at: new Date(),
+                  updated_at: new Date()
+                }
+              });
+              
+              console.log('[source.complete] Created new pending payment for PromptPay');
+              
+              // เพิ่ม log ข้อมูลเพื่อการดีบัก
+              await logToFile({
+                event: 'promptpay.payment.pending_created',
+                charge_id: charge.id,
+                amount: charge.amount / 100,
+                metadata: charge.metadata,
+                timestamp: new Date().toISOString()
+              }, 'omise-promptpay-pending');
+            } catch (err) {
+              console.error('[source.complete] Error creating pending payment:', err);
+            }
+          }
+        } else {
+          console.log('[source.complete] No charges found for PromptPay source:', body.data.id);
+        }
+      } catch (error) {
+        console.error('[source.complete] Error processing PromptPay webhook:', error);
+      }
+      
+      await logToFile(body.data, 'omise-promptpay-complete');
       return NextResponse.json({ success: true, message: 'PromptPay webhook received' });
     }
     

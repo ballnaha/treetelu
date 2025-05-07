@@ -16,11 +16,11 @@ const userUpdateSchema = z.object({
 /**
  * GET handler สำหรับดึงข้อมูลผู้ใช้รายบุคคล (Admin only)
  */
-export const GET = withAdminAuth(async (req: NextRequest, { params }: { params: { id: string } }) => {
+export const GET = withAdminAuth(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
-    const userId = params.id;
+    const { id } = await params;
     
-    if (!userId || isNaN(Number(userId))) {
+    if (!id || isNaN(Number(id))) {
       return NextResponse.json(
         { success: false, message: 'รหัสผู้ใช้ไม่ถูกต้อง' },
         { status: 400 }
@@ -29,7 +29,7 @@ export const GET = withAdminAuth(async (req: NextRequest, { params }: { params: 
     
     // ดึงข้อมูลผู้ใช้จากฐานข้อมูล
     const user = await prisma.users.findUnique({
-      where: { id: parseInt(userId) },
+      where: { id: parseInt(id) },
       select: {
         id: true,
         email: true,
@@ -69,11 +69,11 @@ export const GET = withAdminAuth(async (req: NextRequest, { params }: { params: 
 /**
  * PUT handler สำหรับอัปเดตข้อมูลผู้ใช้ (Admin only)
  */
-export const PUT = withAdminAuth(async (req: NextRequest, { params }: { params: { id: string } }) => {
+export const PUT = withAdminAuth(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
-    const userId = params.id;
+    const { id } = await params;
     
-    if (!userId || isNaN(Number(userId))) {
+    if (!id || isNaN(Number(id))) {
       return NextResponse.json(
         { success: false, message: 'รหัสผู้ใช้ไม่ถูกต้อง' },
         { status: 400 }
@@ -82,7 +82,7 @@ export const PUT = withAdminAuth(async (req: NextRequest, { params }: { params: 
     
     // ตรวจสอบว่าผู้ใช้มีอยู่จริง
     const existingUser = await prisma.users.findUnique({
-      where: { id: parseInt(userId) }
+      where: { id: parseInt(id) }
     });
     
     if (!existingUser) {
@@ -113,7 +113,7 @@ export const PUT = withAdminAuth(async (req: NextRequest, { params }: { params: 
       
       // อัปเดตข้อมูลในฐานข้อมูล
       const updatedUser = await prisma.users.update({
-        where: { id: parseInt(userId) },
+        where: { id: parseInt(id) },
         data: updateData,
         select: {
           id: true,
@@ -165,18 +165,18 @@ export const PUT = withAdminAuth(async (req: NextRequest, { params }: { params: 
  * DELETE handler for removing a user by ID (admin only)
  */
 export const DELETE = withAdminAuth(async (req: NextRequest, 
-  { params }: { params: { id: string } }) => {
+  { params }: { params: Promise<{ id: string }> }) => {
   try {
-    const userId = params.id;
+    const { id } = await params;
     
-    if (!userId || isNaN(Number(userId))) {
+    if (!id || isNaN(Number(id))) {
       return NextResponse.json(
         { success: false, message: 'ต้องระบุรหัสผู้ใช้งานที่ต้องการลบ' },
         { status: 400 }
       );
     }
     
-    const userIdNumber = parseInt(userId);
+    const userIdNumber = parseInt(id);
     
     // ตรวจสอบว่าผู้ใช้มีอยู่จริง
     const user = await prisma.users.findUnique({

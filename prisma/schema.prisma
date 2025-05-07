@@ -172,7 +172,7 @@ model ShippingInfo {
   addressLine2     String?       @db.VarChar(255)
   provinceId       Int
   provinceName     String        @db.VarChar(100)
-  amphureId        Int
+  amphureId         Int
   amphureName      String        @db.VarChar(100)
   tambonId         Int
   tambonName       String        @db.VarChar(100)
@@ -312,6 +312,9 @@ model PendingPayment {
   order_id         Int?      // เชื่อมโยงกับ order เมื่อได้รับการประมวลผล
   processed        Boolean   @default(false)
   processed_at     DateTime?
+  customer_email   String?   @db.VarChar(255)
+  customer_name    String?   @db.VarChar(255)
+  customer_phone   String?   @db.VarChar(50)
   created_at       DateTime  @default(now())
   updated_at       DateTime  @updatedAt
 

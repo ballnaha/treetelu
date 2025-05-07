@@ -1,0 +1,11 @@
+{
+  "event": "charge.complete",
+  "chargeId": "chrg_test_63mw8nga8ifuxrujrap",
+  "status": "successful",
+  "amount": 600,
+  "metadata": {
+    "order_id": "18",
+    "order_number": "2505018"
+  },
+  "timestamp": "2025-05-07T09:48:14.194Z"
+}

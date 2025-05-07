@@ -7,6 +7,9 @@ import { Resend } from 'resend';
 import { format, addHours } from 'date-fns';
 import thLocale from 'date-fns/locale/th';
 import { sendDiscordNotification, createOrderNotificationEmbed } from '@/utils/discordUtils';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 // ตั้งค่า Resend API Key
 const resend = new Resend(process.env.RESEND_API_KEY as string);
@@ -52,7 +55,8 @@ const orderSchema = z.object({
   paymentStatus: z.enum(['PENDING', 'CONFIRMED', 'REJECTED']).optional(),
   paymentReference: z.string().optional(),
   omiseToken: z.string().optional(), // สำหรับ Omise token (card token หรือ charge id สำหรับ promptpay)
-  returnUri: z.string().optional() // สำหรับกรณี 3DS redirect
+  returnUri: z.string().optional(), // สำหรับกรณี 3DS redirect
+  chargeId: z.string().optional()
 });
 
 // แทนที่ส่วนของการส่งอีเมลด้วย Resend
@@ -240,6 +244,24 @@ export async function POST(request: NextRequest) {
     // ตรวจสอบข้อมูลด้วย schema
     const validatedData = orderSchema.parse(body);
     
+    // กรณีมี chargeId (สำหรับ PromptPay ที่อาจจะมีการชำระเงินแล้ว)
+    if (validatedData.chargeId && validatedData.paymentMethod === 'PROMPTPAY') {
+      // ตรวจสอบว่ามีข้อมูลการชำระเงินใน pending_payment หรือไม่
+      const pendingPayment = await prisma.pendingPayment.findFirst({
+        where: {
+          charge_id: validatedData.chargeId,
+          status: 'CONFIRMED',
+          processed: false
+        }
+      });
+      
+      if (pendingPayment) {
+        console.log(`Found confirmed pending payment for charge: ${validatedData.chargeId}`);
+        // ถ้าพบข้อมูลการชำระเงินที่ยืนยันแล้ว ให้กำหนดสถานะชำระเงินเป็น CONFIRMED
+        validatedData.paymentStatus = 'CONFIRMED';
+      }
+    }
+    
     // ถ้ามีการชำระเงินด้วยบัตรเครดิต/เดบิต (Omise)
     if (validatedData.paymentMethod === 'CREDIT_CARD' && validatedData.omiseToken) {
       try {
@@ -261,7 +283,7 @@ export async function POST(request: NextRequest) {
           currency: 'thb',
           card: validatedData.omiseToken,
           capture: true, // จัดเก็บเงินทันที
-          return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/orders/complete`,
+          return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/orders/complete?source=cc&ref=${Date.now()}`,
           metadata: {
             order_id: 'pending', // ยังไม่มี order ID จึงใช้ pending ไปก่อน
             customer_email: validatedData.customerInfo.email,
@@ -396,31 +418,70 @@ export async function POST(request: NextRequest) {
     }
     
     // ส่งการแจ้งเตือนไปยัง Discord (ถ้ามีการตั้งค่า)
-    try {
-      if (process.env.DISCORD_WEBHOOK_URL) {
-        // ตรวจสอบให้แน่ใจว่ามีข้อมูลที่จำเป็นสำหรับการส่งแจ้งเตือน
-        const orderForNotification = {
-          ...validatedData,
-          ...result.order,
-          orderNumber: orderNumber || result.order.orderNumber,
-          items: validatedData.items // ใช้ items จาก validatedData เพราะในข้อมูลที่ได้จาก database อาจไม่มี
-        };
-        
-        // Debug log
-        console.log('Sending Discord notification with data structure:', 
-          JSON.stringify({
-            hasItems: !!orderForNotification.items,
-            itemsCount: orderForNotification.items?.length || 0,
-            orderNumber: orderForNotification.orderNumber
-          }, null, 2)
+    if (process.env.DISCORD_WEBHOOK_URL) {
+      try {
+        const embed = createOrderNotificationEmbed(
+          result.order
         );
         
-        const embed = createOrderNotificationEmbed(orderForNotification);
-        await sendDiscordNotification(embed);
+        sendDiscordNotification(embed).catch(error => {
+          console.error('Error sending Discord notification:', error);
+        });
+      } catch (error) {
+        console.error('Error creating Discord notification:', error);
+        // ไม่ต้องหยุดการทำงานหากส่งแจ้งเตือน Discord ไม่สำเร็จ
       }
-    } catch (discordError) {
-      console.error('Error sending Discord notification:', discordError);
-      // ไม่คืนค่า error ถ้าการส่งแจ้งเตือน Discord ล้มเหลว
+    }
+    
+    // ถ้ามี chargeId และเป็นการชำระเงินด้วย PromptPay ให้อัปเดตสถานะใน pending_payment
+    if (result.success && validatedData.chargeId && validatedData.paymentMethod === 'PROMPTPAY') {
+      try {
+        // ค้นหา pending_payment ที่เกี่ยวข้อง
+        const pendingPayment = await prisma.pendingPayment.findFirst({
+          where: {
+            charge_id: validatedData.chargeId
+          }
+        });
+        
+        if (pendingPayment) {
+          // อัปเดตสถานะเป็น processed และเชื่อมโยงกับ order
+          await prisma.pendingPayment.update({
+            where: {
+              id: pendingPayment.id
+            },
+            data: {
+              processed: true,
+              order_id: parseInt(result.order.id),
+              updated_at: new Date()
+            }
+          });
+          
+          console.log(`Updated pending payment ${pendingPayment.id} for order ${result.order.id}`);
+          
+          // ถ้าสถานะการชำระเงินเป็น CONFIRMED ให้อัพเดตตาราง orders และ payment_info
+          if (pendingPayment.status === 'CONFIRMED') {
+            // อัพเดตสถานะการชำระเงินในตาราง orders
+            await prisma.order.update({
+              where: { id: parseInt(result.order.id) },
+              data: { paymentStatus: 'CONFIRMED' }
+            });
+            
+            // อัพเดตสถานะการชำระเงินในตาราง payment_info
+            await prisma.paymentInfo.update({
+              where: { orderId: parseInt(result.order.id) },
+              data: { 
+                status: 'CONFIRMED',
+                paymentDate: new Date()
+              }
+            });
+            
+            console.log(`Updated payment status to CONFIRMED for order ${result.order.id}`);
+          }
+        }
+      } catch (error) {
+        console.error('Error updating pending payment:', error);
+        // ไม่ต้องหยุดการทำงานหากอัปเดต pending_payment ไม่สำเร็จ
+      }
     }
     
     // Revalidate เส้นทางเพื่ออัปเดตข้อมูล (ใช้แค่ 1 argument คือ path)
