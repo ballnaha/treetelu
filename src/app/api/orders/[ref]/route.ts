@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { NextRequest } from 'next/server';
+
+type Params = { params: { ref: string } }
 
 export async function GET(
-  request: Request,
-  { params }: { params: { ref: string } }
+  request: NextRequest,
+  { params }: Params
 ) {
   try {
     const transactionId = params.ref;

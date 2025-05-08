@@ -435,7 +435,6 @@ export default function Checkout() {
       omiseCard.open({
         amount: Math.round(prices.totalPrice * 100), // แปลงเป็นสตางค์ (เช่น 1,000 บาท = 100,000 สตางค์)
         onCreateTokenSuccess: async (token: string) => {
-          console.log('Token created successfully (callback):', token);
           // เก็บ token ไว้สำหรับส่งไปยัง API
           setOmiseToken(token);
           
@@ -513,14 +512,12 @@ export default function Checkout() {
             }
 
             const result = await response.json();
-            console.log('Payment API response:', result);
             
             // สำคัญ: ล้างตะกร้าสินค้าทันทีหลังจากสร้าง order สำเร็จ
             clearCart();
             
             // ถ้ามี returnUri (3DS) ให้ redirect
             if (result.returnUri) {
-              console.log('Redirecting to 3DS verification:', result.returnUri);
               // ล้างตะกร้าสินค้าทันทีก่อน redirect
               clearCart();
               window.location.href = result.returnUri;
@@ -529,11 +526,10 @@ export default function Checkout() {
             
             // ถ้าไม่มี 3DS แต่มี chargeId ให้ redirect ไปหน้า complete
             if (result.chargeId) {
-              console.log('Payment successful, redirecting to complete page with chargeId:', result.chargeId);
               // ล้างตะกร้าสินค้าทันทีก่อน redirect
               clearCart();
               const completeUrl = `${window.location.origin}/orders/complete?source=cc&transactionId=${result.chargeId}`;
-              console.log('Redirecting to:', completeUrl);
+              // ลบการ log url
               window.location.href = completeUrl;
               return;
             }
@@ -593,15 +589,10 @@ export default function Checkout() {
         
         const result = await response.json();
         
-        // Debug: ตรวจสอบข้อมูลที่ได้รับจาก API
-        console.log('PromptPay source result:', result);
-        
         // ตรวจสอบว่ามีข้อมูล QR code หรือไม่
         if (!result.success || !result.source || !result.source.qrCode) {
           throw new Error('ไม่พบข้อมูล QR code');
         }
-        
-        console.log('QR Code URL:', result.source.qrCode);
         
         // เก็บ charge id ไว้สำหรับส่งไปยัง API (ตอนนี้ source.id คือ charge.id)
         setOmiseToken(result.source.id);
@@ -1140,9 +1131,7 @@ export default function Checkout() {
       
       const result = await response.json();
       
-      // Debug: ตรวจสอบข้อมูลที่ได้รับจาก API
-      console.log('PromptPay regenerate result:', result);
-      
+      // ตรวจสอบว่ามีข้อมูล QR code หรือไม่
       if (!result.success || !result.source || !result.source.qrCode) {
         throw new Error('ไม่พบข้อมูล QR code ที่ถูกต้อง');
       }
@@ -1261,7 +1250,7 @@ export default function Checkout() {
       const webhookWaitPromise = new Promise((resolve) => {
         setTimeout(() => {
           // เมื่อครบเวลา
-          console.log('Webhook wait timeout after', webhookTimeout / 1000, 'seconds');
+          // ลบการ log timeout
           resolve({ timeout: true, orderNumber: createdOrderNumber });
         }, webhookTimeout);
       });
