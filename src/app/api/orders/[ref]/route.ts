@@ -2,14 +2,12 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { NextRequest } from 'next/server';
 
-type Params = { params: { ref: string } }
-
 export async function GET(
   request: NextRequest,
-  { params }: Params
+  { params }: { params: Promise<{ ref: string }> }
 ) {
   try {
-    const transactionId = params.ref;
+    const { ref: transactionId } = await params;
     console.log('Fetching order for transactionId:', transactionId);
 
     const order = await prisma.order.findFirst({
