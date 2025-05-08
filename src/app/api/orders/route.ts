@@ -283,7 +283,8 @@ export async function POST(request: NextRequest) {
           currency: 'thb',
           card: validatedData.omiseToken,
           capture: true, // จัดเก็บเงินทันที
-          return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/orders/complete?source=cc&ref=${Date.now()}`,
+          // สร้าง return_uri ด้วย placeholder หรือ domain เปล่าๆ ไปก่อน จะอัพเดทอีกที
+          return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/orders/complete?source=cc`,
           metadata: {
             order_id: 'pending', // ยังไม่มี order ID จึงใช้ pending ไปก่อน
             customer_email: validatedData.customerInfo.email,
@@ -291,12 +292,24 @@ export async function POST(request: NextRequest) {
           }
         });
         
+        // อัพเดท return_uri ด้วย charge.id หลังจากได้ charge แล้ว
+        await omise.charges.update(charge.id, {
+          return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/orders/complete?source=cc&transactionId=${charge.id}`
+        });
+        
         console.log('Credit card charge created:', {
           id: charge.id,
           status: charge.status,
           amount: charge.amount / 100,
-          hasAuthorizeUri: !!charge.authorize_uri
+          hasAuthorizeUri: !!charge.authorize_uri,
+          return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/orders/complete?source=cc&transactionId=${charge.id}`
         });
+        
+        // เพิ่มข้อมูลการชำระเงินลงในข้อมูลสำหรับสร้างคำสั่งซื้อ
+        validatedData.paymentReference = charge.id; // เก็บ Omise Charge ID
+        
+        // ส่ง chargeId กลับไปยัง client เพื่อใช้ในการ redirect
+        validatedData.chargeId = charge.id;
         
         // ตรวจสอบสถานะการชำระเงิน
         if (charge.status === 'successful') {
@@ -306,6 +319,12 @@ export async function POST(request: NextRequest) {
           // กรณีต้องทำ 3DS - ต้องรอการยืนยันตัวตน
           validatedData.paymentStatus = 'PENDING'; // รอการยืนยันตัวตน 3DS
           
+          // ถ้ามีการทำ 3DS ให้เก็บ authorize_uri ไว้สำหรับ redirect ไปยังหน้ายืนยันตัวตน
+          if (charge.authorize_uri) {
+            // โดยค่านี้จะถูกส่งกลับไปให้ client เพื่อทำการ redirect
+            validatedData.returnUri = charge.authorize_uri;
+          }
+          
           // หมายเหตุ: ในกรณีนี้ ระบบจะต้องอาศัย webhook ในการอัพเดทสถานะการชำระเงินเป็น CONFIRMED หลังจากยืนยันตัวตนสำเร็จ
         } else {
           // กรณีการชำระเงินล้มเหลวด้วยเหตุผลอื่น
@@ -314,16 +333,6 @@ export async function POST(request: NextRequest) {
             { success: false, message: 'การชำระเงินไม่สำเร็จ: ' + (charge.failure_message || 'กรุณาตรวจสอบข้อมูลบัตรและลองใหม่อีกครั้ง') },
             { status: 400 }
           );
-        }
-        
-        // เพิ่มข้อมูลการชำระเงินลงในข้อมูลสำหรับสร้างคำสั่งซื้อ
-        validatedData.paymentReference = charge.id; // เก็บ Omise Charge ID
-        
-        // ถ้ามีการทำ 3DS ให้เก็บ authorize_uri ไว้สำหรับ redirect ไปยังหน้ายืนยันตัวตน
-        if (charge.authorize_uri) {
-          // สร้าง order ก่อน แล้วจึง redirect ไปยังหน้ายืนยันตัวตน
-          // โดยค่านี้จะถูกส่งกลับไปให้ client เพื่อทำการ redirect
-          validatedData.returnUri = charge.authorize_uri;
         }
       } catch (omiseError: any) {
         console.error('Omise payment error:', omiseError);

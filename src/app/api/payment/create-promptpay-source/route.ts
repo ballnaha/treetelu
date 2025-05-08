@@ -26,18 +26,31 @@ export async function POST(request: NextRequest) {
     const charge = await omise.charges.create({
       amount: Math.round(amount * 100), // แปลงเป็นสตางค์ (เช่น 1,000 บาท = 100,000 สตางค์)
       currency: 'thb',
-      return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/orders/complete?source=pp&ref=${Date.now()}`,
+      return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/orders/complete?source=pp&transactionId=${referenceId}`,
       metadata: {
         ref_id: referenceId,
         order_id: 'pending', // จะอัพเดทเป็นเลข order id จริงเมื่อมีการสร้าง order
         customer_email: email || '',
         customer_name: name || '',
-        customer_phone: phone || ''
+        customer_phone: phone || '',
+        webhook_endpoint: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/api/webhook/omise`,
+        event_type: 'source.complete'
       },
       source: {
         type: 'promptpay'
       }
     });
+
+    // อัพเดท return_uri หลังจากได้ charge.id แล้ว
+    try {
+      await omise.charges.update(charge.id, {
+        return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/orders/complete?source=pp&transactionId=${charge.id}`
+      });
+      console.log('Updated return_uri with charge.id:', charge.id);
+    } catch (updateError) {
+      console.error('Failed to update return_uri:', updateError);
+      // ไม่หยุดกระบวนการเนื่องจากอาจไม่ใช่ข้อผิดพลาดที่ทำให้ระบบหยุดทำงาน
+    }
 
     // Debug: ตรวจสอบข้อมูล charge ที่ได้รับจาก Omise
     console.log('Omise charge response:', JSON.stringify(charge, null, 2));
@@ -89,7 +102,7 @@ export async function POST(request: NextRequest) {
       source: {
         id: charge.id, // ใช้ charge.id แทน source.id
         qrCode: qrCodeUrl, // URL ของ QR code
-        return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/orders/complete?source=pp&ref=${Date.now()}`
+        return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/orders/complete?source=pp&transactionId=${charge.id}`
       },
       charge: {
         id: charge.id // charge id สำหรับติดตามสถานะการชำระเงิน

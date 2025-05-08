@@ -1,0 +1,14 @@
+{
+  "event": "charge.complete.pending_order",
+  "chargeId": "chrg_test_63n5vq18uuzl2huvq39",
+  "status": "successful",
+  "amount": 600,
+  "metadata": {
+    "ref_id": "pp_1746670407386_802",
+    "order_id": "pending",
+    "customer_email": "ball_t1@hotmail.com",
+    "customer_name": "thanya rattanawongchaiya",
+    "customer_phone": "0862061354"
+  },
+  "timestamp": "2025-05-08T02:13:52.589Z"
+}

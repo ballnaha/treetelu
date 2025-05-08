@@ -167,6 +167,12 @@ export default function Checkout() {
   // เพิ่ม state สำหรับ dialog ของ PromptPay
   const [openPromptPayDialog, setOpenPromptPayDialog] = useState(false);
   
+  // เพิ่ม state สำหรับแสดง overlay รอการตอบกลับจาก webhook Omise
+  const [showPromptPayWaitingOverlay, setShowPromptPayWaitingOverlay] = useState(false);
+  
+  // เพิ่ม state สำหรับแสดง overlay ระหว่างรอ QR code
+  const [showPromptPayLoadingOverlay, setShowPromptPayLoadingOverlay] = useState(false);
+  
   // ใช้ useRef เพื่อป้องกันการเรียก setState ซ้ำซ้อน
   const initialRenderRef = useRef(true);
   
@@ -422,36 +428,148 @@ export default function Checkout() {
         otherPaymentMethods: [], // ไม่ต้องแสดงวิธีการชำระเงินอื่น
         country: 'th', // กำหนดประเทศเป็นไทยเพื่อป้องกันปัญหาเมื่อเลือกประเทศ
         hideCardLogos: false, // แสดงโลโก้บัตรเครดิต
-        // เพิ่ม return_uri สำหรับ 3DS
-        location: window.location.href,
-        // ระบุ return_uri เพื่อให้ redirect กลับมาที่หน้า orders/complete หลังการชำระเงิน
-        return_uri: `${window.location.origin}/orders/complete?source=cc&ref=${new Date().getTime()}`
+        location: window.location.href // เพิ่ม location กลับมา
       });
-  
+
+      // เปิดฟอร์มของ Omise
       omiseCard.open({
         amount: Math.round(prices.totalPrice * 100), // แปลงเป็นสตางค์ (เช่น 1,000 บาท = 100,000 สตางค์)
-        onCreateTokenSuccess: (token: string) => {
+        onCreateTokenSuccess: async (token: string) => {
+          console.log('Token created successfully (callback):', token);
           // เก็บ token ไว้สำหรับส่งไปยัง API
           setOmiseToken(token);
           
-          // ดำเนินการต่อไปยังขั้นตอนถัดไป
-          setActiveStep(2);
-          setIsProcessingOmise(false);
+          try {
+            // สร้าง charge
+            const response = await fetch('/api/orders', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                customerInfo: {
+                  firstName: customerInfo.firstName || "",
+                  lastName: customerInfo.lastName || "",
+                  email: customerInfo.email || "",
+                  phone: customerInfo.phone || "",
+                  note: additionalMessage || ""
+                },
+                shippingInfo: shippingTab === 0 
+                  ? {
+                      receiverName: customerInfo.firstName || "",
+                      receiverLastname: customerInfo.lastName || "",
+                      receiverPhone: customerInfo.phone || "",
+                      addressLine: shippingInfo.addressLine || "",
+                      addressLine2: shippingInfo.addressLine2 || "",
+                      provinceId: shippingInfo.provinceId || 0,
+                      provinceName: shippingInfo.provinceName || "",
+                      amphureId: shippingInfo.amphureId || 0,
+                      amphureName: shippingInfo.amphureName || "",
+                      tambonId: shippingInfo.tambonId || 0,
+                      tambonName: shippingInfo.tambonName || "",
+                      zipCode: shippingInfo.zipCode || "",
+                      deliveryDate: deliveryDate ? format(new Date(deliveryDate), 'yyyy-MM-dd') : "",
+                      deliveryTime: deliveryTime ? format(deliveryTime, 'HH:mm') : "",
+                      cardMessage: cardMessage || "",
+                      additionalNote: additionalMessage || ""
+                    }
+                  : {
+                      receiverName: receiverInfo.firstName || "",
+                      receiverLastname: receiverInfo.lastName || "",
+                      receiverPhone: receiverInfo.phone || "",
+                      addressLine: receiverInfo.address || "",
+                      addressLine2: "",
+                      provinceId: 0,
+                      provinceName: "จัดส่งให้ผู้รับโดยตรง",
+                      amphureId: 0,
+                      amphureName: "จัดส่งให้ผู้รับโดยตรง",
+                      tambonId: 0,
+                      tambonName: "จัดส่งให้ผู้รับโดยตรง",
+                      zipCode: "10200",
+                      deliveryDate: deliveryDate ? format(new Date(deliveryDate), 'yyyy-MM-dd') : "",
+                      deliveryTime: deliveryTime ? format(deliveryTime, 'HH:mm') : "",
+                      cardMessage: cardMessage || "",
+                      additionalNote: ""
+                    },
+                items: cartItems.map(item => ({
+                  productId: parseInt(item.id),
+                  productName: item.name || 'สินค้า',
+                  productImg: item.image || "",
+                  quantity: item.quantity,
+                  unitPrice: parseFloat(String(item.salesPrice || item.price || 0))
+                })),
+                paymentMethod: 'CREDIT_CARD',
+                discount: prices.discount || 0,
+                discountCode: discountCode || "",
+                paymentStatus: 'PENDING',
+                omiseToken: token || "",
+                chargeId: ""
+              }),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.message || 'ไม่สามารถสร้าง charge ได้');
+            }
+
+            const result = await response.json();
+            console.log('Payment API response:', result);
+            
+            // สำคัญ: ล้างตะกร้าสินค้าทันทีหลังจากสร้าง order สำเร็จ
+            clearCart();
+            
+            // ถ้ามี returnUri (3DS) ให้ redirect
+            if (result.returnUri) {
+              console.log('Redirecting to 3DS verification:', result.returnUri);
+              // ล้างตะกร้าสินค้าทันทีก่อน redirect
+              clearCart();
+              window.location.href = result.returnUri;
+              return;
+            }
+            
+            // ถ้าไม่มี 3DS แต่มี chargeId ให้ redirect ไปหน้า complete
+            if (result.chargeId) {
+              console.log('Payment successful, redirecting to complete page with chargeId:', result.chargeId);
+              // ล้างตะกร้าสินค้าทันทีก่อน redirect
+              clearCart();
+              const completeUrl = `${window.location.origin}/orders/complete?source=cc&transactionId=${result.chargeId}`;
+              console.log('Redirecting to:', completeUrl);
+              window.location.href = completeUrl;
+              return;
+            }
+            
+            // ถ้าไม่มีทั้ง returnUri และ chargeId แต่มี orderNumber ให้แสดงผลสำเร็จ
+            if (result.orderNumber) {
+              setOrderNumber(result.orderNumber);
+              setOrderComplete(true);
+              setActiveStep(2);
+              setIsProcessingOmise(false);
+              return;
+            }
+            
+            // กรณีไม่มีข้อมูลสำหรับ redirect
+            setShowAlert(true);
+            setAlertMessage('ชำระเงินสำเร็จแต่ไม่สามารถเปลี่ยนหน้าได้โดยอัตโนมัติ กรุณาตรวจสอบอีเมลยืนยันการสั่งซื้อ');
+            setIsProcessingOmise(false);
+            setActiveStep(2);
+          } catch (error) {
+            console.error('Error creating charge:', error);
+            setShowAlert(true);
+            setAlertMessage('ไม่สามารถสร้าง charge ได้ กรุณาลองใหม่อีกครั้ง');
+            setIsProcessingOmise(false);
+            return;
+          }
         },
         onFormClosed: () => {
           // เมื่อฟอร์มถูกปิด
-          setIsProcessingOmise(false);
-        },
-        onError: (error: any) => {
-          // จัดการข้อผิดพลาดที่เกิดขึ้นระหว่างกระบวนการสร้าง token
-          console.error('Omise error:', error);
-          setShowAlert(true);
-          setAlertMessage(`การยืนยันตัวตนล้มเหลว: ${error.message || 'กรุณาตรวจสอบข้อมูลบัตรและลองใหม่อีกครั้ง'}`);
           setIsProcessingOmise(false);
         }
       });
     } else if (paymentMethod === 'promptpay') {
       // สำหรับการชำระเงินด้วย PromptPay
+      // แสดง overlay ระหว่างรอ QR code
+      setShowPromptPayLoadingOverlay(true);
+      
       // ส่ง API request ไปยังเซิร์ฟเวอร์เพื่อสร้าง source และ QR code
       try {
         setIsProcessingOmise(true);
@@ -491,6 +609,9 @@ export default function Checkout() {
         // เก็บ QR code URL
         setPromptpayQrCode(result.source.qrCode);
         
+        // ปิด overlay รอการโหลด
+        setShowPromptPayLoadingOverlay(false);
+        
         // เปิด dialog แสดง QR code
         handleOpenPromptPayDialog();
         
@@ -501,6 +622,7 @@ export default function Checkout() {
         setShowAlert(true);
         setAlertMessage('ไม่สามารถสร้าง PromptPay QR code ได้ กรุณาลองใหม่อีกครั้ง');
         setIsProcessingOmise(false);
+        setShowPromptPayLoadingOverlay(false);
       }
     }
   };
@@ -695,12 +817,6 @@ export default function Checkout() {
         setAlertMessage('กรุณาเลือกวิธีการชำระเงิน');
         return;
       }
-      
-      // ถ้าเลือกจ่ายด้วยบัตรเครดิต/เดบิต หรือ PromptPay ให้เรียกใช้ handleOmisePayment แทนการไปขั้นตอนถัดไป
-      if (paymentMethod === 'credit_card' || paymentMethod === 'promptpay') {
-        handleOmisePayment();
-        return;
-      }
     }
 
     setActiveStep((prevActiveStep) => prevActiveStep + 1);
@@ -717,8 +833,6 @@ export default function Checkout() {
   };
 
   const handlePlaceOrder = async () => {
-    // Debug log for user object
-    //console.log('User object in checkout:', user);
     if (isProcessing) return;
     
     setShowAlert(false);
@@ -760,7 +874,7 @@ export default function Checkout() {
           !receiverInfo.phone || 
           !receiverInfo.address
         ) {
-          throw new Error('กรุณากรอกข้อมูลผู้รับสินค้าให้ครบถ้วน');
+          throw new Error('กรุณากรอกข้อมูลผู้รับให้ครบถ้วน');
         }
       }
       
@@ -769,61 +883,72 @@ export default function Checkout() {
         throw new Error('กรุณาเลือกวิธีการชำระเงิน');
       }
       
+      // ถ้าเลือกจ่ายด้วยบัตรเครดิต/เดบิต หรือ PromptPay ให้เรียกใช้ handleOmisePayment
+      if (paymentMethod === 'credit_card' || paymentMethod === 'promptpay') {
+        handleOmisePayment();
+        return;
+      }
+      
       // เตรียมข้อมูลสำหรับส่งไปยัง API
       const orderData = {
-        userId: user?.id,
         customerInfo: {
           firstName: customerInfo.firstName,
           lastName: customerInfo.lastName,
           email: customerInfo.email,
           phone: customerInfo.phone,
-          note: additionalMessage || undefined
+          note: additionalMessage || ""
         },
         shippingInfo: shippingTab === 0 
           ? {
-              receiverName: customerInfo.firstName,
-              receiverLastname: customerInfo.lastName,
-              receiverPhone: customerInfo.phone,
-              addressLine: shippingInfo.addressLine,
-              addressLine2: shippingInfo.addressLine2,
-              provinceId: shippingInfo.provinceId,
-              provinceName: shippingInfo.provinceName,
-              amphureId: shippingInfo.amphureId,
-              amphureName: shippingInfo.amphureName,
-              tambonId: shippingInfo.tambonId,
-              tambonName: shippingInfo.tambonName,
-              zipCode: shippingInfo.zipCode
+              receiverName: customerInfo.firstName || "",
+              receiverLastname: customerInfo.lastName || "",
+              receiverPhone: customerInfo.phone || "",
+              addressLine: shippingInfo.addressLine || "",
+              addressLine2: shippingInfo.addressLine2 || "",
+              provinceId: shippingInfo.provinceId || 0,
+              provinceName: shippingInfo.provinceName || "",
+              amphureId: shippingInfo.amphureId || 0,
+              amphureName: shippingInfo.amphureName || "",
+              tambonId: shippingInfo.tambonId || 0,
+              tambonName: shippingInfo.tambonName || "",
+              zipCode: shippingInfo.zipCode || "",
+              deliveryDate: deliveryDate ? format(new Date(deliveryDate), 'yyyy-MM-dd') : "",
+              deliveryTime: deliveryTime ? format(deliveryTime, 'HH:mm') : "",
+              cardMessage: cardMessage || "",
+              additionalNote: additionalMessage || ""
             }
           : {
-              receiverName: receiverInfo.firstName,
-              receiverLastname: receiverInfo.lastName,
-              receiverPhone: receiverInfo.phone,
-              addressLine: receiverInfo.address,
-              provinceId: 0, // จัดส่งให้ผู้อื่น
+              receiverName: receiverInfo.firstName || "",
+              receiverLastname: receiverInfo.lastName || "",
+              receiverPhone: receiverInfo.phone || "",
+              addressLine: receiverInfo.address || "",
+              addressLine2: "",
+              provinceId: 0,
               provinceName: "จัดส่งให้ผู้รับโดยตรง",
               amphureId: 0,
               amphureName: "จัดส่งให้ผู้รับโดยตรง",
               tambonId: 0,
               tambonName: "จัดส่งให้ผู้รับโดยตรง",
               zipCode: "10200",
-              deliveryDate: deliveryDate ? format(new Date(deliveryDate), 'yyyy-MM-dd') : undefined,
-              deliveryTime: deliveryTime ? format(deliveryTime, 'HH:mm') : undefined,
-              cardMessage: cardMessage || undefined
+              deliveryDate: deliveryDate ? format(new Date(deliveryDate), 'yyyy-MM-dd') : "",
+              deliveryTime: deliveryTime ? format(deliveryTime, 'HH:mm') : "",
+              cardMessage: cardMessage || "",
+              additionalNote: ""
             },
         items: cartItems.map(item => ({
-          productId: item.id,
-          productName: item.productName || item.name || `สินค้ารหัส ${item.id || item.sku || ''}`,
-          productImg: item.productImg || item.image || undefined,
+          productId: parseInt(item.id),
+          productName: item.name || 'สินค้า',
+          productImg: item.image || "",
           quantity: item.quantity,
           unitPrice: parseFloat(String(item.salesPrice || item.price || 0))
         })),
-        paymentMethod: paymentMethod === 'bank_transfer' ? 'BANK_TRANSFER' : 
-                      paymentMethod === 'credit_card' ? 'CREDIT_CARD' : 
-                      paymentMethod === 'promptpay' ? 'PROMPTPAY' : 'COD',
+        paymentMethod: 'BANK_TRANSFER', // เปลี่ยนเป็น BANK_TRANSFER ตาม enum ของ API
+        // ไม่ส่ง userId เพื่อป้องกันปัญหา Invalid input
         discount: prices.discount,
-        discountCode: discountAmount > 0 ? discountCode : undefined,
-        // เพิ่ม omiseToken สำหรับกรณีชำระด้วยบัตรเครดิตหรือ PromptPay
-        omiseToken: (paymentMethod === 'credit_card' || paymentMethod === 'promptpay') ? omiseToken : undefined,
+        discountCode: discountCode || "",
+        paymentStatus: 'PENDING',
+        omiseToken: omiseToken || "",
+        chargeId: ""
       };
       
       // ถ้ามีการใช้รหัสส่วนลด ให้เรียกใช้ API สำหรับเพิ่มจำนวนการใช้งาน
@@ -840,41 +965,6 @@ export default function Checkout() {
           });
         } catch (error) {
           console.error('Error updating discount usage count:', error);
-          // ไม่จำเป็นต้องหยุดการสั่งซื้อหากการอัปเดตจำนวนการใช้งานส่วนลดล้มเหลว
-        }
-      }
-      
-      // กรณีของ PromptPay ให้ตรวจสอบว่ามีการชำระเงินล่าสุดที่ยังไม่ได้นำมาใช้หรือไม่
-      let finalOrderData = { ...orderData } as any; // ใช้ Type Assertion เป็น any เพื่อให้สามารถเพิ่มคุณสมบัติได้
-      
-      if (paymentMethod === 'promptpay' && omiseToken) {
-        try {
-          // เพิ่ม charge_id เข้าไปใน orderData
-          finalOrderData.chargeId = omiseToken;
-          
-          console.log('Checking if PromptPay payment already confirmed:', omiseToken);
-          
-          // ตรวจสอบสถานะการชำระเงินก่อนส่งข้อมูล
-          const verifyResponse = await fetch(`/api/payment/verify?charge_id=${omiseToken}&_t=${Date.now()}`, {
-            cache: 'no-store',
-            headers: {
-              'Cache-Control': 'no-cache'
-            }
-          });
-          
-          if (verifyResponse.ok) {
-            const verifyResult = await verifyResponse.json();
-            console.log('PromptPay payment verification result:', verifyResult);
-            
-            // ถ้าชำระเงินเรียบร้อยแล้ว กำหนดสถานะให้เป็น CONFIRMED
-            if (verifyResult.success && verifyResult.status === 'successful') {
-              finalOrderData.paymentStatus = 'CONFIRMED';
-              console.log('PromptPay payment is already confirmed');
-            }
-          }
-        } catch (error) {
-          console.error('Error verifying PromptPay payment:', error);
-          // ถ้าตรวจสอบไม่สำเร็จก็ไม่เป็นไร ยังคงดำเนินการสร้าง order ต่อไป
         }
       }
       
@@ -884,16 +974,14 @@ export default function Checkout() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(finalOrderData),
+        body: JSON.stringify(orderData),
       });
       
-      // ตรวจสอบสถานะการตอบกลับและเนื้อหาก่อนแปลงเป็น JSON
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`เกิดข้อผิดพลาดในการสั่งซื้อ: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`);
       }
       
-      // ตรวจสอบว่ามีเนื้อหาก่อนแปลงเป็น JSON
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         throw new Error('การตอบกลับจากเซิร์ฟเวอร์ไม่ใช่รูปแบบ JSON');
@@ -911,7 +999,7 @@ export default function Checkout() {
         // ถ้ามี returnUri (3DS redirect) ให้เปลี่ยนไปที่หน้ายืนยันตัวตน
         if (result.returnUri) {
           window.location.href = result.returnUri;
-          return; // หยุดการทำงานเพื่อให้เกิดการ redirect
+          return;
         }
 
         // การสั่งซื้อสำเร็จ
@@ -988,6 +1076,13 @@ export default function Checkout() {
                   หากท่านชำระเงินแล้ว กรุณาส่งหลักฐานการโอนเงินผ่านทางไลน์ @treetelu หรืออีเมล info@treetelu.com
                 </Typography>
               </Alert>
+            ) : paymentMethod === 'promptpay' ? (
+              <Alert severity="info" sx={{ mb: 3, textAlign: 'left' }}>
+                <Typography variant="subtitle2">รอการตรวจสอบการชำระเงิน</Typography>
+                <Typography variant="body2">
+                  หากท่านชำระเงินผ่าน PromptPay แล้ว ระบบจะทำการตรวจสอบและอัพเดทสถานะการชำระเงินโดยอัตโนมัติ
+                </Typography>
+              </Alert>
             ) : (
               <Alert severity="success" sx={{ mb: 3, textAlign: 'left' }}>
                 <Typography variant="subtitle2">การชำระเงินสำเร็จแล้ว</Typography>
@@ -1017,28 +1112,7 @@ export default function Checkout() {
 
   // ถ้าไม่มีสินค้าในตะกร้า
   if (isCartEmpty) {
-    return (
-      <Container maxWidth="md" sx={{ py:0 }}>
-        <PageTitle variant="h5">ชำระเงิน</PageTitle>
-        <Paper sx={{ p: 4, textAlign: 'center' }}>
-          <Typography variant="h6" gutterBottom>
-            ไม่พบสินค้าในตะกร้า
-          </Typography>
-          <Typography variant="body1" color="text.secondary" paragraph>
-            กรุณาเลือกสินค้าก่อนดำเนินการชำระเงิน
-          </Typography>
-          <Button 
-            component={Link} 
-            href="/products"
-            variant="contained" 
-            startIcon={<ArrowBackIcon />}
-            sx={{ mt: 2 }}
-          >
-            เลือกสินค้า
-          </Button>
-        </Paper>
-      </Container>
-    );
+    return null; // ไม่แสดงข้อความใดๆ เมื่อตะกร้าว่างเปล่า
   }
 
   // ฟังก์ชันสำหรับสร้าง PromptPay QR code ใหม่
@@ -1091,9 +1165,336 @@ export default function Checkout() {
     }
   };
 
+  // ฟังก์ชันสำหรับการสร้าง order หลังจากชำระเงินด้วย PromptPay
+  const createPromptPayOrder = async () => {
+    try {
+      setIsProcessing(true);
+      
+      // เมื่อกดต่อไป ให้ส่งข้อมูลคำสั่งซื้อไปยัง API และเปิด overlay รอ webhook
+      setShowPromptPayWaitingOverlay(true);
+      
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerInfo: {
+            firstName: customerInfo.firstName || "",
+            lastName: customerInfo.lastName || "",
+            email: customerInfo.email || "",
+            phone: customerInfo.phone || "",
+            note: additionalMessage || ""
+          },
+          shippingInfo: shippingTab === 0 
+            ? { 
+                receiverName: customerInfo.firstName || "",
+                receiverLastname: customerInfo.lastName || "",
+                receiverPhone: customerInfo.phone || "",
+                addressLine: shippingInfo.addressLine || "",
+                addressLine2: shippingInfo.addressLine2 || "",
+                provinceId: shippingInfo.provinceId || 0,
+                provinceName: shippingInfo.provinceName || "",
+                amphureId: shippingInfo.amphureId || 0,
+                amphureName: shippingInfo.amphureName || "",
+                tambonId: shippingInfo.tambonId || 0,
+                tambonName: shippingInfo.tambonName || "",
+                zipCode: shippingInfo.zipCode || "",
+                deliveryDate: deliveryDate ? format(new Date(deliveryDate), 'yyyy-MM-dd') : "",
+                deliveryTime: deliveryTime ? format(deliveryTime, 'HH:mm') : "",
+                cardMessage: cardMessage || "",
+                additionalNote: additionalMessage || ""
+              }
+            : {
+                receiverName: receiverInfo.firstName || "",
+                receiverLastname: receiverInfo.lastName || "",
+                receiverPhone: receiverInfo.phone || "",
+                addressLine: receiverInfo.address || "",
+                addressLine2: "",
+                provinceId: 0,
+                provinceName: "จัดส่งให้ผู้รับโดยตรง",
+                amphureId: 0,
+                amphureName: "จัดส่งให้ผู้รับโดยตรง",
+                tambonId: 0,
+                tambonName: "จัดส่งให้ผู้รับโดยตรง",
+                zipCode: "10200",
+                deliveryDate: deliveryDate ? format(new Date(deliveryDate), 'yyyy-MM-dd') : "",
+                deliveryTime: deliveryTime ? format(deliveryTime, 'HH:mm') : "",
+                cardMessage: cardMessage || "",
+                additionalNote: ""
+              },
+          items: cartItems.map(item => ({
+            productId: parseInt(item.id),
+            productName: item.name || 'สินค้า',
+            productImg: item.image || "",
+            quantity: item.quantity,
+            unitPrice: parseFloat(String(item.salesPrice || item.price || 0))
+          })),
+          paymentMethod: 'PROMPTPAY',
+          discount: prices.discount || 0,
+          discountCode: discountCode || "",
+          paymentStatus: 'PENDING',
+          omiseToken: omiseToken,
+          chargeId: omiseToken // ใช้ charge id ที่ได้จากการสร้าง promptpay
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`ไม่สามารถสร้าง order ได้: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`);
+      }
+
+      const result = await response.json();
+      
+      // ล้างตะกร้าสินค้าทันที (แก้ไขให้ล้างตะกร้าทันทีหลังสร้าง order สำเร็จ)
+      clearCart();
+      // ล้างตะกร้าใน localStorage ทันที
+      localStorage.removeItem('cartItems');
+      
+      // เก็บเลขคำสั่งซื้อไว้ใช้กรณีหมดเวลารอ webhook
+      const createdOrderNumber = result.orderNumber;
+      
+      // รอ webhook จาก Omise 10 วินาที
+      const webhookTimeout = 10000; // 10 วินาที
+      
+      // ตั้งเวลารอ webhook
+      const webhookWaitPromise = new Promise((resolve) => {
+        setTimeout(() => {
+          // เมื่อครบเวลา
+          console.log('Webhook wait timeout after', webhookTimeout / 1000, 'seconds');
+          resolve({ timeout: true, orderNumber: createdOrderNumber });
+        }, webhookTimeout);
+      });
+      
+      // สร้างความล่าช้าก่อนไปตรวจสอบการชำระเงิน เพื่อให้ webhook มีเวลาเข้ามาก่อน
+      const timeoutResult = await webhookWaitPromise;
+      
+      // ถ้าหมดเวลารอ webhook ให้แสดงหน้าว่ารอการชำระเงิน
+      if ((timeoutResult as any).timeout) {
+        setShowPromptPayWaitingOverlay(false);
+        setOrderNumber(createdOrderNumber);
+        setOrderComplete(true);
+        setPaymentMethod('promptpay');
+        return true;
+      }
+      
+      // ถ้าไม่หมดเวลา (กรณีมี webhook มาก่อน) ให้ redirect ไปยังหน้าตรวจสอบ
+      const completeUrl = `${window.location.origin}/orders/complete?source=pp&transactionId=${omiseToken}`;
+      
+      // ไม่ต้องล้างตะกร้าอีกครั้ง เนื่องจากล้างไปแล้วด้านบน
+      window.location.href = completeUrl;
+      
+      return true;
+    } catch (error: any) {
+      console.error('Error placing order:', error);
+      setShowAlert(true);
+      setAlertMessage(error.message || 'ไม่สามารถสร้างคำสั่งซื้อได้ กรุณาลองใหม่อีกครั้ง');
+      setIsProcessing(false);
+      setShowPromptPayWaitingOverlay(false);
+      return false;
+    }
+  };
+
   // แสดงหน้าชำระเงินปกติ
   return (
     <Container maxWidth="lg" sx={{ py: 0 }}>
+      {/* Overlay สำหรับรอการโหลด QR Code PromptPay */}
+      {showPromptPayLoadingOverlay && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            backdropFilter: 'blur(5px)',
+          }}
+        >
+          <Box sx={{ position: 'relative', width: 120, height: 120, mb: 3 }}>
+            {/* พื้นหลังเบลอแบบพัลส์ */}
+            <Box 
+              sx={{ 
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '140%',
+                height: '140%',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                filter: 'blur(15px)',
+                animation: 'pulse 2s infinite ease-in-out',
+                '@keyframes pulse': {
+                  '0%': { transform: 'translate(-50%, -50%) scale(0.8)', opacity: 0.7 },
+                  '50%': { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+                  '100%': { transform: 'translate(-50%, -50%) scale(0.8)', opacity: 0.7 },
+                },
+              }}
+            />
+            
+            {/* วงกลมแอนิเมชันรอบนอก (เส้นทึบ) */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '90px',
+                height: '90px',
+                borderRadius: '50%',
+                border: '2px solid',
+                borderColor: 'primary.light',
+                opacity: 0.6,
+                animation: 'spin 4s infinite linear',
+                '@keyframes spin': {
+                  '0%': { transform: 'translate(-50%, -50%) rotate(0deg)' },
+                  '100%': { transform: 'translate(-50%, -50%) rotate(360deg)' },
+                },
+              }}
+            />
+            
+            {/* วงกลมแอนิเมชันเส้นประ */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '72px',
+                height: '72px',
+                borderRadius: '50%',
+                border: '2px dashed',
+                borderColor: 'primary.main',
+                opacity: 0.8,
+                animation: 'spin 8s infinite linear reverse',
+              }}
+            />
+            
+            {/* ไอคอน PromptPay */}
+            <Box sx={{ 
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 60,
+              height: 60,
+              borderRadius: '50%',
+              backgroundColor: 'primary.main',
+              color: 'white',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+              animation: 'bounce 1.2s infinite ease-in-out',
+              '@keyframes bounce': {
+                '0%, 100%': { transform: 'translate(-50%, -50%) scale(1)' },
+                '50%': { transform: 'translate(-50%, -50%) scale(1.1)' },
+              },
+            }}>
+              <CreditCardIcon sx={{ fontSize: 32 }} />
+            </Box>
+          </Box>
+          
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              mb: 1, 
+              fontWeight: 600,
+              background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              color: 'transparent',
+              WebkitTextFillColor: 'transparent',
+              letterSpacing: '0.5px',
+            }}
+          >
+            กำลังสร้าง QR Code พร้อมเพย์
+          </Typography>
+          
+          <Typography 
+            variant="body2" 
+            color="text.secondary" 
+            sx={{ 
+              mb: 2,
+              maxWidth: '80%',
+              textAlign: 'center',
+              fontWeight: 500,
+              animation: 'fadeInOut 2s infinite',
+              '@keyframes fadeInOut': {
+                '0%': { opacity: 0.7 },
+                '50%': { opacity: 1 },
+                '100%': { opacity: 0.7 },
+              },
+            }}
+          >
+            กรุณารอสักครู่ ระบบกำลังเตรียม QR Code สำหรับการชำระเงิน...
+          </Typography>
+          
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            gap: 1,
+            mb: 2,
+            p: 1.5,
+            borderRadius: 2,
+            backgroundColor: 'rgba(25, 118, 210, 0.05)',
+            border: '1px solid rgba(25, 118, 210, 0.1)',
+          }}>
+            <Box 
+              component="span" 
+              sx={{ 
+                display: 'inline-block',
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                backgroundColor: 'primary.main',
+                animation: 'blink 1.4s infinite ease-in-out',
+                animationDelay: '0s',
+                '@keyframes blink': {
+                  '0%': { transform: 'scale(1)', opacity: 1 },
+                  '50%': { transform: 'scale(0.6)', opacity: 0.5 },
+                  '100%': { transform: 'scale(1)', opacity: 1 },
+                },
+              }}
+            />
+            <Box 
+              component="span" 
+              sx={{ 
+                display: 'inline-block',
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                backgroundColor: 'primary.main',
+                animation: 'blink 1.4s infinite ease-in-out',
+                animationDelay: '0.2s',
+              }}
+            />
+            <Box 
+              component="span" 
+              sx={{ 
+                display: 'inline-block',
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                backgroundColor: 'primary.main',
+                animation: 'blink 1.4s infinite ease-in-out',
+                animationDelay: '0.4s',
+              }}
+            />
+            <Typography variant="caption" sx={{ ml: 1, fontWeight: 500, color: 'primary.main' }}>
+              โปรดอย่าปิดหน้านี้
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
       {/* QR Code Dialog สำหรับการโอนเงินธนาคาร */}
       <Dialog
         open={openQRDialog}
@@ -1239,15 +1640,199 @@ export default function Checkout() {
               
               <Button
                 variant="contained"
-                onClick={() => {
-                  handleClosePromptPayDialog();
-                  setActiveStep(2);
+                onClick={async () => {
+                  await createPromptPayOrder();
                 }}
+                disabled={isProcessing}
+                fullWidth
               >
-                ต่อไป
+                {isProcessing ? 'กำลังดำเนินการ...' : 'ต่อไป'}
               </Button>
             </Box>
           </Box>
+          
+          {/* Overlay สำหรับรอการตอบกลับจาก webhook */}
+          {showPromptPayWaitingOverlay && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 99,
+                borderRadius: 2,
+                backdropFilter: 'blur(8px)',
+                boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)',
+              }}
+            >
+              <Box sx={{ position: 'relative', width: 120, height: 120, mb: 3 }}>
+                {/* พื้นหลังเบลอสำหรับเอฟเฟกต์การส่องสว่าง */}
+                <Box 
+                  sx={{ 
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '150%',
+                    height: '150%',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                    filter: 'blur(15px)',
+                    animation: 'pulse 3s infinite ease-in-out',
+                    '@keyframes pulse': {
+                      '0%': { transform: 'translate(-50%, -50%) scale(0.8)', opacity: 0.6 },
+                      '50%': { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+                      '100%': { transform: 'translate(-50%, -50%) scale(0.8)', opacity: 0.6 },
+                    },
+                  }}
+                />
+                
+                {/* วงกลมแอนิเมชันรอบนอก */}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '90px',
+                    height: '90px',
+                    borderRadius: '50%',
+                    border: '2px solid',
+                    borderColor: 'primary.light',
+                    opacity: 0.6,
+                    animation: 'spin 4s infinite linear',
+                    '@keyframes spin': {
+                      '0%': { transform: 'translate(-50%, -50%) rotate(0deg)' },
+                      '100%': { transform: 'translate(-50%, -50%) rotate(360deg)' },
+                    },
+                  }}
+                />
+                
+                {/* วงกลมแอนิเมชันเส้นประ */}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '72px',
+                    height: '72px',
+                    borderRadius: '50%',
+                    border: '2px dashed',
+                    borderColor: 'primary.main',
+                    opacity: 0.8,
+                    animation: 'spin 8s infinite linear reverse',
+                  }}
+                />
+                
+                {/* ไอคอนพร้อมเพย์ตรงกลาง */}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 55,
+                    height: 55,
+                    borderRadius: '50%',
+                    backgroundColor: 'primary.main',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+                    zIndex: 2,
+                    animation: 'floatIcon 2s infinite ease-in-out',
+                    '@keyframes floatIcon': {
+                      '0%, 100%': { transform: 'translate(-50%, -50%) scale(1)' },
+                      '50%': { transform: 'translate(-50%, -50%) scale(1.1)' },
+                    },
+                  }}
+                >
+                  <CreditCardIcon sx={{ color: 'white', fontSize: 30 }} />
+                </Box>
+              </Box>
+              
+              <Box sx={{ maxWidth: '80%', textAlign: 'center' }}>
+                <Typography
+                  variant="h6"
+                  fontWeight="bold"
+                  sx={{
+                    mb: 2,
+                    backgroundImage: 'linear-gradient(45deg, #007FFF, #0059B2)',
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    color: 'transparent',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  กำลังตรวจสอบการชำระเงิน
+                </Typography>
+                
+                <Typography variant="body1" paragraph>
+                  กรุณารอสักครู่ ระบบกำลังรอการตอบกลับจาก PromptPay
+                </Typography>
+                
+                <Typography variant="body2" color="text.secondary" sx={{ 
+                  mt: 1, 
+                  animation: 'fadeInOut 2s infinite ease-in-out',
+                  '@keyframes fadeInOut': {
+                    '0%': { opacity: 0.6 },
+                    '50%': { opacity: 1 },
+                    '100%': { opacity: 0.6 },
+                  },
+                }}>
+                  โปรดอย่าปิดหน้านี้จนกว่าการชำระเงินจะเสร็จสมบูรณ์
+                </Typography>
+                
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mt: 3, gap: 1 }}>
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      backgroundColor: 'primary.main',
+                      animation: 'bounce 1.4s infinite ease-in-out both',
+                      animationDelay: '0s',
+                      '@keyframes bounce': {
+                        '0%, 100%': {
+                          transform: 'scale(0)',
+                        },
+                        '50%': {
+                          transform: 'scale(1)',
+                        },
+                      },
+                    }}
+                  />
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      backgroundColor: 'primary.main',
+                      animation: 'bounce 1.4s infinite ease-in-out both',
+                      animationDelay: '0.2s',
+                    }}
+                  />
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      backgroundColor: 'primary.main',
+                      animation: 'bounce 1.4s infinite ease-in-out both',
+                      animationDelay: '0.4s',
+                    }}
+                  />
+                </Box>
+              </Box>
+            </Box>
+          )}
         </DialogContent>
       </Dialog>
       
@@ -1935,8 +2520,9 @@ export default function Checkout() {
                                     <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                                       <Box component="img" src="/visa.svg" alt="VISA" sx={{ height: 24 }} />
                                       <Box component="img" src="/mastercard.svg" alt="MasterCard" sx={{ height: 24 }} />
-                                      
                                     </Box>
+                                    
+                                    {/* ลบปุ่มกรอกข้อมูลบัตรเครดิตออก */}
                                   </Box>
                                 }
                                 sx={{ width: '100%' }}
@@ -2398,6 +2984,9 @@ export default function Checkout() {
           
         </Box>
       </Box>
+      
+      {/* เพิ่ม div ที่ซ่อนอยู่สำหรับ Omise */}
+      <div id="creditCardButton" style={{ display: 'none' }}></div>
     </Container>
   );
 }

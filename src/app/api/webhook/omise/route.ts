@@ -274,7 +274,7 @@ export async function POST(request: NextRequest) {
             ) VALUES (
               ${charge.id}, 
               ${parseFloat((charge.amount / 100).toFixed(2))}, 
-              'CREDIT_CARD', 
+              ${charge.source?.type === 'promptpay' ? 'PROMPTPAY' : 'CREDIT_CARD'}, 
               'CONFIRMED', 
               ${JSON.stringify(charge)}, 
               false, 

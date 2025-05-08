@@ -36,13 +36,13 @@ const orderSchema = z.object({
     unitPrice: z.number()
   })).min(1, 'กรุณาเลือกสินค้าอย่างน้อย 1 รายการ'),
   paymentMethod: z.enum(['BANK_TRANSFER', 'CREDIT_CARD', 'PROMPTPAY', 'COD']),
-  userId: z.union([z.number(), z.string()]).optional(),
+  userId: z.union([z.number(), z.string(), z.null()]).optional(),
   discount: z.number().default(0),
   discountCode: z.string().optional(),
-  paymentStatus: z.enum(['PENDING', 'CONFIRMED', 'REJECTED']).optional(),
+  paymentStatus: z.enum(['PENDING', 'CONFIRMED', 'REJECTED', 'FAILED']).optional().default('PENDING'),
   paymentReference: z.string().optional(),
   omiseToken: z.string().optional(), // สำหรับ Omise token (card token หรือ charge id สำหรับ promptpay)
-  chargeId: z.string().optional(), // สำหรับ charge_id ของ Omise
+  chargeId: z.union([z.string(), z.null()]).optional(), // สำหรับ charge_id ของ Omise
   returnUri: z.string().optional() // สำหรับกรณี 3DS redirect
 });
 
