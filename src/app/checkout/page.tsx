@@ -573,7 +573,7 @@ export default function Checkout() {
             setShowCreditCardWaitingOverlay(false); // ปิด overlay เมื่อการชำระเงินเสร็จสิ้น
             setActiveStep(2);
           } catch (error) {
-            console.error('Error creating charge:', error);
+            // ลบ console.error
             setShowAlert(true);
             setAlertMessage('ไม่สามารถสร้าง charge ได้ กรุณาลองใหม่อีกครั้ง');
             setIsProcessingOmise(false);
@@ -635,7 +635,7 @@ export default function Checkout() {
         // ไม่ต้องไปยังขั้นตอนถัดไปทันที
         setIsProcessingOmise(false);
       } catch (error) {
-        console.error('Error creating PromptPay source:', error);
+        // ลบ console.error
         setShowAlert(true);
         setAlertMessage('ไม่สามารถสร้าง PromptPay QR code ได้ กรุณาลองใหม่อีกครั้ง');
         setIsProcessingOmise(false);
@@ -854,11 +854,8 @@ export default function Checkout() {
   const checkPaymentStatus = useCallback(async (chargeId: string) => {
     try {
       if (!chargeId || !chargeId.startsWith('chrg_')) {
-        console.warn('Invalid charge ID for payment status check:', chargeId);
         return;
       }
-      
-      console.log(`Checking payment status for charge: ${chargeId} (attempt ${pollingCount + 1}/${MAX_POLLING_COUNT})`);
       
       // เพิ่มพารามิเตอร์เพื่อป้องกัน caching
       const timestamp = new Date().getTime();
@@ -870,12 +867,10 @@ export default function Checkout() {
       });
       
       if (!response.ok) {
-        console.error('Payment status check failed:', response.status);
         return;
       }
       
       const data = await response.json();
-      console.log('Payment status check response:', data);
       
       if (data.success) {
         // ถ้าสถานะการชำระเงินเป็น successful หรือ CONFIRMED
@@ -907,7 +902,6 @@ export default function Checkout() {
         setPaymentPolling(false);
       }
     } catch (error) {
-      console.error('Error checking payment status:', error);
     }
   }, [pollingCount]);
 
@@ -915,8 +909,6 @@ export default function Checkout() {
   useEffect(() => {
     // ตรวจสอบเมื่อขั้นตอนการชำระเงินเสร็จสิ้น และเป็นการชำระเงินด้วย PromptPay และมี Omise Token
     if (orderComplete && paymentMethod === 'promptpay' && !paymentPolling && omiseToken) {
-      console.log('Starting payment polling for PromptPay payment:', omiseToken);
-      
       setPaymentPolling(true);
       setPollingCount(0);
       
@@ -1461,9 +1453,9 @@ export default function Checkout() {
       // เก็บ QR code URL
       setPromptpayQrCode(result.source.qrCode);
       
-      console.log('Updated QR Code URL:', result.source.qrCode);
+      // ลบ console.log
     } catch (error) {
-      console.error('Error regenerating PromptPay QR code:', error);
+      // ลบ console.error
       
       // แสดงข้อความผิดพลาดใน dialog แทนที่จะแสดงเป็น alert
       setAlertMessage('ไม่สามารถสร้าง PromptPay QR code ได้ กรุณาลองใหม่อีกครั้ง');
@@ -1594,7 +1586,7 @@ export default function Checkout() {
       
       return true;
     } catch (error: any) {
-      console.error('Error placing order:', error);
+      // ลบ console.error
       setShowAlert(true);
       setAlertMessage(error.message || 'ไม่สามารถสร้างคำสั่งซื้อได้ กรุณาลองใหม่อีกครั้ง');
       setIsProcessing(false);

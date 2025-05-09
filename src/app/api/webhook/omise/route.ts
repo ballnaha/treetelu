@@ -5,11 +5,16 @@ import fs from 'fs';
 import path from 'path';
 
 /**
- * บันทึก log ลงไฟล์
+ * บันทึก log ลงไฟล์ (ปิดการใช้งาน)
  * @param data ข้อมูลที่ต้องการบันทึก
  * @param prefix คำนำหน้าชื่อไฟล์
  */
 const logToFile = async (data: any, prefix: string = 'omise-webhook') => {
+  // ยกเลิกการบันทึกไฟล์ log
+  return;
+  
+  // โค้ดเดิมถูกปิดการใช้งาน
+  /* 
   try {
     const logDir = path.join(process.cwd(), 'logs');
     
@@ -26,6 +31,7 @@ const logToFile = async (data: any, prefix: string = 'omise-webhook') => {
   } catch (err) {
     console.error('Error writing log file:', err);
   }
+  */
 };
 
 /**
@@ -41,8 +47,8 @@ export async function POST(request: NextRequest) {
     // รับข้อมูล webhook จาก Omise
     const body = await request.json();
     
-    // เพิ่ม logging เพื่อเก็บข้อมูล webhook ทั้งหมด
-    await logToFile(body, 'omise-webhook-full');
+    // ยกเลิกการบันทึกข้อมูล webhook ทั้งหมด
+    // await logToFile(body, 'omise-webhook-full');
     
     // ตรวจสอบว่าเป็น event ที่เกี่ยวข้องกับการชำระเงินหรือไม่
     if (!body || !body.key) {
@@ -78,15 +84,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, message: 'Charge not successful, no action taken' });
       }
       
-      // บันทึก log ข้อมูลการชำระเงินสำเร็จ
-      await logToFile({
-        event: 'charge.complete',
-        chargeId: charge.id,
-        status: charge.status,
-        amount: charge.amount / 100,
-        metadata: charge.metadata,
-        timestamp: new Date().toISOString()
-      }, 'omise-payment-success');
+      // ยกเลิกการบันทึก log ข้อมูลการชำระเงินสำเร็จ
+      // await logToFile({
+      //  event: 'charge.complete',
+      //  chargeId: charge.id,
+      //  status: charge.status,
+      //  amount: charge.amount / 100,
+      //  metadata: charge.metadata,
+      //  timestamp: new Date().toISOString()
+      // }, 'omise-payment-success');
       
       // ค้นหา order ที่เกี่ยวข้องกับการชำระเงินนี้โดยใช้หลายวิธี
       let order = null;
@@ -236,13 +242,14 @@ export async function POST(request: NextRequest) {
           });
         } catch (err) {
           console.error('[charge.complete] Error updating order/payment_info:', err);
-          await logToFile({
-            event: 'charge.complete.error',
-            error: err,
-            charge: charge,
-            order: order,
-            timestamp: new Date().toISOString()
-          }, 'omise-payment-error');
+          // ยกเลิกการบันทึก log ข้อมูลการชำระเงินสำเร็จ
+          // await logToFile({
+          //  event: 'charge.complete.error',
+          //  error: err,
+          //  charge: charge,
+          //  order: order,
+          //  timestamp: new Date().toISOString()
+          // }, 'omise-payment-error');
           
           return NextResponse.json({
             success: false,
@@ -256,14 +263,14 @@ export async function POST(request: NextRequest) {
         console.log('[charge.complete] Order ID is pending, saving charge details for later processing');
         
         // บันทึกข้อมูลการชำระเงินสำเร็จที่ยังไม่มี order
-        await logToFile({
-          event: 'charge.complete.pending_order',
-          chargeId: charge.id,
-          status: charge.status,
-          amount: charge.amount / 100,
-          metadata: charge.metadata,
-          timestamp: new Date().toISOString()
-        }, 'omise-payment-pending');
+        // await logToFile({
+        //  event: 'charge.complete.pending_order',
+        //  chargeId: charge.id,
+        //  status: charge.status,
+        //  amount: charge.amount / 100,
+        //  metadata: charge.metadata,
+        //  timestamp: new Date().toISOString()
+        // }, 'omise-payment-pending');
         
         // พยายามบันทึกลงในตาราง pending_payments ถ้ามี
         try {
@@ -298,14 +305,14 @@ export async function POST(request: NextRequest) {
         console.log('[charge.complete] Order not found for charge:', charge.id);
         
         // บันทึกข้อมูลการชำระเงินที่ไม่พบ order
-        await logToFile({
-          event: 'charge.complete.order_not_found',
-          chargeId: charge.id,
-          status: charge.status,
-          amount: charge.amount / 100,
-          metadata: charge.metadata,
-          timestamp: new Date().toISOString()
-        }, 'omise-payment-no-order');
+        // await logToFile({
+        //  event: 'charge.complete.order_not_found',
+        //  chargeId: charge.id,
+        //  status: charge.status,
+        //  amount: charge.amount / 100,
+        //  metadata: charge.metadata,
+        //  timestamp: new Date().toISOString()
+        // }, 'omise-payment-no-order');
         
         return NextResponse.json({ 
           success: false,
@@ -467,13 +474,13 @@ export async function POST(request: NextRequest) {
             console.log('[source.complete] Updated existing pending payment for PromptPay');
             
             // เพิ่ม log ข้อมูลเพื่อการดีบัก
-            await logToFile({
-              event: 'promptpay.payment.pending_updated',
-              charge_id: charge.id,
-              amount: charge.amount / 100,
-              metadata: charge.metadata,
-              timestamp: new Date().toISOString()
-            }, 'omise-promptpay-pending');
+            // await logToFile({
+            //  event: 'promptpay.payment.pending_updated',
+            //  charge_id: charge.id,
+            //  amount: charge.amount / 100,
+            //  metadata: charge.metadata,
+            //  timestamp: new Date().toISOString()
+            // }, 'omise-promptpay-pending');
           } else {
             // สร้าง pending payment ใหม่
             try {
@@ -493,13 +500,13 @@ export async function POST(request: NextRequest) {
               console.log('[source.complete] Created new pending payment for PromptPay');
               
               // เพิ่ม log ข้อมูลเพื่อการดีบัก
-              await logToFile({
-                event: 'promptpay.payment.pending_created',
-                charge_id: charge.id,
-                amount: charge.amount / 100,
-                metadata: charge.metadata,
-                timestamp: new Date().toISOString()
-              }, 'omise-promptpay-pending');
+              // await logToFile({
+              //  event: 'promptpay.payment.pending_created',
+              //  charge_id: charge.id,
+              //  amount: charge.amount / 100,
+              //  metadata: charge.metadata,
+              //  timestamp: new Date().toISOString()
+              // }, 'omise-promptpay-pending');
             } catch (err) {
               console.error('[source.complete] Error creating pending payment:', err);
             }
@@ -511,7 +518,7 @@ export async function POST(request: NextRequest) {
         console.error('[source.complete] Error processing PromptPay webhook:', error);
       }
       
-      await logToFile(body.data, 'omise-promptpay-complete');
+      // await logToFile(body.data, 'omise-promptpay-complete');
       return NextResponse.json({ success: true, message: 'PromptPay webhook received' });
     }
     
@@ -520,12 +527,13 @@ export async function POST(request: NextRequest) {
     
   } catch (error) {
     console.error('Error processing Omise webhook:', error);
-    await logToFile({
-      event: 'webhook.error',
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString()
-    }, 'omise-webhook-error');
+    // ยกเลิกการบันทึก log ข้อมูลการชำระเงินสำเร็จ
+    // await logToFile({
+    //  event: 'webhook.error',
+    //  error: error instanceof Error ? error.message : String(error),
+    //  stack: error instanceof Error ? error.stack : undefined,
+    //  timestamp: new Date().toISOString()
+    // }, 'omise-webhook-error');
     
     return NextResponse.json(
       { 
