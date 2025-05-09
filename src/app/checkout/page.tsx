@@ -62,6 +62,12 @@ import thLocale from 'date-fns/locale/th';
 import { format } from 'date-fns';
 import { validateEmail, validateThaiPhone, validateZipCode } from '@/utils/validationUtils';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import InfoIcon from '@mui/icons-material/Info';
+import LaunchIcon from '@mui/icons-material/Launch';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import QrCodeIcon from '@mui/icons-material/QrCode';
 
 
 // สร้าง styled components
@@ -173,8 +179,21 @@ export default function Checkout() {
   // เพิ่ม state สำหรับแสดง overlay ระหว่างรอ QR code
   const [showPromptPayLoadingOverlay, setShowPromptPayLoadingOverlay] = useState(false);
   
+  // เพิ่ม state สำหรับแสดง overlay ระหว่างรอผลการชำระเงินด้วยบัตรเครดิต/เดบิต
+  const [showCreditCardWaitingOverlay, setShowCreditCardWaitingOverlay] = useState(false);
+  
   // ใช้ useRef เพื่อป้องกันการเรียก setState ซ้ำซ้อน
   const initialRenderRef = useRef(true);
+  
+  // เพิ่มตัวแปรสำหรับการโพลลิ่งตรวจสอบสถานะการชำระเงิน
+  const [paymentPolling, setPaymentPolling] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState('');
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [pollingCount, setPollingCount] = useState(0);
+  const MAX_POLLING_COUNT = 30; // ตรวจสอบสูงสุด 30 ครั้ง
+  
+  // ใช้ useRef เพื่อจัดการกับการแปลงราคา
+  const formattedPriceRef = useRef<string | null>(null);
   
   // เปิด-ปิด Dialog QR Code
   const handleOpenQRDialog = () => {
@@ -438,6 +457,9 @@ export default function Checkout() {
           // เก็บ token ไว้สำหรับส่งไปยัง API
           setOmiseToken(token);
           
+          // แสดง overlay รอการชำระเงิน
+          setShowCreditCardWaitingOverlay(true);
+          
           try {
             // สร้าง charge
             const response = await fetch('/api/orders', {
@@ -540,6 +562,7 @@ export default function Checkout() {
               setOrderComplete(true);
               setActiveStep(2);
               setIsProcessingOmise(false);
+              setShowCreditCardWaitingOverlay(false); // ปิด overlay เมื่อการชำระเงินเสร็จสิ้น
               return;
             }
             
@@ -547,18 +570,21 @@ export default function Checkout() {
             setShowAlert(true);
             setAlertMessage('ชำระเงินสำเร็จแต่ไม่สามารถเปลี่ยนหน้าได้โดยอัตโนมัติ กรุณาตรวจสอบอีเมลยืนยันการสั่งซื้อ');
             setIsProcessingOmise(false);
+            setShowCreditCardWaitingOverlay(false); // ปิด overlay เมื่อการชำระเงินเสร็จสิ้น
             setActiveStep(2);
           } catch (error) {
             console.error('Error creating charge:', error);
             setShowAlert(true);
             setAlertMessage('ไม่สามารถสร้าง charge ได้ กรุณาลองใหม่อีกครั้ง');
             setIsProcessingOmise(false);
+            setShowCreditCardWaitingOverlay(false); // ปิด overlay เมื่อเกิดข้อผิดพลาด
             return;
           }
         },
         onFormClosed: () => {
           // เมื่อฟอร์มถูกปิด
           setIsProcessingOmise(false);
+          setShowCreditCardWaitingOverlay(false); // ปิด overlay ในกรณีที่ผู้ใช้ปิดฟอร์ม
         }
       });
     } else if (paymentMethod === 'promptpay') {
@@ -814,6 +840,7 @@ export default function Checkout() {
     setShowAlert(false);
   };
 
+  // ฟังก์ชันจัดการการคลิก Back
   const handleBack = () => {
     setActiveStep((prevStep) => prevStep - 1);
     setShowAlert(false);
@@ -822,6 +849,94 @@ export default function Checkout() {
   const handlePaymentMethodChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setPaymentMethod(event.target.value);
   };
+
+  // เพิ่มฟังก์ชันตรวจสอบสถานะการชำระเงิน PromptPay
+  const checkPaymentStatus = useCallback(async (chargeId: string) => {
+    try {
+      if (!chargeId || !chargeId.startsWith('chrg_')) {
+        console.warn('Invalid charge ID for payment status check:', chargeId);
+        return;
+      }
+      
+      console.log(`Checking payment status for charge: ${chargeId} (attempt ${pollingCount + 1}/${MAX_POLLING_COUNT})`);
+      
+      // เพิ่มพารามิเตอร์เพื่อป้องกัน caching
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/payment/verify?charge_id=${chargeId}&_t=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate, proxy-revalidate'
+        }
+      });
+      
+      if (!response.ok) {
+        console.error('Payment status check failed:', response.status);
+        return;
+      }
+      
+      const data = await response.json();
+      console.log('Payment status check response:', data);
+      
+      if (data.success) {
+        // ถ้าสถานะการชำระเงินเป็น successful หรือ CONFIRMED
+        if (data.status === 'successful' || 
+            (data.pendingPayment && data.pendingPayment.status === 'CONFIRMED') || 
+            (data.order && data.order.paymentStatus === 'CONFIRMED')) {
+          
+          setPaymentStatus('CONFIRMED');
+          
+          // หยุดการโพลลิ่ง
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          
+          setPaymentPolling(false);
+        }
+      }
+      
+      // เพิ่มจำนวนครั้งที่ตรวจสอบ
+      setPollingCount(prev => prev + 1);
+      
+      // ถ้าตรวจสอบครบ MAX_POLLING_COUNT ครั้งแล้ว ให้หยุดการโพลลิ่ง
+      if (pollingCount >= MAX_POLLING_COUNT) {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        setPaymentPolling(false);
+      }
+    } catch (error) {
+      console.error('Error checking payment status:', error);
+    }
+  }, [pollingCount]);
+
+  // เริ่มการโพลลิ่งสำหรับ PromptPay เมื่อแสดงหน้ารอการตรวจสอบการชำระเงิน
+  useEffect(() => {
+    // ตรวจสอบเมื่อขั้นตอนการชำระเงินเสร็จสิ้น และเป็นการชำระเงินด้วย PromptPay และมี Omise Token
+    if (orderComplete && paymentMethod === 'promptpay' && !paymentPolling && omiseToken) {
+      console.log('Starting payment polling for PromptPay payment:', omiseToken);
+      
+      setPaymentPolling(true);
+      setPollingCount(0);
+      
+      // ตรวจสอบสถานะการชำระเงินทันที
+      checkPaymentStatus(omiseToken);
+      
+      // กำหนดการตรวจสอบทุก 10 วินาที
+      pollingIntervalRef.current = setInterval(() => {
+        checkPaymentStatus(omiseToken);
+      }, 10000); // 10 วินาที
+      
+      // หยุดการโพลลิ่งเมื่อคอมโพเนนต์ถูกทำลาย
+      return () => {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      };
+    }
+  }, [orderComplete, paymentMethod, paymentPolling, omiseToken, checkPaymentStatus]);
 
   const handlePlaceOrder = async () => {
     if (isProcessing) return;
@@ -935,7 +1050,7 @@ export default function Checkout() {
         })),
         paymentMethod: 'BANK_TRANSFER', // เปลี่ยนเป็น BANK_TRANSFER ตาม enum ของ API
         // ไม่ส่ง userId เพื่อป้องกันปัญหา Invalid input
-        discount: prices.discount,
+        discount: prices.discount || 0,
         discountCode: discountCode || "",
         paymentStatus: 'PENDING',
         omiseToken: omiseToken || "",
@@ -1046,64 +1161,268 @@ export default function Checkout() {
   // ถ้าสั่งซื้อสำเร็จแล้ว แสดงหน้ายืนยัน
   if (orderComplete) {
     return (
-      <Container maxWidth="md" sx={{ py: 8 }}>
-        <Box sx={{ textAlign: 'center', p: 3 }}>
-          <CheckCircleOutlineIcon sx={{ fontSize: 80, color: 'success.main', mb: 2 }} />
-          <Typography variant="h4" gutterBottom>สั่งซื้อสำเร็จ!</Typography>
-          
-          <Paper sx={{ p: 4, mt: 3, mb: 4, mx: 'auto', maxWidth: 500, borderRadius: 2, boxShadow: '0 3px 10px rgba(0,0,0,0.08)' }}>
-            <Typography variant="h6" gutterBottom color="primary.main">
-              ขอบคุณสำหรับการสั่งซื้อ
-            </Typography>
-            
-            <Typography variant="body1" sx={{ mb: 3 }}>
-              เลขที่คำสั่งซื้อ: <Typography component="span" fontWeight="bold">{orderNumber}</Typography>
-            </Typography>
-            
-            {paymentMethod === 'bank_transfer' ? (
-              <Alert severity="info" sx={{ mb: 3, textAlign: 'left' }}>
-                <Typography variant="subtitle2">กรุณาชำระเงินภายใน 24 ชั่วโมง</Typography>
-                <Typography variant="body2">
-                  หากท่านชำระเงินแล้ว กรุณาส่งหลักฐานการโอนเงินผ่านทางไลน์ @treetelu หรืออีเมล info@treetelu.com
-                </Typography>
-              </Alert>
-            ) : paymentMethod === 'promptpay' ? (
-              <Alert severity="info" sx={{ mb: 3, textAlign: 'left' }}>
-                <Typography variant="subtitle2">รอการตรวจสอบการชำระเงิน</Typography>
-                <Typography variant="body2">
-                  หากท่านชำระเงินผ่าน PromptPay แล้ว ระบบจะทำการตรวจสอบและอัพเดทสถานะการชำระเงินโดยอัตโนมัติ
-                </Typography>
-              </Alert>
-            ) : (
-              <Alert severity="success" sx={{ mb: 3, textAlign: 'left' }}>
-                <Typography variant="subtitle2">การชำระเงินสำเร็จแล้ว</Typography>
-                <Typography variant="body2">
-                  เราได้ส่งอีเมลยืนยันการสั่งซื้อไปที่อีเมลของท่าน กรุณาตรวจสอบอีเมลเพื่อดูรายละเอียดการสั่งซื้อ
-                </Typography>
-              </Alert>
-            )}
-            
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              เราจะดำเนินการจัดส่งสินค้าให้คุณโดยเร็วที่สุด หากมีข้อสงสัย สามารถติดต่อเราได้ที่ Line: @treetelu
-            </Typography>
-          </Paper>
-          
-          <Button
-            variant="contained"
-            component={Link}
-            href="/"
-            sx={{ mt: 2 }}
+      <Container maxWidth="md" sx={{ py: 6 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '60vh',
+          }}
+        >
+          <Paper
+            elevation={0}
+            sx={{
+              p: { xs: 3, md: 5 },
+              borderRadius: 3,
+              maxWidth: 560,
+              width: '100%',
+              mx: 'auto',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.06)',
+              background: 'linear-gradient(145deg, #ffffff 0%, #f9fafb 100%)',
+            }}
           >
-            กลับไปยังหน้าหลัก
-          </Button>
+            {/* พื้นหลังประดับตกแต่ง */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: -20,
+                right: -20,
+                width: 180,
+                height: 180,
+                borderRadius: '50%',
+                background: 'linear-gradient(45deg, rgba(25, 118, 210, 0.05) 0%, rgba(25, 118, 210, 0.1) 100%)',
+                zIndex: 0,
+              }}
+            />
+            
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: -30,
+                left: -30,
+                width: 150,
+                height: 150,
+                borderRadius: '50%',
+                background: 'linear-gradient(45deg, rgba(46, 125, 50, 0.05) 0%, rgba(46, 125, 50, 0.12) 100%)',
+                zIndex: 0,
+              }}
+            />
+            
+            <Box sx={{ position: 'relative', zIndex: 1 }}>
+              <Box
+                sx={{
+                  width: 90,
+                  height: 90,
+                  borderRadius: '50%',
+                  background: 'rgba(46, 125, 50, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mx: 'auto',
+                  mb: 3,
+                  position: 'relative',
+                }}
+              >
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '50%',
+                    border: '2px dashed rgba(46, 125, 50, 0.4)',
+                    animation: 'spin 10s linear infinite',
+                    '@keyframes spin': {
+                      '0%': { transform: 'rotate(0deg)' },
+                      '100%': { transform: 'rotate(360deg)' },
+                    },
+                  }}
+                />
+                <CheckCircleOutlineIcon 
+                  sx={{ 
+                    fontSize: 54, 
+                    color: 'success.main',
+                    animation: 'pulse 3s infinite',
+                    '@keyframes pulse': {
+                      '0%': { opacity: 0.8, transform: 'scale(0.95)' },
+                      '50%': { opacity: 1, transform: 'scale(1.05)' },
+                      '100%': { opacity: 0.8, transform: 'scale(0.95)' },
+                    },
+                  }} 
+                />
+              </Box>
+              
+              <Typography 
+                variant="h5" 
+                align="center" 
+                gutterBottom 
+                sx={{ 
+                  fontWeight: 600,
+                  mb: 2,
+                  background: 'linear-gradient(45deg, #2E7D32 30%, #43A047 90%)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  color: 'transparent',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                สั่งซื้อสำเร็จ
+              </Typography>
+              
+              <Box
+                sx={{
+                  p: 3,
+                  mb: 3,
+                  borderRadius: 2,
+                  background: 'rgba(255,255,255,0.8)',
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)',
+                  border: '1px solid rgba(0,0,0,0.03)',
+                }}
+              >
+                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 500 }}>
+                  ขอบคุณสำหรับการสั่งซื้อ
+                </Typography>
+                
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
+                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                    เลขที่คำสั่งซื้อ:
+                  </Typography>
+                  <Typography
+                    component="span"
+                    sx={{
+                      fontWeight: 700,
+                      px: 2,
+                      py: 0.5,
+                      borderRadius: 1.5,
+                      backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                      color: 'primary.main',
+                      letterSpacing: 0.5,
+                      fontSize: '1.1rem',
+                    }}
+                  >
+                    {orderNumber}
+                  </Typography>
+                </Box>
+                
+                {paymentMethod === 'bank_transfer' ? (
+                  <Alert 
+                    severity="info" 
+                    icon={<InfoIcon />}
+                    sx={{ 
+                      mb: 2, 
+                      textAlign: 'left',
+                      alignItems: 'flex-start',
+                      borderRadius: 2,
+                      backgroundColor: 'rgba(3, 169, 244, 0.08)',
+                      '& .MuiAlert-icon': { mt: 0.5 }
+                    }}
+                  >
+                    <Typography variant="subtitle2" sx={{ fontWeight: 500, mb: 1, color: 'info.dark' }}>
+                      กรุณาชำระเงินภายใน 24 ชั่วโมง
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'info.dark', opacity: 0.9 }}>
+                      หากท่านชำระเงินแล้ว กรุณาส่งหลักฐานการโอนเงินผ่านทางไลน์ @treetelu หรืออีเมล info@treetelu.com
+                    </Typography>
+                  </Alert>
+                ) : paymentMethod === 'promptpay' && paymentStatus !== 'CONFIRMED' ? (
+                  <Alert 
+                    severity="info" 
+                    icon={<InfoIcon />}
+                    sx={{ 
+                      mb: 2, 
+                      textAlign: 'left',
+                      alignItems: 'flex-start',
+                      borderRadius: 2,
+                      backgroundColor: 'rgba(3, 169, 244, 0.08)',
+                      '& .MuiAlert-icon': { mt: 0.5 }
+                    }}
+                  >
+                    <Typography variant="subtitle2" sx={{ fontWeight: 500, mb: 1, color: 'info.dark' }}>
+                      รอการตรวจสอบการชำระเงิน
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'info.dark', opacity: 0.9 }}>
+                      หากท่านชำระเงินผ่าน PromptPay แล้ว ระบบจะทำการตรวจสอบและอัพเดทสถานะการชำระเงินโดยอัตโนมัติ
+                      {paymentPolling && (
+                        <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', ml: 1 }}>
+                          <Box component="span" sx={{ 
+                            width: 8, 
+                            height: 8, 
+                            borderRadius: '50%', 
+                            backgroundColor: 'info.main',
+                            display: 'inline-block',
+                            mx: 0.5,
+                            animation: 'pulse 1.5s infinite ease-in-out',
+                          }}/>
+                          กำลังตรวจสอบ...
+                        </Box>
+                      )}
+                    </Typography>
+                  </Alert>
+                ) : (
+                  <Alert 
+                    severity="success" 
+                    icon={<CheckCircleIcon />}
+                    sx={{ 
+                      mb: 2, 
+                      textAlign: 'left',
+                      alignItems: 'flex-start',
+                      borderRadius: 2, 
+                      backgroundColor: 'rgba(46, 125, 50, 0.08)',
+                      '& .MuiAlert-icon': { mt: 0.5 }
+                    }}
+                  >
+                    <Typography variant="subtitle2" sx={{ fontWeight: 500, mb: 1, color: 'success.dark' }}>
+                      การชำระเงินสำเร็จแล้ว
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'success.dark', opacity: 0.9 }}>
+                      เราได้ส่งอีเมลยืนยันการสั่งซื้อไปที่อีเมลของท่าน กรุณาตรวจสอบอีเมลเพื่อดูรายละเอียดการสั่งซื้อ
+                    </Typography>
+                  </Alert>
+                )}
+                
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 1 }}>
+                  เราจะดำเนินการจัดส่งสินค้าให้คุณโดยเร็วที่สุด <br/>หากมีข้อสงสัย สามารถติดต่อเราได้ที่ Line: <Box component="span" sx={{ fontWeight: 500, color: 'primary.main' }}>@treetelu</Box>
+                </Typography>
+              </Box>
+              
+              <Button
+                variant="contained"
+                component={Link}
+                href="/"
+                sx={{ 
+                  mt: 1,
+                  py: 1.2,
+                  px: 4,
+                  borderRadius: 2,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 6px 15px rgba(0,0,0,0.15)',
+                  },
+                  width: { xs: '100%', sm: 'auto' },
+                  display: 'flex',
+                  mx: 'auto'
+                }}
+                startIcon={<ShoppingCartIcon />}
+              >
+                กลับไปยังหน้าหลัก
+              </Button>
+            </Box>
+          </Paper>
         </Box>
       </Container>
     );
   }
 
   // ถ้าไม่มีสินค้าในตะกร้า
-  if (isCartEmpty) {
-    return null; // ไม่แสดงข้อความใดๆ เมื่อตะกร้าว่างเปล่า
+  if (isCartEmpty && !showPromptPayWaitingOverlay && !showPromptPayLoadingOverlay && !paymentPolling && !showCreditCardWaitingOverlay) {
+    return null; // ไม่แสดงข้อความใดๆ เมื่อตะกร้าว่างเปล่าและไม่ได้กำลังรอการชำระเงิน
   }
 
   // ฟังก์ชันสำหรับสร้าง PromptPay QR code ใหม่
@@ -1423,6 +1742,203 @@ export default function Checkout() {
             }}
           >
             กรุณารอสักครู่ ระบบกำลังเตรียม QR Code สำหรับการชำระเงิน...
+          </Typography>
+          
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            gap: 1,
+            mb: 2,
+            p: 1.5,
+            borderRadius: 2,
+            backgroundColor: 'rgba(25, 118, 210, 0.05)',
+            border: '1px solid rgba(25, 118, 210, 0.1)',
+          }}>
+            <Box 
+              component="span" 
+              sx={{ 
+                display: 'inline-block',
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                backgroundColor: 'primary.main',
+                animation: 'blink 1.4s infinite ease-in-out',
+                animationDelay: '0s',
+                '@keyframes blink': {
+                  '0%': { transform: 'scale(1)', opacity: 1 },
+                  '50%': { transform: 'scale(0.6)', opacity: 0.5 },
+                  '100%': { transform: 'scale(1)', opacity: 1 },
+                },
+              }}
+            />
+            <Box 
+              component="span" 
+              sx={{ 
+                display: 'inline-block',
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                backgroundColor: 'primary.main',
+                animation: 'blink 1.4s infinite ease-in-out',
+                animationDelay: '0.2s',
+              }}
+            />
+            <Box 
+              component="span" 
+              sx={{ 
+                display: 'inline-block',
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                backgroundColor: 'primary.main',
+                animation: 'blink 1.4s infinite ease-in-out',
+                animationDelay: '0.4s',
+              }}
+            />
+            <Typography variant="caption" sx={{ ml: 1, fontWeight: 500, color: 'primary.main' }}>
+              โปรดอย่าปิดหน้านี้
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
+      {/* Overlay สำหรับรอผลการชำระเงินด้วยบัตรเครดิต/เดบิต */}
+      {showCreditCardWaitingOverlay && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            backdropFilter: 'blur(5px)',
+          }}
+        >
+          <Box sx={{ position: 'relative', width: 120, height: 120, mb: 3 }}>
+            {/* พื้นหลังเบลอแบบพัลส์ */}
+            <Box 
+              sx={{ 
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '140%',
+                height: '140%',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                filter: 'blur(15px)',
+                animation: 'pulse 2s infinite ease-in-out',
+                '@keyframes pulse': {
+                  '0%': { transform: 'translate(-50%, -50%) scale(0.8)', opacity: 0.7 },
+                  '50%': { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+                  '100%': { transform: 'translate(-50%, -50%) scale(0.8)', opacity: 0.7 },
+                },
+              }}
+            />
+            
+            {/* วงกลมแอนิเมชันรอบนอก (เส้นทึบ) */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '90px',
+                height: '90px',
+                borderRadius: '50%',
+                border: '2px solid',
+                borderColor: 'primary.light',
+                opacity: 0.6,
+                animation: 'spin 4s infinite linear',
+                '@keyframes spin': {
+                  '0%': { transform: 'translate(-50%, -50%) rotate(0deg)' },
+                  '100%': { transform: 'translate(-50%, -50%) rotate(360deg)' },
+                },
+              }}
+            />
+            
+            {/* วงกลมแอนิเมชันเส้นประ */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '72px',
+                height: '72px',
+                borderRadius: '50%',
+                border: '2px dashed',
+                borderColor: 'primary.main',
+                opacity: 0.8,
+                animation: 'spin 8s infinite linear reverse',
+              }}
+            />
+            
+            {/* ไอคอนบัตรเครดิต */}
+            <Box sx={{ 
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 60,
+              height: 60,
+              borderRadius: '50%',
+              backgroundColor: 'primary.main',
+              color: 'white',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+              animation: 'bounce 1.2s infinite ease-in-out',
+              '@keyframes bounce': {
+                '0%, 100%': { transform: 'translate(-50%, -50%) scale(1)' },
+                '50%': { transform: 'translate(-50%, -50%) scale(1.1)' },
+              },
+            }}>
+              <CreditCardIcon sx={{ fontSize: 32 }} />
+            </Box>
+          </Box>
+          
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              mb: 1, 
+              fontWeight: 600,
+              background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              color: 'transparent',
+              WebkitTextFillColor: 'transparent',
+              letterSpacing: '0.5px',
+            }}
+          >
+            กำลังดำเนินการชำระเงิน
+          </Typography>
+          
+          <Typography 
+            variant="body2" 
+            color="text.secondary" 
+            sx={{ 
+              mb: 2,
+              maxWidth: '80%',
+              textAlign: 'center',
+              fontWeight: 500,
+              animation: 'fadeInOut 2s infinite',
+              '@keyframes fadeInOut': {
+                '0%': { opacity: 0.7 },
+                '50%': { opacity: 1 },
+                '100%': { opacity: 0.7 },
+              },
+            }}
+          >
+            กรุณารอสักครู่ ระบบกำลังประมวลผลการชำระเงินของคุณ...
           </Typography>
           
           <Box sx={{ 
