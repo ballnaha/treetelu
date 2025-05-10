@@ -7,7 +7,7 @@ declare global {
 
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
@@ -514,7 +514,7 @@ export default function Checkout() {
                     },
                 items: cartItems.map(item => ({
                   productId: parseInt(item.id),
-                  productName: item.name || 'สินค้า',
+                  productName: item.productName || item.name || 'สินค้า',
                   productImg: item.image || "",
                   quantity: item.quantity,
                   unitPrice: parseFloat(String(item.salesPrice || item.price || 0))
@@ -1035,13 +1035,13 @@ export default function Checkout() {
             },
         items: cartItems.map(item => ({
           productId: parseInt(item.id),
-          productName: item.name || 'สินค้า',
+          productName: item.productName || item.name || 'สินค้า',
           productImg: item.image || "",
           quantity: item.quantity,
           unitPrice: parseFloat(String(item.salesPrice || item.price || 0))
         })),
         paymentMethod: 'BANK_TRANSFER', // เปลี่ยนเป็น BANK_TRANSFER ตาม enum ของ API
-        // ไม่ส่ง userId เพื่อป้องกันปัญหา Invalid input
+        userId: user?.id || null, // เพิ่ม userId จาก AuthContext
         discount: prices.discount || 0,
         discountCode: discountCode || "",
         paymentStatus: 'PENDING',
@@ -1525,12 +1525,13 @@ export default function Checkout() {
               },
           items: cartItems.map(item => ({
             productId: parseInt(item.id),
-            productName: item.name || 'สินค้า',
+            productName: item.productName || item.name || 'สินค้า',
             productImg: item.image || "",
             quantity: item.quantity,
             unitPrice: parseFloat(String(item.salesPrice || item.price || 0))
           })),
           paymentMethod: 'PROMPTPAY',
+          userId: user?.id || null, // เพิ่ม userId จาก AuthContext
           discount: prices.discount || 0,
           discountCode: discountCode || "",
           paymentStatus: 'PENDING',

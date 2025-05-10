@@ -771,7 +771,7 @@ export default function OrderHistoryClient() {
                             {item.productImg && (
                               <Box 
                                 component="img" 
-                                src={`/images/product/${item.productImg}`} 
+                                src={`${item.productImg}`} 
                                 alt={item.productName}
                                 sx={{ width: 40, height: 40, mr: 2, objectFit: 'cover', borderRadius: 1 }}
                                 onError={(e) => {

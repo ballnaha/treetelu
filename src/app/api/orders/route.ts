@@ -49,7 +49,7 @@ const orderSchema = z.object({
     unitPrice: z.number()
   })).min(1, 'กรุณาเลือกสินค้าอย่างน้อย 1 รายการ'),
   paymentMethod: z.enum(['BANK_TRANSFER', 'CREDIT_CARD', 'PROMPTPAY', 'COD']),
-  userId: z.union([z.number(), z.string()]).optional(),
+  userId: z.union([z.number(), z.string(), z.null(), z.undefined()]).optional(),
   discount: z.number().default(0),
   discountCode: z.string().optional(),
   paymentStatus: z.enum(['PENDING', 'CONFIRMED', 'REJECTED']).optional(),
@@ -106,7 +106,7 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
                   if (item.productImg.startsWith('http')) {
                     imageUrl = item.productImg;
                   } else {
-                    imageUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/images/product/${item.productImg}`;
+                    imageUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${item.productImg}`;
                   }
                 }
                 
@@ -444,9 +444,22 @@ export async function POST(request: NextRequest) {
     // ส่งการแจ้งเตือนไปยัง Discord (ถ้ามีการตั้งค่า)
     if (process.env.DISCORD_WEBHOOK_URL) {
       try {
-        const embed = createOrderNotificationEmbed(
-          result.order
-        );
+        // สร้างข้อมูลที่มีรายละเอียดครบถ้วนสำหรับ Discord
+        const orderDataForDiscord = {
+          ...result.order,
+          items: validatedData.items,
+          customerInfo: {
+            ...result.order.customerInfo
+          },
+          shippingInfo: {
+            ...result.order.shippingInfo
+          },
+          paymentMethod: validatedData.paymentMethod,
+          discount: validatedData.discount || 0,
+          discountCode: validatedData.discountCode || ''
+        };
+        
+        const embed = createOrderNotificationEmbed(orderDataForDiscord);
         
         sendDiscordNotification(embed).catch(error => {
           console.error('Error sending Discord notification:', error);

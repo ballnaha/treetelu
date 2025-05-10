@@ -92,7 +92,7 @@ type OrderDataInput = {
     unitPrice: number;
   }>;
   paymentMethod: PaymentMethodType;
-  userId?: number | string;
+  userId?: number | string | null;
   discount?: number;
   discountCode?: string;
   paymentStatus?: 'PENDING' | 'CONFIRMED' | 'REJECTED';
