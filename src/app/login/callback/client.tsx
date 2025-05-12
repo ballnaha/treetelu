@@ -14,20 +14,21 @@ export default function CallbackClient() {
   const [loading, setLoading] = useState(true);
   const [loadingMessage, setLoadingMessage] = useState('กำลังเข้าสู่ระบบ...');
   const [isLineUser, setIsLineUser] = useState(false);
+  const [hasProcessed, setHasProcessed] = useState(false);
   
   useEffect(() => {
     setIsMounted(true);
   }, []);
   
   useEffect(() => {
-    if (!isMounted) return;
+    if (!isMounted || hasProcessed) return;
     
     const processLogin = async () => {
       try {
-        // แสดงสถานะกำลังดำเนินการ
+        setHasProcessed(true);
+        
         setLoadingMessage('กำลังตรวจสอบข้อมูลการเข้าสู่ระบบ...');
         
-        // รับพารามิเตอร์จาก URL
         const token = searchParams.get('token');
         const userId = searchParams.get('userId');
         const name = searchParams.get('name');
@@ -35,9 +36,9 @@ export default function CallbackClient() {
         const csrfToken = searchParams.get('csrfToken');
         const avatarRaw = searchParams.get('avatar');
         const lineUser = searchParams.get('isLineUser') === 'true';
+        
         setIsLineUser(lineUser);
         
-        // สำหรับ LINE avatar ให้เป็นค่าว่าง เนื่องจากไม่สามารถใช้งานได้
         let avatar = '';
         if (avatarRaw && avatarRaw !== 'undefined' && avatarRaw !== 'null' &&
             !avatarRaw.includes('profile.line-scdn.net') && !avatarRaw.includes('obs.line-scdn.net')) {
@@ -53,35 +54,27 @@ export default function CallbackClient() {
           return;
         }
         
-        // อัพเดทสถานะ
         setLoadingMessage('กำลังบันทึกข้อมูลการเข้าสู่ระบบ...');
         
-        // เก็บ token ใน localStorage
         localStorage.setItem('auth_token', token);
         
-        // เก็บ token ใน cookie ด้วย
         document.cookie = `auth_token=${token}; path=/; max-age=${30*24*60*60}`;
         
-        // ใช้ AuthContext สำหรับการเข้าสู่ระบบ
         const userData = {
           id: userId,
           name: name,
           isLoggedIn: true,
           isAdmin: isAdmin,
           token: token,
-          isLineUser: lineUser, // เพิ่มเพื่อระบุว่าเป็นผู้ใช้ LINE
-          avatar: avatar // เพิ่มข้อมูล avatar ที่ผ่านการตรวจสอบแล้ว
+          isLineUser: lineUser,
+          avatar: avatar
         };
         
-        // เข้าสู่ระบบผ่าน Context
         login(userData, csrfToken || '');
         
-        // อัพเดทสถานะ
         setLoadingMessage('กำลังนำคุณไปยังหน้าหลัก...');
         
-        // รอสักครู่เพื่อให้เห็น loading message
         setTimeout(() => {
-          // เปลี่ยนเส้นทางไปยังหน้าแรกเสมอ
           window.location.href = '/';
         }, 1000);
         
@@ -93,9 +86,8 @@ export default function CallbackClient() {
     };
     
     processLogin();
-  }, [isMounted, searchParams, login, router]);
+  }, [isMounted, hasProcessed, searchParams, login, router]);
   
-  // ป้องกัน hydration issues
   if (!isMounted) {
     return (
       <Container maxWidth="sm" sx={{ mt: 8, display: 'flex', justifyContent: 'center' }}>
@@ -123,7 +115,6 @@ export default function CallbackClient() {
   
   return (
     <>
-      {/* Full-page loading overlay */}
       <Backdrop
         sx={{
           position: 'fixed',
@@ -147,7 +138,7 @@ export default function CallbackClient() {
           thickness={4}
           sx={{ 
             mb: 3,
-            color: isLineUser ? '#06C755' : '#1976d2' // สีเขียวสำหรับ LINE login, สีน้ำเงินสำหรับปกติ
+            color: isLineUser ? '#06C755' : '#1976d2'
           }}
         />
         <Typography variant="h5" sx={{ mb: 1, fontWeight: 500 }}>
@@ -167,7 +158,6 @@ export default function CallbackClient() {
         minHeight: '80vh',
         p: 3,
       }}>
-        {/* เนื้อหาปกติ (จะถูกซ่อนด้วย overlay) */}
         <Box sx={{ mb: 3, textAlign: 'center' }}>
           <img 
             src="/images/line-badge.png" 

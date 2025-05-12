@@ -119,6 +119,8 @@ model Order {
   createdAt     DateTime      @default(now()) @db.DateTime(0)
   updatedAt     DateTime      @updatedAt @db.DateTime(0)
   adminComment  String?       @db.Text
+  stripeSessionId String?     @db.VarChar(255)
+  stripePaymentMethodType String? @db.VarChar(20)
   customerInfo  CustomerInfo?
   orderItems    OrderItem[]
   paymentInfo   PaymentInfo?

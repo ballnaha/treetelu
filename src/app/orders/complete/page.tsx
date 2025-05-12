@@ -30,15 +30,19 @@ export default function OrderComplete() {
     
     // แสดงข้อมูลการค้นหาทันทีที่โหลดหน้า
     const transactionId = searchParams.get('transactionId') || '';
+    const sessionId = searchParams.get('session_id') || ''; // เพิ่มการรับค่า session_id จาก Stripe
     const source = searchParams.get('source') || '';
-    console.log('Initial load params:', { transactionId, source });
+    console.log('Initial load params:', { transactionId, sessionId, source });
     
     // เริ่มตรวจสอบข้อมูลการชำระเงินทันที
     if (transactionId && (source === 'cc' || source === 'credit_card' || source === 'pp' || source === 'promptpay')) {
       console.log('Starting payment check for transaction:', transactionId);
       checkPaymentData(transactionId);
+    } else if (sessionId && source === 'stripe') {
+      console.log('Starting Stripe payment check for session:', sessionId);
+      checkStripePaymentData(sessionId);
     } else {
-      console.log('Missing required parameters:', { transactionId, source });
+      console.log('Missing required parameters:', { transactionId, sessionId, source });
       setError('ไม่พบข้อมูลการชำระเงิน กรุณาตรวจสอบพารามิเตอร์ที่ส่งมา');
       setLoading(false);
     }
@@ -54,6 +58,66 @@ export default function OrderComplete() {
 
     return () => clearTimeout(timeout);
   }, []);
+  
+  // เพิ่มฟังก์ชันสำหรับตรวจสอบข้อมูลการชำระเงินจาก Stripe
+  const checkStripePaymentData = async (sessionId: string) => {
+    try {
+      console.log(`Checking Stripe payment data for session: ${sessionId}`);
+      
+      // ตรวจสอบว่า sessionId มีค่าหรือไม่
+      if (!sessionId || (sessionId === 'undefined')) {
+        console.error('Invalid Stripe session ID:', sessionId);
+        if (retryCount < maxRetries) {
+          setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+          }, retryInterval);
+          return;
+        } else {
+          throw new Error('รหัสการชำระเงิน Stripe ไม่ถูกต้อง');
+        }
+      }
+      
+      const response = await fetch(`/api/stripe/verify?session_id=${sessionId}`);
+      
+      if (!response.ok) {
+        console.error('API response error:', response.status, response.statusText);
+        throw new Error('ไม่สามารถดึงข้อมูลการชำระเงินได้');
+      }
+      
+      const data = await response.json();
+      console.log('Stripe API response:', data);
+
+      if (data.success) {
+        setPaymentData({
+          orderNumber: data.orderNumber,
+          transactionId: sessionId
+        });
+        setLoading(false);
+      } else {
+        // ถ้าไม่พบข้อมูลและยังไม่เกินจำนวนครั้งที่จะลองใหม่
+        if (retryCount < maxRetries) {
+          console.log(`Retry ${retryCount + 1}/${maxRetries} - waiting for Stripe webhook to update order data`);
+          setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+          }, retryInterval);
+        } else {
+          setError(data.message || 'ไม่พบข้อมูลคำสั่งซื้อ');
+          setLoading(false);
+        }
+      }
+    } catch (err) {
+      console.error('Error checking Stripe payment:', err);
+      
+      if (retryCount < maxRetries) {
+        setTimeout(() => {
+          setRetryCount(prev => prev + 1);
+        }, retryInterval);
+      } else {
+        setError('เกิดข้อผิดพลาดในการตรวจสอบการชำระเงิน');
+        setLoading(false);
+      }
+    }
+  };
   
   // แยกฟังก์ชันตรวจสอบข้อมูลการชำระเงินไปอยู่นอก useCallback เพื่อความเร็ว
   const checkPaymentData = async (transactionId: string) => {
@@ -124,8 +188,9 @@ export default function OrderComplete() {
   const checkPayment = useCallback(async () => {
     try {
       const transactionId = searchParams.get('transactionId');
+      const sessionId = searchParams.get('session_id');
       const source = searchParams.get('source');
-      console.log(`Payment check attempt ${retryCount + 1}/${maxRetries}:`, { transactionId, source });
+      console.log(`Payment check attempt ${retryCount + 1}/${maxRetries}:`, { transactionId, sessionId, source });
 
       if (source === 'cc' || source === 'credit_card' || source === 'pp' || source === 'promptpay') {
         setLoading(true);
@@ -138,13 +203,31 @@ export default function OrderComplete() {
             setTimeout(() => {
               setRetryCount(prev => prev + 1);
             }, retryInterval);
-        return;
+            return;
           } else {
             throw new Error('ไม่สามารถรับข้อมูลการชำระเงินได้ในเวลาที่กำหนด');
           }
         }
         
         await checkPaymentData(transactionId);
+      } else if (source === 'stripe') {
+        setLoading(true);
+        
+        // ถ้า sessionId เป็น undefined หรือค่าว่าง แสดงว่า webhook ยังไม่ได้อัพเดต
+        if (!sessionId) {
+          console.log('Stripe session ID is undefined, waiting for webhook...');
+          if (retryCount < maxRetries) {
+            // ลองใหม่อีกครั้งหลังจากช่วงเวลาที่กำหนด
+            setTimeout(() => {
+              setRetryCount(prev => prev + 1);
+            }, retryInterval);
+            return;
+          } else {
+            throw new Error('ไม่สามารถรับข้อมูลการชำระเงินได้ในเวลาที่กำหนด');
+          }
+        }
+        
+        await checkStripePaymentData(sessionId);
       }
     } catch (err) {
       console.error('Error in checkPayment:', err);
@@ -183,18 +266,30 @@ export default function OrderComplete() {
   }
 
   if (loading) {
+    // ตรวจสอบว่าเป็นการรอการอัปเดตจาก Stripe webhook หรือไม่
+    const isStripePayment = searchParams.get('source') === 'stripe';
+    
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-          <CircularProgress size={60} thickness={4} />
+        <CircularProgress size={60} thickness={4} />
         <Typography variant="h6" sx={{ mt: 3 }}>
-          กำลังตรวจสอบข้อมูลการชำระเงิน...
+          {isStripePayment 
+            ? 'กำลังตรวจสอบข้อมูลการชำระเงินจาก Stripe...'
+            : 'กำลังตรวจสอบข้อมูลการชำระเงิน...'}
         </Typography>
         {retryCount > 0 && (
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            กรุณารอสักครู่ (พยายามตรวจสอบครั้งที่ {retryCount}/{maxRetries})
+            {isStripePayment
+              ? 'กรุณารอสักครู่ ระบบกำลังรอการยืนยันจาก Stripe (ครั้งที่ ' + retryCount + '/' + maxRetries + ')'
+              : 'กรุณารอสักครู่ (พยายามตรวจสอบครั้งที่ ' + retryCount + '/' + maxRetries + ')'}
           </Typography>
         )}
-        </Box>
+        {isStripePayment && (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2, maxWidth: 500, textAlign: 'center' }}>
+            หากคุณได้รับอีเมลยืนยันการชำระเงินจาก Stripe แล้ว แสดงว่าการชำระเงินสำเร็จเรียบร้อย กรุณารอระบบอัปเดตข้อมูล...
+          </Typography>
+        )}
+      </Box>
     );
   }
 
@@ -202,32 +297,32 @@ export default function OrderComplete() {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100vh', p: 3 }}>
         <Typography variant="h5" color="error" gutterBottom>
-              {error}
-            </Typography>
-              <Button 
+          {error}
+        </Typography>
+        <Button 
           variant="contained"
           startIcon={<HomeIcon />}
           onClick={() => router.push('/')}
           sx={{ mt: 2 }}
         >
           กลับหน้าหลัก
-              </Button>
-            </Box>
+        </Button>
+      </Box>
     );
   }
 
   if (!paymentData) {
-  return (
+    return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100vh', p: 3 }}>
         <Typography variant="h5" color="error" gutterBottom>
-              ไม่พบข้อมูลการชำระเงิน
-            </Typography>
+          ไม่พบข้อมูลการชำระเงิน
+        </Typography>
         <Typography variant="body1" color="text.secondary" paragraph>
           ระบบไม่สามารถตรวจสอบข้อมูลการชำระเงินได้ในขณะนี้ แต่คำสั่งซื้อของคุณอาจถูกดำเนินการแล้ว
-            </Typography>
+        </Typography>
         <Typography variant="body2" color="text.secondary" paragraph>
           คุณสามารถตรวจสอบสถานะคำสั่งซื้อได้ในอีเมลที่ได้รับ หรือติดต่อเราโดยตรง
-            </Typography>
+        </Typography>
         <Button
           variant="contained"
           startIcon={<HomeIcon />}
@@ -236,46 +331,188 @@ export default function OrderComplete() {
         >
           กลับหน้าหลัก
         </Button>
-        </Box>
+      </Box>
     );
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100vh', p: 3 }}>
-      <Paper elevation={3} sx={{ p: 4, maxWidth: 600, width: '100%', textAlign: 'center' }}>
-        <CheckCircleOutlineIcon sx={{ fontSize: 60, color: 'success.main', mb: 2 }} />
-        <Typography variant="h4" gutterBottom>
-          ชำระเงินสำเร็จ
-              </Typography>
-        <Typography variant="h6" color="text.secondary" gutterBottom>
-          ขอบคุณที่ใช้บริการ
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      minHeight: '100vh', 
+      p: { xs: 2, md: 4 },
+      bgcolor: '#f8f9fa'
+    }}>
+      <Paper 
+        elevation={4} 
+        sx={{ 
+          p: { xs: 3, md: 5 }, 
+          maxWidth: 680, 
+          width: '100%', 
+          textAlign: 'center',
+          borderRadius: 3,
+          position: 'relative',
+          overflow: 'hidden',
+          mt: 4,
+          mb: 4
+        }}
+      >
+        {/* ลายเส้นตกแต่งด้านบน */}
+        <Box sx={{ 
+          position: 'absolute', 
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          height: '8px', 
+          background: 'linear-gradient(90deg, #24B493, #8bd4c4, #24B493)' 
+        }} />
+        
+        <Fade in={true} timeout={800}>
+          <Box>
+            <Box sx={{ 
+              mb: 3, 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              flexDirection: 'column'
+            }}>
+              <Box 
+                sx={{ 
+                  width: 90, 
+                  height: 90, 
+                  borderRadius: '50%', 
+                  bgcolor: '#e8f7f2', 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center',
+                  mb: 3,
+                  animation: 'pulse 2s infinite'
+                }}
+              >
+                <CheckCircleOutlineIcon 
+                  sx={{ 
+                    fontSize: 56, 
+                    color: '#24B493', 
+                  }} 
+                />
+              </Box>
+              
+              <Typography 
+                variant="h4" 
+                sx={{ 
+                  fontWeight: 600, 
+                  color: '#1e293b',
+                  mb: 1
+                }}
+              >
+                ชำระเงินสำเร็จ
               </Typography>
               
-        <Box sx={{ mt: 4, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
-          <Typography variant="subtitle1" gutterBottom>
-                    เลขที่คำสั่งซื้อ
-                  </Typography>
-          <Typography variant="h5" color="primary" gutterBottom>
-            {paymentData.orderNumber}
+              <Typography 
+                variant="subtitle1" 
+                sx={{ 
+                  color: '#64748b',
+                  mb: 3,
+                  maxWidth: '90%'
+                }}
+              >
+                ขอขอบคุณที่ใช้บริการกับเรา เราได้รับการชำระเงินของคุณเรียบร้อยแล้ว
               </Typography>
               
-          <Typography variant="subtitle1" sx={{ mt: 2 }} gutterBottom>
-            เลขที่รายการ
-              </Typography>
-          <Typography variant="h6" color="text.secondary">
-            {paymentData.transactionId}
-                  </Typography>
+              <Box sx={{ 
+                width: '100%', 
+                height: '1px', 
+                bgcolor: '#e2e8f0', 
+                my: 2 
+              }} />
             </Box>
-                  
-                  <Button
-          variant="contained"
-          startIcon={<HomeIcon />}
-          onClick={() => router.push('/')}
-          sx={{ mt: 4 }}
-        >
-          กลับหน้าหลัก
+            
+            <Box sx={{ 
+              my: 4, 
+              p: 3, 
+              bgcolor: '#f1f9f7', 
+              borderRadius: 2,
+              boxShadow: 'inset 0 0 0 1px rgba(36, 180, 147, 0.1)'
+            }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', mb: 3 }}>
+                <Typography variant="subtitle2" gutterBottom sx={{ color: '#475569' }}>
+                  เลขที่คำสั่งซื้อ
+                </Typography>
+                <Typography 
+                  variant="h5" 
+                  color="primary" 
+                  sx={{ 
+                    fontWeight: 600, 
+                    letterSpacing: '0.5px',
+                    color: '#24B493'
+                  }}
+                >
+                  {paymentData.orderNumber}
+                </Typography>
+              </Box>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                <Typography variant="subtitle2" gutterBottom sx={{ color: '#475569' }}>
+                  รหัสอ้างอิงธุรกรรม
+                </Typography>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: '#64748b',
+                    wordBreak: 'break-all',
+                    fontFamily: 'monospace',
+                    bgcolor: '#f8fafc',
+                    p: 1,
+                    borderRadius: 1
+                  }}
+                >
+                  {paymentData.transactionId}
+                </Typography>
+              </Box>
+            </Box>
+            
+            <Box sx={{ mt: 2, mb: 4 }}>
+              <Typography variant="body2" sx={{ color: '#64748b', mb: 2 }}>
+                เราจะจัดส่งอีเมลยืนยันคำสั่งซื้อพร้อมรายละเอียดไปที่อีเมลของคุณ
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#64748b' }}>
+                หากมีข้อสงสัย โปรดติดต่อเราที่ <strong>Line: @treetelu</strong> หรืออีเมล <strong>info@treetelu.com</strong>
+              </Typography>
+            </Box>
+            
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 3 }}>
+              <Button 
+                variant="contained" 
+                size="large"
+                startIcon={<HomeIcon />}
+                onClick={() => router.push('/')}
+                sx={{ 
+                  bgcolor: '#24B493',
+                  '&:hover': {
+                    bgcolor: '#1c9679',
+                  },
+                  px: 4,
+                  py: 1.2,
+                  borderRadius: 2,
+                  boxShadow: '0 4px 14px 0 rgba(36, 180, 147, 0.25)'
+                }}
+              >
+                กลับหน้าหลัก
               </Button>
+            </Box>
+          </Box>
+        </Fade>
       </Paper>
-      </Box>
+      
+      {/* เพิ่ม CSS Animation */}
+      <style jsx global>{`
+        @keyframes pulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
+      `}</style>
+    </Box>
   );
 } 

@@ -58,7 +58,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const userData = localStorage.getItem('user');
           if (userData) {
             const parsedUser = JSON.parse(userData);
-            setUser(parsedUser);
+            // ตรวจสอบว่าข้อมูลเปลี่ยนแปลงจริงๆ ก่อนเรียก setUser
+            if (JSON.stringify(parsedUser) !== JSON.stringify(user)) {
+              setUser(parsedUser);
+            }
           }
         } catch (error) {
           console.error('Error loading user data:', error);
@@ -69,6 +72,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     getUserFromStorage();
+    
+    // ไม่ต้องให้ getUserFromStorage ทำงานทุกครั้งที่ user เปลี่ยน
+    // eslint-disable-next-line react-hooks/exhaustive-deps 
   }, []);
 
   // ฟังก์ชันสำหรับการเข้าสู่ระบบ
@@ -81,6 +87,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
       userData.avatar = '';
     }
     
+    // ทำการเปรียบเทียบกับข้อมูลที่มีอยู่แล้ว เพื่อป้องกัน re-render ที่ไม่จำเป็น
+    const existingUserData = localStorage.getItem('user');
+    if (existingUserData) {
+      try {
+        const existingUser = JSON.parse(existingUserData);
+        // ตรวจสอบว่าข้อมูลเปลี่ยนแปลงหรือไม่
+        if (
+          existingUser.id === userData.id &&
+          existingUser.name === userData.name &&
+          existingUser.isLoggedIn === userData.isLoggedIn &&
+          existingUser.isAdmin === userData.isAdmin &&
+          existingUser.isLineUser === userData.isLineUser &&
+          existingUser.token === userData.token
+        ) {
+          console.log('User data unchanged, skipping update');
+          return; // ข้ามการอัปเดตถ้าข้อมูลไม่เปลี่ยนแปลง
+        }
+      } catch (e) {
+        console.error('Error parsing existing user data:', e);
+      }
+    }
+    
+    // บันทึกข้อมูลใหม่
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
     

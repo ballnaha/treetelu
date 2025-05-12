@@ -7,23 +7,23 @@ import { getBangkokDateTime, convertToBangkokTime } from './dateUtils';
 // const prisma = new PrismaClient(); // เอาออกเพราะใช้ singleton instance แทน
 
 /**
- * สร้างเลขที่คำสั่งซื้อในรูปแบบ YYMM + running number 3 หลัก
- * เช่น 2501001 โดยที่ 25 คือปี 2025, 01 คือเดือนมกราคม, 001 คือลำดับแรกของเดือน
- * ถ้าเริ่มเดือนใหม่ จะเริ่มที่ 001 ใหม่ เช่น 2502001 สำหรับเดือนกุมภาพันธ์
+ * สร้างเลขที่คำสั่งซื้อในรูปแบบ TTyymmrunningnumber 
+ * เช่น TT2505001 โดยที่ TT คือ prefix, 25 คือปี 2025, 05 คือเดือนพฤษภาคม, 001 คือลำดับแรกของเดือน
+ * ถ้าเริ่มเดือนใหม่ จะเริ่มที่ 001 ใหม่ เช่น TT2506001 สำหรับเดือนมิถุนายน
  */
 export async function generateOrderNumber(): Promise<string> {
   const now = new Date();
   const yearShort = now.getFullYear().toString().slice(-2); // เอาเลข 2 หลักสุดท้ายของปี ค.ศ.
   const month = (now.getMonth() + 1).toString().padStart(2, '0'); // เดือน 01-12
-  const yearMonth = `${yearShort}${month}`; // เช่น 2501
+  const prefix = `TT${yearShort}${month}`;
   
   try {
     // ใช้ transaction และ lock เพื่อป้องกัน race condition
-    return await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (prismaClient: any) => {
       // หาเลขที่คำสั่งซื้อล่าสุดของเดือนปัจจุบันพร้อมล็อกแถว
-      const lastOrderResult = await tx.$queryRaw<Array<{orderNumber: string}>>`
+      const lastOrderResult = await prismaClient.$queryRaw<Array<{orderNumber: string}>>`
         SELECT orderNumber FROM orders 
-        WHERE orderNumber LIKE ${`${yearMonth}%`}
+        WHERE orderNumber LIKE ${`${prefix}%`}
         ORDER BY orderNumber DESC
         LIMIT 1
         FOR UPDATE
@@ -43,10 +43,8 @@ export async function generateOrderNumber(): Promise<string> {
       // แปลงเป็นสตริง 3 หลัก เช่น 001, 002, ..., 099, 100
       const runningString = runningNumber.toString().padStart(3, '0');
       
-      // สร้างเลขที่คำสั่งซื้อในรูปแบบ YYMM + running number
-      return `${yearMonth}${runningString}`;
-    }, {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable // ใช้ระดับการแยกแยะแบบอนุกรม
+      // สร้างเลขที่คำสั่งซื้อในรูปแบบ TTyymmrunningnumber
+      return `${prefix}${runningString}`;
     });
   } catch (error) {
     console.error('Error generating order number:', error);

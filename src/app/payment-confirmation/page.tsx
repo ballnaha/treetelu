@@ -527,7 +527,7 @@ function PaymentConfirmationClient() {
                       onChange={handleOrderNumberChange}
                       required
                       size="small"
-                      placeholder="เช่น ORDER123456"
+                      placeholder="เช่น TT250100x"
                     />
                     
                     <TextField

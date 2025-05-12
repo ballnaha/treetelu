@@ -11,7 +11,9 @@ const nextConfig: NextConfig = {
       'localhost',
       'treetelu.com', 
       'cdn.treetelu.com',
-      'res.cloudinary.com'
+      'res.cloudinary.com',
+      'app1.treetelu.com',
+      'app.treetelu.com',
     ],
     remotePatterns: [
       {
