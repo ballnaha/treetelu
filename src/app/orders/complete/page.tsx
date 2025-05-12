@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Box, Typography, Button, Paper, CircularProgress, Fade } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import HomeIcon from '@mui/icons-material/Home';
+import { useCart } from '@/context/CartContext';
 
 interface PaymentData {
   orderNumber: string;
@@ -22,11 +23,34 @@ export default function OrderComplete() {
   const initialLoadingRef = useRef(true);
   const maxRetries = 10; // จำนวนครั้งสูงสุดที่จะลองใหม่
   const retryInterval = 3000; // ทุก 3 วินาที
+  const { clearCart } = useCart(); // เพิ่ม useCart เพื่อใช้ clearCart
+
+  // ฟังก์ชันสำหรับเคลียร์ข้อมูลส่วนลด
+  const clearDiscountData = useCallback(() => {
+    // เคลียร์ตะกร้าสินค้า
+    clearCart();
+    
+    // เคลียร์ข้อมูลส่วนลดที่อาจถูกเก็บใน localStorage
+    if (typeof window !== 'undefined') {
+      // หากมีข้อมูลส่วนลดที่อาจถูกเก็บไว้ใน localStorage
+      localStorage.removeItem('discount-code');
+      localStorage.removeItem('discount-amount');
+      localStorage.removeItem('discount-details');
+      
+      // เคลียร์ session storage ด้วยถ้ามี
+      sessionStorage.removeItem('discount-code');
+      sessionStorage.removeItem('discount-amount');
+      sessionStorage.removeItem('discount-details');
+    }
+  }, [clearCart]);
 
   // ปรับปรุงการทำงานของ useEffect ให้ทำงานเร็วขึ้น
   useEffect(() => {
     // กำหนดให้ component ถูก mount เรียบร้อยแล้ว
     setIsMounted(true);
+    
+    // เคลียร์ข้อมูลส่วนลดเมื่อชำระเงินสำเร็จ
+    clearDiscountData();
     
     // แสดงข้อมูลการค้นหาทันทีที่โหลดหน้า
     const transactionId = searchParams.get('transactionId') || '';
@@ -57,7 +81,7 @@ export default function OrderComplete() {
     }, 30000);
 
     return () => clearTimeout(timeout);
-  }, []);
+  }, [clearDiscountData]);
   
   // เพิ่มฟังก์ชันสำหรับตรวจสอบข้อมูลการชำระเงินจาก Stripe
   const checkStripePaymentData = async (sessionId: string) => {

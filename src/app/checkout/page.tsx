@@ -2759,12 +2759,15 @@ export default function Checkout() {
                   error={hasDiscountError}
                   helperText={hasDiscountError ? discountErrorMsg : ''}
                   disabled={isApplyingDiscount || discountAmount > 0}
-                  InputProps={{
-                    startAdornment: (
-                      <Box component="span" sx={{ display: 'flex', color: 'primary.main', mr: 0.5 }}>
-                        <LocalOfferIcon fontSize="small" />
-                      </Box>
-                    ),
+                  autoComplete='off'
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <Box component="span" sx={{ display: 'flex', color: 'primary.main', mr: 0.5 }}>
+                          <LocalOfferIcon fontSize="small" />
+                        </Box>
+                      ),
+                    }
                   }}
                 />
                 {discountAmount > 0 ? (
@@ -3660,12 +3663,14 @@ export default function Checkout() {
                   error={hasDiscountError}
                   helperText={hasDiscountError ? discountErrorMsg : ''}
                   disabled={isApplyingDiscount || discountAmount > 0}
-                  InputProps={{
-                    startAdornment: (
-                      <Box component="span" sx={{ display: 'flex', color: 'primary.main', mr: 0.5 }}>
-                        <LocalOfferIcon fontSize="small" />
-                      </Box>
-                    ),
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <Box component="span" sx={{ display: 'flex', color: 'primary.main', mr: 0.5 }}>
+                          <LocalOfferIcon fontSize="small" />
+                        </Box>
+                      ),
+                    }
                   }}
                 />
                 {discountAmount > 0 ? (
