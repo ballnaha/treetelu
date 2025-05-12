@@ -165,9 +165,8 @@ export default function Checkout() {
   
   // เพิ่ม state สำหรับการแสดง Stripe redirect dialog
   const [showStripeRedirectDialog, setShowStripeRedirectDialog] = useState(false);
-  const [redirectCountdown, setRedirectCountdown] = useState(3);
-  const [redirectUrl, setRedirectUrl] = useState('');
-  const redirectCountdownRef = useRef<NodeJS.Timeout | null>(null);
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
+  const redirectCountdownRef = useRef<any>(null);
   
   // เพิ่ม state สำหรับ Stripe session
   const [currentCheckoutSession, setCurrentCheckoutSession] = useState<any>(null);
@@ -444,11 +443,8 @@ export default function Checkout() {
     try {
       console.log('เริ่มกระบวนการชำระเงินด้วย Stripe');
       setIsSubmitting(true);
-      setShowAlert(false);
-      
-      // แสดง Dialog ทันทีและเริ่มนับถอยหลัง
       setShowStripeRedirectDialog(true);
-      setRedirectCountdown(3);
+      
       console.log('แสดง Dialog นับถอยหลัง', showStripeRedirectDialog);
       
       // แสดงข้อความกำลังดำเนินการ
@@ -621,32 +617,15 @@ export default function Checkout() {
         // เก็บ URL ไว้เพื่อการ redirect
         setRedirectUrl(result.url);
       
-        // ตรวจสอบหากมี timer ที่ทำงานอยู่ให้ล้างก่อน
-        if (redirectCountdownRef.current) {
-          clearInterval(redirectCountdownRef.current);
-        }
+        // redirect ไปยัง Stripe โดยตรง โดยไม่นับถอยหลัง
+        console.log('กำลังเปลี่ยนเส้นทางไปยัง Stripe URL:', result.url);
+        // ไม่ต้องปิด Dialog - ให้ Dialog แสดงต่อเนื่องจนกว่าจะเปลี่ยนหน้า
+        window.location.href = result.url;
         
-        // ตั้งเวลานับถอยหลังและทำการ redirect
-        redirectCountdownRef.current = setInterval(() => {
-          setRedirectCountdown((prev) => {
-            console.log('Countdown:', prev);
-            if (prev <= 1) {
-              // เมื่อเวลาครบ ให้ redirect ไปยัง Stripe
-              if (redirectCountdownRef.current) {
-                clearInterval(redirectCountdownRef.current);
-              }
-              // ไม่ต้องปิด Dialog แม้เมื่อนับถอยหลังเสร็จแล้ว ให้ Dialog แสดงต่อเนื่องจนกว่าจะเปลี่ยนหน้า
-              console.log('กำลังเปลี่ยนเส้นทางไปยัง Stripe URL:', result.url);
-              window.location.href = result.url;
-              // เพิ่ม timeout เพื่อให้ overlay ยังคงแสดงระหว่างที่ browser เปลี่ยนหน้า
-              setTimeout(() => {
-                console.log('หากยังไม่เปลี่ยนหน้า นี่คือ timeout หลังจากสั่ง redirect');
-              }, 3000);
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
+        // เพิ่ม timeout เพื่อให้ overlay ยังคงแสดงระหว่างที่ browser เปลี่ยนหน้า
+        setTimeout(() => {
+          console.log('หากยังไม่เปลี่ยนหน้า นี่คือ timeout หลังจากสั่ง redirect');
+        }, 3000);
       } else {
         setShowStripeRedirectDialog(false); // ปิด Dialog เมื่อไม่พบ URL
         throw new Error('ไม่พบ URL สำหรับการชำระเงิน');
@@ -668,10 +647,10 @@ export default function Checkout() {
     setIsMounted(true);
     
     // ล้าง interval เมื่อ component unmounts
-      return () => {
+    return () => {
       if (redirectCountdownRef.current) {
         clearInterval(redirectCountdownRef.current);
-    }
+      }
     };
   }, []);
 
@@ -869,7 +848,7 @@ export default function Checkout() {
     // ล้างข้อมูล Checkout Session และผลลัพธ์ QR code
     setCurrentCheckoutSession(null);
     setPromptpayQrCode(null);
-    setRedirectUrl('');
+    setRedirectUrl(null);
     
     // เมื่อเปลี่ยนวิธีการชำระเงิน
     setShowAlert(false);
@@ -1521,264 +1500,67 @@ export default function Checkout() {
         }}
         disablePortal
         aria-labelledby="stripe-redirect-dialog-title"
-        TransitionComponent={Zoom}
-        transitionDuration={500}
+        TransitionComponent={Fade}
+        transitionDuration={300}
         slotProps={{
           backdrop: {
             sx: {
-              backdropFilter: 'blur(8px)',
-              background: 'rgba(0, 0, 0, 0.35)'
+              backdropFilter: 'blur(4px)',
+              background: 'rgba(0, 0, 0, 0.3)'
             }
           }
         }}
         sx={{
           '& .MuiDialog-paper': {
             overflow: 'hidden',
-            borderRadius: '16px',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-            background: 'linear-gradient(145deg, #ffffff 0%, #f8faff 100%)',
-          },
-          '& .MuiBackdrop-root': {
-            backgroundColor: 'rgba(0, 0, 0, 0.5)'
+            borderRadius: '12px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+            background: '#ffffff',
           }
         }}
       >
-        <DialogContent sx={{ p: 0, position: 'relative', overflow: 'hidden' }}>
-          {/* พื้นหลังมีการเคลื่อนไหว */}
-          <Box sx={{
-            position: 'absolute',
-            top: '-50%',
-            left: '-50%',
-            width: '200%',
-            height: '200%',
-            backgroundImage: 'radial-gradient(circle at center, rgba(36, 99, 235, 0.025) 0%, rgba(255, 255, 255, 0) 70%)',
-            animation: 'pulse 3s infinite ease-in-out',
-            '@keyframes pulse': {
-              '0%': { transform: 'scale(1)', opacity: 0.7 },
-              '50%': { transform: 'scale(1.05)', opacity: 1 },
-              '100%': { transform: 'scale(1)', opacity: 0.7 },
-            },
-            zIndex: 0
-          }} />
-          
-          {/* Circle animation สีฟ้าด้านล่างขวา */}
-          <Box sx={{
-            position: 'absolute',
-            bottom: '-100px',
-            right: '-100px',
-            width: '300px',
-            height: '300px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(37, 99, 235, 0.05) 100%)',
-            zIndex: 0,
-            animation: 'float 6s infinite ease-in-out',
-            '@keyframes float': {
-              '0%, 100%': { transform: 'translateY(0) scale(1)' },
-              '50%': { transform: 'translateY(-30px) scale(1.05)' },
-            },
-          }} />
-          
-          {/* Circle animation สีเขียวด้านบนซ้าย */}
-          <Box sx={{
-            position: 'absolute',
-            top: '-80px',
-            left: '-80px',
-            width: '200px',
-            height: '200px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(16, 185, 129, 0.05) 100%)',
-            zIndex: 0,
-            animation: 'float2 7s infinite ease-in-out',
-            '@keyframes float2': {
-              '0%, 100%': { transform: 'translateY(0) scale(1)' },
-              '50%': { transform: 'translateY(20px) scale(1.03)' },
-            },
-          }} />
-          
+        <DialogContent sx={{ p: 4, position: 'relative', overflow: 'hidden' }}>
           <Box 
             sx={{
               position: 'relative',
               zIndex: 10, 
-              p: 6, 
               display: 'flex', 
               flexDirection: 'column', 
               alignItems: 'center',
               justifyContent: 'center',
-              minHeight: '300px'
+              minHeight: '200px'
             }}
           >
-            {/* Logo Stripe animation */}
-            <Box sx={{ position: 'relative', mb: 3, width: 120, height: 120 }}>
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: '100%',
-                  height: '100%',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #6772e5 0%, #4352e4 100%)',
-                  boxShadow: '0 10px 30px rgba(103, 114, 229, 0.3)',
-                  animation: 'pulse-stripe 2s infinite',
-                  '@keyframes pulse-stripe': {
-                    '0%': { boxShadow: '0 0 0 0 rgba(103, 114, 229, 0.6)' },
-                    '70%': { boxShadow: '0 0 0 20px rgba(103, 114, 229, 0)' },
-                    '100%': { boxShadow: '0 0 0 0 rgba(103, 114, 229, 0)' },
-                  },
+            {/* โลโก้และการ์ดตรงกลาง */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mb: 3,
+                p: 2,
+                bgcolor: 'rgba(103, 114, 229, 0.1)',
+                borderRadius: '50%',
+                width: 80,
+                height: 80
+              }}
+            >
+              <CircularProgress 
+                size={40} 
+                sx={{ 
+                  color: '#6772e5',
                 }}
               />
-              
-              {/* แสดงไอคอนหมุนรอบวงกลม */}
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: '90%',
-                  height: '90%',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {/* ไอคอนความปลอดภัย */}
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    width: 30,
-                    height: 30,
-                    borderRadius: '50%',
-                    bgcolor: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-                    animation: 'orbit 8s linear infinite',
-                    '@keyframes orbit': {
-                      '0%': { transform: 'rotate(0deg) translateX(50px) rotate(0deg)' },
-                      '100%': { transform: 'rotate(360deg) translateX(50px) rotate(-360deg)' },
-                    }
-                  }}
-                >
-                  <SecurityIcon fontSize="small" sx={{ color: '#6772e5' }} />
-                </Box>
-                
-                {/* ไอคอนบัตรเครดิต */}
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    width: 30,
-                    height: 30,
-                    borderRadius: '50%',
-                    bgcolor: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-                    animation: 'orbit 8s linear infinite',
-                    animationDelay: '-2s',
-                    '@keyframes orbit': {
-                      '0%': { transform: 'rotate(0deg) translateX(50px) rotate(0deg)' },
-                      '100%': { transform: 'rotate(360deg) translateX(50px) rotate(-360deg)' },
-                    }
-                  }}
-                >
-                  <CreditCardIcon fontSize="small" sx={{ color: '#6772e5' }} />
-                </Box>
-                
-                {/* ไอคอน Lock */}
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    width: 30,
-                    height: 30,
-                    borderRadius: '50%',
-                    bgcolor: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-                    animation: 'orbit 8s linear infinite',
-                    animationDelay: '-4s',
-                    '@keyframes orbit': {
-                      '0%': { transform: 'rotate(0deg) translateX(50px) rotate(0deg)' },
-                      '100%': { transform: 'rotate(360deg) translateX(50px) rotate(-360deg)' },
-                    }
-                  }}
-                >
-                  <LockIcon fontSize="small" sx={{ color: '#6772e5' }} />
-                </Box>
-                
-                {/* ไอคอน Check */}
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    width: 30,
-                    height: 30,
-                    borderRadius: '50%',
-                    bgcolor: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-                    animation: 'orbit 8s linear infinite',
-                    animationDelay: '-6s',
-                    '@keyframes orbit': {
-                      '0%': { transform: 'rotate(0deg) translateX(50px) rotate(0deg)' },
-                      '100%': { transform: 'rotate(360deg) translateX(50px) rotate(-360deg)' },
-                    }
-                  }}
-                >
-                  <CheckCircleIcon fontSize="small" sx={{ color: '#6772e5' }} />
-                </Box>
-              </Box>
-              
-              {/* Stripe logo ตรงกลาง */}
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: '60%',
-                  height: '60%',
-                  borderRadius: '50%',
-                  backgroundColor: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
-                  zIndex: 1
-                }}
-              >
-                <Box
-                  component="img"
-                  src="/stripe-logo.svg"
-                  alt="Stripe"
-                  sx={{
-                    width: '60%',
-                    height: '60%',
-                    animation: 'pulse 1.5s infinite alternate',
-                  }}
-                />
-              </Box>
             </Box>
             
-            <Fade in={true} timeout={800}>
+            <Fade in={true} timeout={300}>
               <Typography
-                variant="h5"
+                variant="h6"
                 sx={{
                   mb: 2,
                   fontWeight: 600,
                   textAlign: 'center',
-                  background: 'linear-gradient(135deg, #6772e5 0%, #4352e4 100%)',
-                  backgroundClip: 'text',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  textFillColor: 'transparent'
+                  color: '#6772e5'
                 }}
               >
                 กำลังเชื่อมต่อไปยัง Stripe
@@ -1786,79 +1568,33 @@ export default function Checkout() {
               </Typography>
             </Fade>
             
-            <Fade in={true} timeout={1000}>
-              <Typography
-                variant="body1"
-                sx={{
-                  mb: 3,
-                  textAlign: 'center',
-                  maxWidth: '80%',
-                  color: 'text.secondary'
-                }}
-              >
-                กรุณารอสักครู่...
-              </Typography>
-            </Fade>
+            <Typography
+              variant="body1"
+              sx={{
+                mb: 2,
+                textAlign: 'center',
+                maxWidth: '90%',
+                color: 'text.secondary'
+              }}
+            >
+              กรุณารอสักครู่...
+            </Typography>
             
             <Box
               sx={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 1.5,
-                mt: 1,
-                mb: 3
-              }}
-            >
-              {[0, 1, 2].map((_, index) => (
-                <Box
-                  key={index}
-                  sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    bgcolor: '#6772e5',
-                    opacity: redirectCountdown > index ? 1 : 0.4
-                  }}
-                />
-              ))}
-            </Box>
-            
-            <Typography
-              variant="body2"
-              sx={{
-                mt: 2,
-                fontWeight: 500,
-                color: redirectCountdown === 0 ? 'primary.main' : 'text.primary',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5
-              }}
-            >
-              <LaunchIcon fontSize="small" />
-              {redirectCountdown > 0 
-                ? `จะถูกนำไปยังหน้าชำระเงินใน ${redirectCountdown} วินาที...` 
-                : ''}
-            </Typography>
-            
-            {/* ข้อความความปลอดภัย */}
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center', 
-                gap: 0.5,
-                mt: 4,
                 p: 1.5,
-                borderRadius: 2,
-                bgcolor: 'rgba(22, 163, 74, 0.1)',
-                border: '1px solid rgba(22, 163, 74, 0.2)',
-                maxWidth: '80%'
+                borderRadius: 1,
+                bgcolor: 'rgba(56, 142, 60, 0.08)',
+                border: '1px solid rgba(56, 142, 60, 0.2)',
+                maxWidth: '90%'
               }}
             >
-              <LockIcon fontSize="small" sx={{ color: 'success.main' }} />
+              <LockIcon fontSize="small" sx={{ color: 'success.main', mr: 1 }} />
               <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 500 }}>
-                ข้อมูลของคุณถูกส่งแบบปลอดภัยผ่าน SSL/TLS
+                การเชื่อมต่อปลอดภัยผ่าน SSL/TLS
               </Typography>
             </Box>
           </Box>
