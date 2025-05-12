@@ -197,60 +197,77 @@ export default function LoginClient() {
   useEffect(() => {
     setIsMounted(true);
     
-    // รับค่า LINE Login URL จาก environment variable หรือใช้ค่าเริ่มต้น
-    const lineClientId = process.env.NEXT_PUBLIC_LINE_CLIENT_ID || '';
-    const lineRedirectUri = process.env.NEXT_PUBLIC_LINE_REDIRECT_URI || 'http://localhost:3001/api/auth/line';
-    
-    // สร้าง LINE Login URL
-    const loginUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${lineClientId}&redirect_uri=${encodeURIComponent(lineRedirectUri)}&state=12345&scope=profile&bot_prompt=normal`;
-    setLineLoginUrl(loginUrl);
-    
-    // ---------- แก้ไขส่วนการตรวจสอบ URL parameters ----------
-    // ดักแยกการแสดงผล error อย่างชัดเจน
-    const errorType = searchParams.get('error_type');
-    
-    // ทำตรรกะแยกชัดเจน
-    if (errorType === 'session_expired') {
-      // กรณี session หมดอายุ
-      setError({
-        message: '', // ไม่ต้องใช้ข้อความจาก URL
-        type: 'session_expired'
-      });
-    } 
-    else if (errorType === 'invalid_credentials') {
-      // กรณีรหัสผ่านผิด
-      setError({
-        message: '', // ไม่ต้องใช้ข้อความจาก URL
-        type: 'invalid_credentials'
-      });
-    }
-    else {
-      // กรณีอื่นๆ ดูที่ข้อความ
-      const message = searchParams.get('message');
-      if (message) {
-        const decodedMessage = decodeURIComponent(message);
+    try {
+      // รับค่า LINE Login URL จาก environment variable หรือใช้ค่าเริ่มต้น
+      const lineClientId = process.env.NEXT_PUBLIC_LINE_CLIENT_ID || '';
+      const lineRedirectUri = process.env.NEXT_PUBLIC_LINE_REDIRECT_URI || 'http://localhost:3001/api/auth/line/callback';
+      
+      if (lineClientId) {
+        // สร้าง LINE Login URL เมื่อมีการตั้งค่า CLIENT_ID
+        const state = Math.random().toString(36).substring(2);
+        const loginUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${lineClientId}&redirect_uri=${encodeURIComponent(lineRedirectUri)}&state=${state}&scope=profile&bot_prompt=normal`;
+        setLineLoginUrl(loginUrl);
         
-        // พยายามวิเคราะห์ประเภท error จากข้อความ
-        if (decodedMessage.includes('เซสชัน') || decodedMessage.includes('หมดอายุ')) {
-          setError({
-            message: '',
-            type: 'session_expired'
-          });
-        }
-        else if (decodedMessage.includes('อีเมล') || decodedMessage.includes('รหัสผ่าน')) {
-          setError({
-            message: '',
-            type: 'invalid_credentials'
-          });
-        }
-        else {
-          // กรณีอื่นๆ ให้แสดงข้อความจาก URL
-          setError({
-            message: decodedMessage,
-            type: 'auth_error'
-          });
+        // เก็บ state ใน session storage เพื่อตรวจสอบการ callback
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('line_auth_state', state);
         }
       }
+      
+      // ---------- แก้ไขส่วนการตรวจสอบ URL parameters ----------
+      // ดักแยกการแสดงผล error อย่างชัดเจน
+      const errorType = searchParams.get('error_type');
+      
+      // ทำตรรกะแยกชัดเจน
+      if (errorType === 'session_expired') {
+        // กรณี session หมดอายุ
+        setError({
+          message: '', // ไม่ต้องใช้ข้อความจาก URL
+          type: 'session_expired'
+        });
+      } 
+      else if (errorType === 'invalid_credentials') {
+        // กรณีรหัสผ่านผิด
+        setError({
+          message: '', // ไม่ต้องใช้ข้อความจาก URL
+          type: 'invalid_credentials'
+        });
+      }
+      else {
+        // กรณีอื่นๆ ดูที่ข้อความ
+        const message = searchParams.get('message');
+        if (message) {
+          const decodedMessage = decodeURIComponent(message);
+          
+          // พยายามวิเคราะห์ประเภท error จากข้อความ
+          if (decodedMessage.includes('เซสชัน') || decodedMessage.includes('หมดอายุ')) {
+            setError({
+              message: '',
+              type: 'session_expired'
+            });
+          }
+          else if (decodedMessage.includes('อีเมล') || decodedMessage.includes('รหัสผ่าน')) {
+            setError({
+              message: '',
+              type: 'invalid_credentials'
+            });
+          }
+          else {
+            // กรณีอื่นๆ ให้แสดงข้อความจาก URL
+            setError({
+              message: decodedMessage,
+              type: 'auth_error'
+            });
+          }
+        }
+      }
+    } catch (err: any) {
+      // ข้อผิดพลาดจากการเชื่อมต่อ
+      setError({
+        message: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาลองใหม่ภายหลัง',
+        type: 'system_error'
+      });
+      console.error('Login error:', err);
     }
   }, [searchParams]);
   
@@ -429,8 +446,33 @@ export default function LoginClient() {
 
   // เปิด LINE Login
   const handleLineLogin = () => {
-    if (lineLoginUrl) {
-      window.location.href = lineLoginUrl;
+    try {
+      // ตรวจสอบว่ามีการตั้งค่า LINE_CLIENT_ID หรือไม่
+      const lineClientId = process.env.NEXT_PUBLIC_LINE_CLIENT_ID;
+      
+      if (!lineClientId) {
+        // แสดงข้อความผิดพลาดหากไม่มีการตั้งค่า CLIENT_ID
+        setError({
+          message: 'ระบบเข้าสู่ระบบด้วย LINE ยังไม่ได้รับการตั้งค่า โปรดติดต่อผู้ดูแลระบบ',
+          type: 'auth_error'
+        });
+        return;
+      }
+      
+      if (lineLoginUrl) {
+        window.location.href = lineLoginUrl;
+      } else {
+        setError({
+          message: 'ไม่สามารถเชื่อมต่อกับ LINE ได้ในขณะนี้ โปรดลองอีกครั้งในภายหลัง',
+          type: 'auth_error'
+        });
+      }
+    } catch (error) {
+      console.error('LINE login error:', error);
+      setError({
+        message: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย LINE',
+        type: 'auth_error'
+      });
     }
   };
   

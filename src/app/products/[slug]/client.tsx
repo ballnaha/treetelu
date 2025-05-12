@@ -870,12 +870,6 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
                   ส่งฟรีเมื่อสั่งซื้อขั้นต่ำ 1,500 บาท
                 </Typography>
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <CheckCircleOutlineIcon sx={{ mr: 1.5, color: 'primary.main' }} />
-                <Typography variant="body2">
-                  รับประกันคุณภาพสินค้า 7 วัน
-                </Typography>
-              </Box>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <VerifiedUserOutlinedIcon sx={{ mr: 1.5, color: 'primary.main' }} />
                 <Typography variant="body2">
