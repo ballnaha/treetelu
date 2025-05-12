@@ -43,7 +43,7 @@ const sendOrderConfirmationEmail = async (orderData: any, paymentInfo?: any) => 
   try {
     console.log('Sending order confirmation email for:', {
       orderNumber: orderData.orderNumber,
-      email: orderData.customerInfo.email
+      email: orderData.customerInfo?.email
     });
     
     // คำนวณราคารวมทั้งหมด
@@ -185,7 +185,7 @@ const sendOrderConfirmationEmail = async (orderData: any, paymentInfo?: any) => 
     // ส่งอีเมลด้วย Resend
     await resend.emails.send({
       from: 'Treetelu - ต้นไม้ในกระถาง <no-reply@treetelu.com>',
-      to: orderData.customerInfo.email,
+      to: orderData.customerInfo?.email || 'info@treetelu.com',
       subject: 'ขอบคุณสำหรับคำสั่งซื้อ #' + orderData.orderNumber + ' (ชำระเงินสำเร็จ)',
       html: emailContent,
     });
@@ -397,8 +397,8 @@ export async function POST(request: NextRequest) {
                 quantity: item.quantity,
                 unitPrice: parseFloat(item.unitPrice.toString())
               })),
-              customerInfo: order.customerInfo,
-              shippingInfo: order.shippingInfo,
+              customerInfo: (order as any).customerInfo ? (order as any).customerInfo : {},
+              shippingInfo: (order as any).shippingInfo ? (order as any).shippingInfo : {},
               paymentMethod: sessionData.payment_method_types?.includes('promptpay') ? 'PROMPTPAY' : 'CREDIT_CARD',
               discount: parseFloat(order.discount.toString()),
               discountCode: order.discountCode,
@@ -580,8 +580,8 @@ export async function POST(request: NextRequest) {
                 quantity: item.quantity,
                 unitPrice: parseFloat(item.unitPrice.toString())
               })),
-              customerInfo: order.customerInfo,
-              shippingInfo: order.shippingInfo,
+              customerInfo: (order as any).customerInfo ? (order as any).customerInfo : {},
+              shippingInfo: (order as any).shippingInfo ? (order as any).shippingInfo : {},
               paymentMethod: sessionData.payment_method_types?.includes('promptpay') ? 'PROMPTPAY' : 'CREDIT_CARD',
               discount: parseFloat(order.discount.toString()),
               discountCode: order.discountCode,

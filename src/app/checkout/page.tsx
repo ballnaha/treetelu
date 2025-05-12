@@ -2762,11 +2762,11 @@ export default function Checkout() {
                   autoComplete='off'
                   slotProps={{
                     input: {
-                      startAdornment: (
-                        <Box component="span" sx={{ display: 'flex', color: 'primary.main', mr: 0.5 }}>
-                          <LocalOfferIcon fontSize="small" />
-                        </Box>
-                      ),
+                    startAdornment: (
+                      <Box component="span" sx={{ display: 'flex', color: 'primary.main', mr: 0.5 }}>
+                        <LocalOfferIcon fontSize="small" />
+                      </Box>
+                    ),
                     }
                   }}
                 />
@@ -3665,11 +3665,11 @@ export default function Checkout() {
                   disabled={isApplyingDiscount || discountAmount > 0}
                   slotProps={{
                     input: {
-                      startAdornment: (
-                        <Box component="span" sx={{ display: 'flex', color: 'primary.main', mr: 0.5 }}>
-                          <LocalOfferIcon fontSize="small" />
-                        </Box>
-                      ),
+                    startAdornment: (
+                      <Box component="span" sx={{ display: 'flex', color: 'primary.main', mr: 0.5 }}>
+                        <LocalOfferIcon fontSize="small" />
+                      </Box>
+                    ),
                     }
                   }}
                 />
