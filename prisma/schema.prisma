@@ -317,6 +317,11 @@ model PendingPayment {
   customer_email   String?   @db.VarChar(255)
   customer_name    String?   @db.VarChar(255)
   customer_phone   String?   @db.VarChar(50)
+  // เพิ่มฟิลด์สำหรับข้อมูลการจัดส่ง
+  deliveryDate     String?   @db.VarChar(50)
+  deliveryTime     String?   @db.VarChar(50)
+  cardMessage      String?   @db.Text
+  additionalNote   String?   @db.Text
   created_at       DateTime  @default(now())
   updated_at       DateTime  @updatedAt
 

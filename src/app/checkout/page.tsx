@@ -210,6 +210,9 @@ export default function Checkout() {
   // ใช้ useRef เพื่อจัดการกับการแปลงราคา
   const formattedPriceRef = useRef<string | null>(null);
   
+  // เตรียม Stripe instance
+  const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY || '');
+  
   // เปิด-ปิด Dialog QR Code
   const handleOpenQRDialog = () => {
     setOpenQRDialog(true);
@@ -449,6 +452,7 @@ export default function Checkout() {
       
       // แสดงข้อความกำลังดำเนินการ
       setAlertMessage('กำลังเชื่อมต่อไปยัง Stripe เพื่อทำการชำระเงิน...');
+      // เปลี่ยนเป็นการใช้ Info Alert แทน Error Alert
       setShowAlert(true);
       
       // กำหนดประเภทการชำระเงิน
@@ -532,8 +536,8 @@ export default function Checkout() {
                       tambonId: shippingInfo.tambonId || 0,
                       tambonName: shippingInfo.tambonName || "",
                       zipCode: shippingInfo.zipCode || "",
-                deliveryDate: deliveryDate && isClient ? format(new Date(deliveryDate), 'yyyy-MM-dd') : "",
-                deliveryTime: deliveryTime && isClient ? format(deliveryTime, 'HH:mm') : "",
+                      deliveryDate: deliveryDate && isClient ? format(new Date(deliveryDate), 'yyyy-MM-dd') : "",
+                      deliveryTime: deliveryTime && isClient ? format(deliveryTime, 'HH:mm') : "",
                       cardMessage: cardMessage || "",
                       additionalNote: additionalMessage || ""
                     }
@@ -550,10 +554,10 @@ export default function Checkout() {
                       tambonId: 0,
                       tambonName: "จัดส่งให้ผู้รับโดยตรง",
                       zipCode: "10200",
-                deliveryDate: deliveryDate && isClient ? format(new Date(deliveryDate), 'yyyy-MM-dd') : "",
-                deliveryTime: deliveryTime && isClient ? format(deliveryTime, 'HH:mm') : "",
+                      deliveryDate: deliveryDate && isClient ? format(new Date(deliveryDate), 'yyyy-MM-dd') : "",
+                      deliveryTime: deliveryTime && isClient ? format(deliveryTime, 'HH:mm') : "",
                       cardMessage: cardMessage || "",
-                      additionalNote: ""
+                      additionalNote: additionalMessage || ""
                     },
                 items: cartItems.map(item => ({
                   productId: parseInt(String(item.id)),
@@ -1057,7 +1061,7 @@ export default function Checkout() {
               deliveryDate: deliveryDate && isClient ? format(new Date(deliveryDate), 'yyyy-MM-dd') : "",
               deliveryTime: deliveryTime && isClient ? format(deliveryTime, 'HH:mm') : "",
               cardMessage: cardMessage || "",
-              additionalNote: ""
+              additionalNote: additionalMessage || ""
             },
         items: cartItems.map(item => ({
           productId: parseInt(String(item.id)),
@@ -2625,7 +2629,16 @@ export default function Checkout() {
                   <Box sx={{ py: 3 }}>
                     {showAlert && index === activeStep && (
                       <Collapse in={showAlert}>
-                        <Alert severity="error" sx={{ mb: 2 }}>
+                        <Alert 
+                          severity={alertMessage.includes('กำลังเชื่อมต่อไปยัง Stripe') ? 'info' : 'error'} 
+                          sx={{ 
+                            mb: 2,
+                            '&.MuiAlert-standardInfo': {
+                              backgroundColor: 'rgba(3, 169, 244, 0.1)',
+                              color: 'info.dark'
+                            }
+                          }}
+                        >
                           {alertMessage}
                         </Alert>
                       </Collapse>

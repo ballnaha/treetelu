@@ -58,13 +58,19 @@ export default function OrderComplete() {
     const source = searchParams.get('source') || '';
     console.log('Initial load params:', { transactionId, sessionId, source });
     
+    // สร้างตัวแปรเพื่อตรวจสอบว่าได้เริ่มการตรวจสอบแล้วหรือไม่
+    let hasStartedCheck = false;
+    
     // เริ่มตรวจสอบข้อมูลการชำระเงินทันที
     if (transactionId && (source === 'cc' || source === 'credit_card' || source === 'pp' || source === 'promptpay')) {
       console.log('Starting payment check for transaction:', transactionId);
+      hasStartedCheck = true;
       checkPaymentData(transactionId);
     } else if (sessionId && source === 'stripe') {
       console.log('Starting Stripe payment check for session:', sessionId);
-      checkStripePaymentData(sessionId);
+      // ตั้งค่า retryCount เป็น 1 เพื่อให้ checkPayment เริ่มทำงานทันที
+      hasStartedCheck = true;
+      setRetryCount(1);
     } else {
       console.log('Missing required parameters:', { transactionId, sessionId, source });
       setError('ไม่พบข้อมูลการชำระเงิน กรุณาตรวจสอบพารามิเตอร์ที่ส่งมา');
@@ -73,7 +79,7 @@ export default function OrderComplete() {
     
     // กำหนดเวลาหมดเวลารอ (timeout) เป็น 30 วินาที
     const timeout = setTimeout(() => {
-      if (loading && !paymentData) {
+      if (loading && !paymentData && hasStartedCheck) {
         console.log('Payment verification timeout - redirecting to home page');
         // ไม่ต้องแสดงข้อความ Error ให้เปลี่ยนเส้นทางไปยังหน้าหลักทันที
         window.location.href = '/';
@@ -81,7 +87,7 @@ export default function OrderComplete() {
     }, 30000);
 
     return () => clearTimeout(timeout);
-  }, [clearDiscountData]);
+  }, []);  // ใช้ dependency array เป็น array ว่าง เพื่อให้ทำงานเฉพาะครั้งแรกที่ component ถูก mount
   
   // เพิ่มฟังก์ชันสำหรับตรวจสอบข้อมูลการชำระเงินจาก Stripe
   const checkStripePaymentData = async (sessionId: string) => {
@@ -101,31 +107,145 @@ export default function OrderComplete() {
         }
       }
       
-      const response = await fetch(`/api/stripe/verify?session_id=${sessionId}`);
-      
-      if (!response.ok) {
-        console.error('API response error:', response.status, response.statusText);
-        throw new Error('ไม่สามารถดึงข้อมูลการชำระเงินได้');
-      }
-      
-      const data = await response.json();
-      console.log('Stripe API response:', data);
-
-      if (data.success) {
-        setPaymentData({
-          orderNumber: data.orderNumber,
-          transactionId: sessionId
+      try {
+        // เพิ่ม timestamp เพื่อป้องกันการแคช
+        const timestamp = new Date().getTime();
+        const apiUrl = `/api/stripe/verify?session_id=${sessionId}&_t=${timestamp}`;
+        
+        console.log(`Fetching API: ${apiUrl}, attempt ${retryCount + 1}/${maxRetries}`);
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          }
         });
-        setLoading(false);
-      } else {
-        // ถ้าไม่พบข้อมูลและยังไม่เกินจำนวนครั้งที่จะลองใหม่
-        if (retryCount < maxRetries) {
-          console.log(`Retry ${retryCount + 1}/${maxRetries} - waiting for Stripe webhook to update order data`);
-          setTimeout(() => {
-            setRetryCount(prev => prev + 1);
-          }, retryInterval);
+        
+        if (!response.ok) {
+          console.error('API response error:', response.status, response.statusText);
+          
+          // ถ้าเป็น 404 แสดงว่าอาจยังไม่มีข้อมูลคำสั่งซื้อในฐานข้อมูล รอให้ webhook ทำงานเสร็จก่อน
+          if (response.status === 404) {
+            console.log(`API returned 404 for session ${sessionId} - Retry ${retryCount + 1}/${maxRetries}`);
+            
+            // ใช้เวลารอที่นานขึ้นเพื่อให้ webhook มีเวลาประมวลผลและบันทึกข้อมูลลงฐานข้อมูล
+            if (retryCount < maxRetries) {
+              // เพิ่มเวลารอตามจำนวนครั้งที่ลองใหม่
+              const waitTime = retryInterval * (retryCount < 3 ? 3 : 1.5);
+              console.log(`Waiting ${waitTime}ms before retry...`);
+              
+              // ใช้ requestAnimationFrame เพื่อป้องกัน Maximum update depth exceeded
+              window.requestAnimationFrame(() => {
+                setTimeout(() => {
+                  setRetryCount(prev => prev + 1);
+                }, waitTime);
+              });
+              return;
+            }
+          }
+          
+          // กรณีอื่นๆ ถ้ายังไม่ครบจำนวนครั้งที่จะลองใหม่ ให้ลองอีกครั้ง
+          if (retryCount < maxRetries) {
+            console.log(`Other API error ${response.status} - Retry ${retryCount + 1}/${maxRetries}`);
+            // ใช้ requestAnimationFrame เพื่อป้องกัน Maximum update depth exceeded
+            window.requestAnimationFrame(() => {
+              setTimeout(() => {
+                setRetryCount(prev => prev + 1);
+              }, retryInterval);
+            });
+            return;
+          }
+          
+          throw new Error('ไม่สามารถดึงข้อมูลการชำระเงินได้');
+        }
+        
+        const data = await response.json();
+        console.log('Stripe API response:', data);
+
+        if (data.success) {
+          // กรณีที่มีการสร้าง order จาก pendingPayment
+          if (data.order) {
+            console.log('Order created from pending payment:', data.order);
+            
+            setPaymentData({
+              orderNumber: data.orderNumber,
+              transactionId: sessionId
+            });
+            setLoading(false);
+            return;
+          }
+          
+          // กรณีมีข้อมูลจาก pendingPayment
+          if (data.orderNumber === "PENDING" && data.pendingPayment) {
+            console.log('Found pending payment data:', data.pendingPayment);
+            
+            // แสดงหน้าชำระเงินสำเร็จ แต่แจ้งว่าอยู่ระหว่างประมวลผลคำสั่งซื้อ
+            if (data.paymentStatus === 'CONFIRMED') {
+              setPaymentData({
+                orderNumber: "กำลังประมวลผล", // แสดงข้อความว่ากำลังประมวลผล
+                transactionId: sessionId
+              });
+              setLoading(false);
+              
+              // ลองดึงข้อมูลอีกครั้งหลังจาก 5 วินาที
+              setTimeout(() => {
+                window.requestAnimationFrame(() => {
+                  checkStripePaymentData(sessionId);
+                });
+              }, 5000);
+            } else {
+              // ถ้ายังไม่ CONFIRMED และยังไม่เกินจำนวนครั้งที่จะลองใหม่
+              if (retryCount < maxRetries) {
+                console.log(`Found pending payment but status is not CONFIRMED - Retry ${retryCount + 1}/${maxRetries}`);
+                // ใช้ requestAnimationFrame เพื่อป้องกัน Maximum update depth exceeded
+                window.requestAnimationFrame(() => {
+                  setTimeout(() => {
+                    setRetryCount(prev => prev + 1);
+                  }, retryInterval);
+                });
+              } else {
+                // แสดงข้อความเมื่อเกินจำนวนครั้งที่จะลองใหม่
+                setError('การชำระเงินอยู่ระหว่างการประมวลผล โปรดตรวจสอบอีเมลของคุณ');
+                setLoading(false);
+              }
+            }
+            return;
+          }
+          
+          // กรณีมีข้อมูลจาก order ปกติ
+          setPaymentData({
+            orderNumber: data.orderNumber,
+            transactionId: sessionId
+          });
+          setLoading(false);
         } else {
-          setError(data.message || 'ไม่พบข้อมูลคำสั่งซื้อ');
+          // ถ้าไม่พบข้อมูลและยังไม่เกินจำนวนครั้งที่จะลองใหม่
+          if (retryCount < maxRetries) {
+            console.log(`Retry ${retryCount + 1}/${maxRetries} - waiting for Stripe webhook to update order data`);
+            // ใช้ requestAnimationFrame เพื่อป้องกัน Maximum update depth exceeded
+            window.requestAnimationFrame(() => {
+              setTimeout(() => {
+                setRetryCount(prev => prev + 1);
+              }, retryInterval);
+            });
+          } else {
+            setError(data.message || 'ไม่พบข้อมูลคำสั่งซื้อ');
+            setLoading(false);
+          }
+        }
+      } catch (fetchError) {
+        console.error('Fetch error:', fetchError);
+        // ลองใหม่ถ้ายังไม่ครบจำนวนครั้ง
+        if (retryCount < maxRetries) {
+          console.log(`Fetch error - Retry ${retryCount + 1}/${maxRetries}`);
+          // ใช้ requestAnimationFrame เพื่อป้องกัน Maximum update depth exceeded
+          window.requestAnimationFrame(() => {
+            setTimeout(() => {
+              setRetryCount(prev => prev + 1);
+            }, retryInterval);
+          });
+        } else {
+          setError('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
           setLoading(false);
         }
       }
@@ -133,9 +253,12 @@ export default function OrderComplete() {
       console.error('Error checking Stripe payment:', err);
       
       if (retryCount < maxRetries) {
-        setTimeout(() => {
-          setRetryCount(prev => prev + 1);
-        }, retryInterval);
+        // ใช้ requestAnimationFrame เพื่อป้องกัน Maximum update depth exceeded
+        window.requestAnimationFrame(() => {
+          setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+          }, retryInterval);
+        });
       } else {
         setError('เกิดข้อผิดพลาดในการตรวจสอบการชำระเงิน');
         setLoading(false);
@@ -266,14 +389,29 @@ export default function OrderComplete() {
         setLoading(false);
       }
     }
-  }, [searchParams, retryCount, maxRetries]);
+  }, [searchParams, retryCount, maxRetries, checkPaymentData, checkStripePaymentData]);
 
   useEffect(() => {
-    // ทำการ retry เมื่อ retryCount เปลี่ยนแปลง
+    // ทำการ retry เมื่อ retryCount เปลี่ยนแปลง แต่ต้องอย่างให้เกิด infinite loop
     if (isMounted && retryCount > 0) {
-      checkPayment();
+      const source = searchParams.get('source') || '';
+      const sessionId = searchParams.get('session_id') || '';
+      
+      // ใช้ state เพื่อป้องกันการเรียกซ้ำ
+      const isStripePayment = source === 'stripe' && sessionId;
+      
+      // ใช้ setTimeout เพื่อหลีกเลี่ยง state update ซ้ำซ้อนที่อาจทำให้เกิด infinite loop
+      const retryTimer = setTimeout(() => {
+        console.log(`Retry attempt ${retryCount} triggered for ${isStripePayment ? 'Stripe' : 'regular'} payment`);
+        // ใช้ requestAnimationFrame เพื่อป้องกัน Maximum update depth exceeded
+        window.requestAnimationFrame(() => {
+          checkPayment();
+        });
+      }, 100); // ใช้เวลาสั้นๆ เพื่อให้มั่นใจว่าไม่เกิด state update ซ้อนกัน
+      
+      return () => clearTimeout(retryTimer);
     }
-  }, [isMounted, retryCount, checkPayment]);
+  }, [isMounted, retryCount]);
 
   // แสดง skeleton ขณะรอ hydration
   if (!isMounted) {
@@ -366,7 +504,7 @@ export default function OrderComplete() {
       alignItems: 'center', 
       minHeight: '100vh', 
       p: { xs: 2, md: 4 },
-      bgcolor: '#f8f9fa'
+      bgcolor: '#ffffff'
     }}>
       <Paper 
         elevation={4} 
@@ -463,17 +601,7 @@ export default function OrderComplete() {
                 <Typography variant="subtitle2" gutterBottom sx={{ color: '#475569' }}>
                   เลขที่คำสั่งซื้อ
                 </Typography>
-                <Typography 
-                  variant="h5" 
-                  color="primary" 
-                  sx={{ 
-                    fontWeight: 600, 
-                    letterSpacing: '0.5px',
-                    color: '#24B493'
-                  }}
-                >
-                  {paymentData.orderNumber}
-                </Typography>
+                <OrderNumberDisplay orderNumber={paymentData.orderNumber} />
               </Box>
               
               <Box sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -539,4 +667,51 @@ export default function OrderComplete() {
       `}</style>
     </Box>
   );
-} 
+}
+
+// ส่วนที่แสดงเลขที่คำสั่งซื้อในกล่องข้อความเมื่อชำระเงินสำเร็จ
+const OrderNumberDisplay = ({ orderNumber }: { orderNumber: string }) => {
+  if (orderNumber === "กำลังประมวลผล") {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+        <Typography 
+          variant="body1" 
+          sx={{ 
+            fontWeight: 600, 
+            color: 'info.main',
+            display: 'flex',
+            alignItems: 'center'
+          }}
+        >
+          <Box component="span" sx={{ 
+            width: 8, 
+            height: 8, 
+            borderRadius: '50%', 
+            backgroundColor: 'info.main',
+            display: 'inline-block',
+            mr: 1,
+            animation: 'pulse 1.5s infinite ease-in-out',
+          }}/>
+          กำลังประมวลผลคำสั่งซื้อ
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          ระบบกำลังสร้างเลขที่คำสั่งซื้อ โปรดรอสักครู่
+        </Typography>
+      </Box>
+    );
+  }
+  
+  return (
+    <Typography 
+      variant="h5" 
+      color="primary" 
+      sx={{ 
+        fontWeight: 600, 
+        letterSpacing: '0.5px',
+        color: '#24B493'
+      }}
+    >
+      {orderNumber}
+    </Typography>
+  );
+}; 

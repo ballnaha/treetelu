@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
+import { generateOrderNumber } from '@/utils/orderUtils';
 
 // ตรวจสอบว่ามีการตั้งค่า Stripe API Key หรือไม่
 if (!process.env.STRIPE_SECRET_KEY) {
@@ -97,6 +98,9 @@ export async function POST(request: NextRequest) {
           product_data: {
             name: productName,
             images: item.productImg ? [item.productImg.startsWith('http') ? item.productImg : `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/images/product/${item.productImg}`] : undefined,
+            metadata: {
+              productId: String(item.productId)
+            }
           },
           unit_amount: unitAmount, // ใช้ค่าที่ตรวจสอบแล้ว
         },
@@ -112,6 +116,9 @@ export async function POST(request: NextRequest) {
           product_data: {
             name: 'ค่าจัดส่ง',
             images: undefined,
+            metadata: {
+              is_shipping: 'true'
+            }
           },
           unit_amount: Math.max(1, Math.round(shippingCost * 100)), // ตรวจสอบให้เป็นจำนวนเต็มบวก
         },
@@ -123,40 +130,6 @@ export async function POST(request: NextRequest) {
     // วิธีนี้จะช่วยป้องกันปัญหา Invalid non-negative integer กับ Stripe API
     // ซึ่งไม่สามารถใช้ค่าติดลบหรือ quantity ติดลบได้
     
-    // สร้าง orderNumber รูปแบบใหม่: TTyymmrunningnumber เช่น TT2505001
-    const generateOrderNumber = async () => {
-      // รับวันที่ปัจจุบัน
-      const now = new Date();
-      const yy = now.getFullYear().toString().slice(-2); // 2 หลักสุดท้ายของปี (เช่น 2025 -> 25)
-      const mm = (now.getMonth() + 1).toString().padStart(2, '0'); // เดือน (01-12)
-      
-      // หาเลขลำดับล่าสุดจากฐานข้อมูลในเดือนปัจจุบัน
-      const prefix = `TT${yy}${mm}`;
-      const latestOrder = await prisma.order.findFirst({
-        where: {
-          orderNumber: {
-            startsWith: prefix
-          }
-        },
-        orderBy: {
-          orderNumber: 'desc'
-        }
-      });
-      
-      // กำหนดเลขลำดับ runningNumber
-      let runningNumber = 1;
-      if (latestOrder) {
-        // ตัดส่วนตัวเลขลำดับล่าสุดออกมา และแปลงเป็นตัวเลข
-        const latestRunningNumber = parseInt(latestOrder.orderNumber.slice(-3));
-        if (!isNaN(latestRunningNumber)) {
-          runningNumber = latestRunningNumber + 1;
-        }
-      }
-      
-      // รูปแบบ TT + yy + mm + running number (3 หลัก)
-      return `${prefix}${runningNumber.toString().padStart(3, '0')}`;
-    };
-
     // สร้าง orderNumber
     const orderNumber = await generateOrderNumber();
     
@@ -176,40 +149,28 @@ export async function POST(request: NextRequest) {
       note: validatedData.customerInfo.note || '',
       discount_code: validatedData.discountCode || '',
       user_id: validatedData.userId ? String(validatedData.userId) : '',
+      order_number: orderNumber, // เพิ่ม orderNumber ลงใน metadata
+      // เพิ่มข้อมูลสำหรับกรณีจัดส่งให้ผู้อื่น ด้วยคีย์ที่ชัดเจน
+      deliveryDate: validatedData.shippingInfo.deliveryDate || '',
+      deliveryTime: validatedData.shippingInfo.deliveryTime || '',
+      cardMessage: validatedData.shippingInfo.cardMessage || '',
+      additionalNote: validatedData.shippingInfo.additionalNote || '',
+      // เพิ่มข้อมูลระบุว่าเป็นการจัดส่งให้ผู้อื่นหรือไม่
+      shipping_to_other: validatedData.shippingInfo.provinceName === 'จัดส่งให้ผู้รับโดยตรง' ? "true" : "false",
+      // ระบุ shipping_tab สำหรับบ่งบอกประเภทการจัดส่ง (0 = ส่งให้ตัวเอง, 1 = ส่งให้ผู้อื่น)
+      shipping_tab: validatedData.shippingInfo.provinceName === 'จัดส่งให้ผู้รับโดยตรง' ? "1" : "0",
+      // ข้อมูลผู้สั่งซื้อแยกจากผู้รับ สำหรับกรณีจัดส่งให้ผู้อื่น
+      sender_name: validatedData.customerInfo.firstName,
+      sender_lastname: validatedData.customerInfo.lastName,
+      sender_phone: validatedData.customerInfo.phone,
+      sender_email: validatedData.customerInfo.email
     };
     
-    // สร้าง Checkout Session
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
-    console.log('Creating Stripe session with baseUrl:', baseUrl);
-    
-    // กำหนดวิธีการชำระเงินที่จะใช้ใน Stripe ตาม paymentMethodType ที่ส่งมา
-    const paymentMethodTypes: Stripe.Checkout.SessionCreateParams.PaymentMethodType[] = ['card'];
-    if (validatedData.paymentMethodType === 'promptpay') {
-      paymentMethodTypes.push('promptpay' as Stripe.Checkout.SessionCreateParams.PaymentMethodType);
-    }
-
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: paymentMethodTypes, // ใช้ตามที่กำหนดจาก paymentMethodType
-      line_items: lineItems,
-      mode: 'payment',
-      success_url: `${baseUrl}/orders/complete?source=stripe&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: validatedData.cancelUrl || `${baseUrl}/checkout`,
-      customer_email: validatedData.customerInfo.email,
-      locale: 'th',
-      payment_intent_data: {
-        metadata,
-      },
-      metadata,
-    });
-    
-    console.log('Stripe session created successfully:', {
-      id: session.id,
-      url: session.url,
-    });
-    
+    // สร้าง Order ในฐานข้อมูลก่อน
+    let order;
     try {
       // สร้าง Order ในฐานข้อมูล
-      const order = await prisma.order.create({
+      order = await prisma.order.create({
         data: {
           orderNumber,
           userId: validatedData.userId ? Number(validatedData.userId) : null,
@@ -221,8 +182,6 @@ export async function POST(request: NextRequest) {
           finalAmount: totalAmount,
           paymentMethod: validatedData.paymentMethodType === 'promptpay' ? 'PROMPTPAY' : 'CREDIT_CARD',
           paymentStatus: 'PENDING',
-          stripeSessionId: session.id,
-          stripePaymentMethodType: validatedData.paymentMethodType || 'card',
           customerInfo: {
             create: {
               firstName: validatedData.customerInfo.firstName,
@@ -265,13 +224,12 @@ export async function POST(request: NextRequest) {
         },
       });
       
-      // อัพเดท Stripe Session Metadata ด้วยข้อมูล Order
-      await stripe.checkout.sessions.update(session.id, {
-        metadata: {
-          ...metadata,
-          order_id: String(order.id),
-          order_number: orderNumber,
-        },
+      // เพิ่ม order_id ลงใน metadata
+      metadata.order_id = String(order.id);
+      
+      console.log('Successfully created order in database:', {
+        id: order.id,
+        orderNumber: order.orderNumber
       });
       
       // ถ้ามีการใช้รหัสส่วนลด ให้บันทึกการใช้งาน
@@ -291,27 +249,82 @@ export async function POST(request: NextRequest) {
           console.error('Error updating discount usage count:', error);
         }
       }
-      
-      // ส่งข้อมูล Stripe Session กลับไปยัง client
-      console.log('Returning Stripe session data:', { sessionId: session.id, url: session.url });
-      return NextResponse.json({
-        sessionId: session.id,
-        url: session.url,
-        orderId: order.id,
-        orderNumber,
-      });
     } catch (dbError) {
       console.error('Database error when creating order:', dbError);
+      throw new Error(`ไม่สามารถสร้างคำสั่งซื้อได้: ${dbError.message}`);
+    }
+    
+    // เมื่อสร้าง Order ในฐานข้อมูลเรียบร้อยแล้ว ให้สร้าง Checkout Session
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+    console.log('Creating Stripe session with baseUrl:', baseUrl);
+    
+    // กำหนดวิธีการชำระเงินที่จะใช้ใน Stripe ตาม paymentMethodType ที่ส่งมา
+    const paymentMethodTypes: Stripe.Checkout.SessionCreateParams.PaymentMethodType[] = ['card'];
+    if (validatedData.paymentMethodType === 'promptpay') {
+      paymentMethodTypes.push('promptpay' as Stripe.Checkout.SessionCreateParams.PaymentMethodType);
+    }
+
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        payment_method_types: paymentMethodTypes, // ใช้ตามที่กำหนดจาก paymentMethodType
+        line_items: lineItems,
+        mode: 'payment',
+        success_url: `${baseUrl}/orders/complete?source=stripe&session_id={CHECKOUT_SESSION_ID}&order_id=${order.id}&order_number=${orderNumber}`,
+        cancel_url: validatedData.cancelUrl || `${baseUrl}/checkout`,
+        customer_email: validatedData.customerInfo.email,
+        locale: 'th',
+        payment_intent_data: {
+          metadata,
+        },
+        metadata,
+      });
       
-      // ส่งข้อมูล Stripe Session กลับไปยัง client แม้จะไม่สามารถสร้าง Order ได้
-      console.log('Returning Stripe session data after DB error:', { sessionId: session.id, url: session.url });
-      return NextResponse.json({
-        sessionId: session.id,
+      console.log('Stripe session created successfully:', {
+        id: session.id,
         url: session.url,
       });
+      
+      // อัพเดต orderNumber เพื่อเพิ่ม stripeSessionId
+      await prisma.order.update({
+        where: {
+          id: order.id
+        },
+        data: {
+          stripeSessionId: session.id,
+          stripePaymentMethodType: validatedData.paymentMethodType || 'card',
+        }
+      });
+    } catch (stripeError) {
+      console.error('Error creating Stripe session:', stripeError);
+      
+      // ถ้าไม่สามารถสร้าง Stripe session ได้ อัพเดตสถานะเป็น ERROR
+      if (order) {
+        await prisma.order.update({
+          where: {
+            id: order.id
+          },
+          data: {
+            status: 'ERROR',
+            paymentStatus: 'ERROR',
+            updatedAt: new Date()
+          }
+        });
+      }
+      
+      throw new Error(`ไม่สามารถสร้าง Stripe session ได้: ${stripeError.message}`);
     }
+    
+    // ส่งข้อมูล Stripe Session กลับไปยัง client
+    console.log('Returning Stripe session data:', { sessionId: session.id, url: session.url });
+    return NextResponse.json({
+      sessionId: session.id,
+      url: session.url,
+      orderId: order.id,
+      orderNumber,
+    });
   } catch (error) {
-    console.error('Error creating Stripe session:', error);
+    console.error('Error creating Stripe checkout:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'An unknown error occurred' },
       { status: 500 }
