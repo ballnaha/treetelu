@@ -209,7 +209,7 @@ export default function OrderDetailDialog({ open, order, onClose, loading = fals
                             {item.productImg && (
                               <Box 
                                 component="img" 
-                                src={`/images/product/${item.productImg}`} 
+                                src={`${item.productImg}`} 
                                 alt={item.productName}
                                 sx={{ 
                                   width: 50, 
