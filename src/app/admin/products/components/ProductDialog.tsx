@@ -285,11 +285,20 @@ export default function ProductDialog({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
     
-    // Update the form data with the new value
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    if (type === 'number') {
+      // แปลงค่าเป็นตัวเลขและตรวจสอบว่าไม่ติดลบ
+      const numValue = parseFloat(value);
+      if (numValue < 0) return; // ถ้าค่าติดลบ ไม่ต้องอัปเดต state
+      
+      setFormData(prev => ({
+        ...prev,
+        [name]: isNaN(numValue) ? 0 : numValue
+      }));
+    } else if (type === 'checkbox') {
+      setFormData(prev => ({ ...prev, [name]: checked }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
     
     // If product name is changed and it's a new product, auto-generate the slug
     if (name === 'productName' && (isNewProduct || !formData.slug)) {
@@ -298,15 +307,6 @@ export default function ProductDialog({
         ...prev,
         slug: newSlug
       }));
-    }
-    
-    // Handle different input types
-    if (type === 'checkbox') {
-      setFormData(prev => ({ ...prev, [name]: checked }));
-    } else if (type === 'number') {
-      setFormData(prev => ({ ...prev, [name]: parseFloat(value) }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
   
@@ -736,6 +736,10 @@ export default function ProductDialog({
                       onChange={handleInputChange}
                       InputProps={{
                         startAdornment: <InputAdornment position="start">฿</InputAdornment>,
+                        inputProps: { 
+                          min: 0,
+                          step: 1 // อนุญาตให้กรอกทศนิยมได้ 2 ตำแหน่ง
+                        }
                       }}
                       sx={fullWidthFieldStyle}
                     />
@@ -750,6 +754,10 @@ export default function ProductDialog({
                       onChange={handleInputChange}
                       InputProps={{
                         startAdornment: <InputAdornment position="start">฿</InputAdornment>,
+                        inputProps: { 
+                          min: 0,
+                          step: 1
+                        }
                       }}
                       helperText="ราคาก่อนลดราคา (ถ้ามี)"
                       sx={fullWidthFieldStyle}
@@ -763,6 +771,12 @@ export default function ProductDialog({
                       name="stock"
                       value={formData.stock || 0}
                       onChange={handleInputChange}
+                      InputProps={{
+                        inputProps: { 
+                          min: 0,
+                          step: 1 // อนุญาตให้กรอกเป็นจำนวนเต็มเท่านั้น
+                        }
+                      }}
                       sx={fullWidthFieldStyle}
                     />
                   </Box>

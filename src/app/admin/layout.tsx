@@ -42,6 +42,7 @@ import DiscountIcon from '@mui/icons-material/Discount';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import CategoryIcon from '@mui/icons-material/Category';
 
 // สร้าง styled component สำหรับ navigation
 const StyledNavButton = styled(Button)(({ theme }) => ({
@@ -84,6 +85,7 @@ const adminMenuItems = [
     hasSubMenu: true,
     subMenu: [
       { text: 'รายการสินค้า', href: '/admin/products', icon: <LocalOfferIcon /> },
+      { text: 'หมวดหมู่สินค้า', href: '/admin/categories', icon: <CategoryIcon /> },
       { text: 'คูปองส่วนลด', href: '/admin/discount-codes', icon: <DiscountIcon /> }
     ]
   },
