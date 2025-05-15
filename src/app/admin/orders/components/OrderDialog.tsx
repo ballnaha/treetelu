@@ -508,6 +508,48 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
                       <Typography variant="caption" color="text.secondary">รหัสไปรษณีย์</Typography>
                       <Typography variant="body2">{order.shippingInfo.zipCode || ''}</Typography>
                     </Box>
+                    {/* แสดงข้อความในบัตรอวยพร (ถ้ามี) */}
+                    {order.shippingInfo.cardMessage && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">ข้อความในบัตรอวยพร</Typography>
+                        <Paper 
+                          elevation={0} 
+                          sx={{ 
+                            p: 1.5, 
+                            mt: 0.5,
+                            bgcolor: 'primary.lighter',
+                            border: '1px dashed',
+                            borderColor: 'primary.main',
+                            borderRadius: 1
+                          }}
+                        >
+                          <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+                            {order.shippingInfo.cardMessage}
+                          </Typography>
+                        </Paper>
+                      </Box>
+                    )}
+                    {/* แสดงหมายเหตุเพิ่มเติม (ถ้ามี) */}
+                    {order.shippingInfo.additionalNote && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">หมายเหตุเพิ่มเติม</Typography>
+                        <Paper 
+                          elevation={0} 
+                          sx={{ 
+                            p: 1.5, 
+                            mt: 0.5,
+                            bgcolor: 'warning.lighter',
+                            border: '1px dashed',
+                            borderColor: 'warning.main',
+                            borderRadius: 1
+                          }}
+                        >
+                          <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+                            {order.shippingInfo.additionalNote}
+                          </Typography>
+                        </Paper>
+                      </Box>
+                    )}
                     {order.shippingInfo.deliveryDate && typeof order.shippingInfo.deliveryDate === 'string' && !isNaN(new Date(order.shippingInfo.deliveryDate).getTime()) && (
                       <Box>
                         <Typography variant="caption" color="text.secondary">วันที่จัดส่ง</Typography>

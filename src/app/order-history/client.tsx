@@ -61,19 +61,10 @@ interface CustomerInfo {
   lastName: string;
   email: string;
   phone: string;
+  note?: string;
 }
 
-interface ShippingInfo {
-  receiverName: string;
-  receiverLastname: string;
-  receiverPhone: string;
-  addressLine: string;
-  addressLine2?: string;
-  provinceName: string;
-  amphureName: string;
-  tambonName: string;
-  zipCode: string;
-}
+interface ShippingInfo {  receiverName: string;  receiverLastname: string;  receiverPhone: string;  addressLine: string;  addressLine2?: string;  provinceName: string;  amphureName: string;  tambonName: string;  zipCode: string;  note?: string;  cardMessage?: string;  additionalNote?: string;}
 
 interface Order {
   id: string;
@@ -686,25 +677,39 @@ export default function OrderHistoryClient() {
         onClose={() => setShowOrderDetail(false)}
         fullWidth
         maxWidth="md"
+        fullScreen={isMobile}
         scroll="paper"
+        PaperProps={{
+          sx: {
+            borderRadius: isMobile ? 0 : 2,
+            m: isMobile ? 0 : 2,
+          }
+        }}
       >
         {selectedOrder && (
           <>
-            <DialogTitle sx={{ 
+            <Box sx={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
               alignItems: 'center',
+              p: isMobile ? 2 : 2,
               bgcolor: 'background.neutral',
               borderBottom: '1px solid',
-              borderColor: 'divider'
+              borderColor: 'divider',
+              position: isMobile ? 'sticky' : 'static',
+              top: 0,
+              zIndex: 10
             }}>
-              รายละเอียดคำสั่งซื้อ #{selectedOrder.orderNumber}
+              <Typography variant="h6">
+                รายละเอียดคำสั่งซื้อ #{selectedOrder.orderNumber}
+              </Typography>
               <IconButton onClick={() => setShowOrderDetail(false)} size="small">
                 <CloseIcon fontSize="small" />
               </IconButton>
-            </DialogTitle>
+            </Box>
             
             <DialogContent dividers sx={{ p: 3 }}>
+              {/* สถานะคำสั่งซื้อและวันที่ */}
               <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                 <Typography variant="body2" color="text.secondary">
                   วันที่สั่งซื้อ: {formatThaiDate(new Date(selectedOrder.createdAt))}
@@ -750,8 +755,6 @@ export default function OrderHistoryClient() {
               <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
                 รายการสินค้า
               </Typography>
-
-
               
               <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
                 <Table size="small">
@@ -775,7 +778,6 @@ export default function OrderHistoryClient() {
                                 alt={item.productName}
                                 sx={{ width: 40, height: 40, mr: 2, objectFit: 'cover', borderRadius: 1 }}
                                 onError={(e) => {
-                                  // Fallback if image fails to load
                                   const target = e.target as HTMLImageElement;
                                   target.src = 'https://via.placeholder.com/40';
                                 }}
@@ -835,8 +837,9 @@ export default function OrderHistoryClient() {
                 </Table>
               </TableContainer>
               
-              {/* ข้อมูลการจัดส่ง */}
+              {/* ข้อมูลการจัดส่งและข้อมูลการชำระเงิน */}
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+                {/* ข้อมูลการจัดส่ง */}
                 <Box>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
                     ข้อมูลการจัดส่ง
@@ -849,6 +852,10 @@ export default function OrderHistoryClient() {
                           <Box>
                             <Typography variant="caption" color="text.secondary">ผู้รับ</Typography>
                             <Typography variant="body2">{selectedOrder.shippingInfo.receiverName || ''} {selectedOrder.shippingInfo.receiverLastname || ''}</Typography>
+                          </Box>
+                          <Box>
+                            <Typography variant="caption" color="text.secondary">อีเมล</Typography>
+                            <Typography variant="body2">{selectedOrder.customerInfo?.email || '-'}</Typography>
                           </Box>
                           <Box>
                             <Typography variant="caption" color="text.secondary">เบอร์โทรศัพท์</Typography>
@@ -865,6 +872,78 @@ export default function OrderHistoryClient() {
                               {selectedOrder.shippingInfo.zipCode}
                             </Typography>
                           </Box>
+                          {/* แสดงข้อความในบัตรอวยพร (ถ้ามี) */}
+                          {selectedOrder.shippingInfo.cardMessage && (
+                            <Box>
+                              <Typography variant="caption" color="text.secondary">ข้อความในบัตรอวยพร</Typography>
+                              <Paper 
+                                elevation={0} 
+                                sx={{ 
+                                  p: 1.5, 
+                                  mt: 0.5,
+                                  bgcolor: 'primary.lighter',
+                                  border: '1px dashed',
+                                  borderColor: 'primary.main',
+                                  borderRadius: 1
+                                }}
+                              >
+                                <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+                                  {selectedOrder.shippingInfo.cardMessage}
+                                </Typography>
+                              </Paper>
+                            </Box>
+                          )}
+                          {/* แสดงหมายเหตุเพิ่มเติม (ถ้ามี) */}
+                          {selectedOrder.shippingInfo.additionalNote && (
+                            <Box>
+                              <Typography variant="caption" color="text.secondary">หมายเหตุเพิ่มเติม</Typography>
+                              <Paper 
+                                elevation={0} 
+                                sx={{ 
+                                  p: 1.5, 
+                                  mt: 0.5,
+                                  bgcolor: 'warning.lighter',
+                                  border: '1px dashed',
+                                  borderColor: 'warning.main',
+                                  borderRadius: 1
+                                }}
+                              >
+                                <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+                                  {selectedOrder.shippingInfo.additionalNote}
+                                </Typography>
+                              </Paper>
+                            </Box>
+                          )}
+                          {/* แสดงหมายเหตุการจัดส่ง (ถ้ามี) */}
+                          {selectedOrder.shippingInfo.note && (
+                            <Box>
+                              <Typography variant="caption" color="text.secondary">หมายเหตุการจัดส่ง</Typography>
+                              <Typography variant="body2" sx={{ 
+                                p: 1, 
+                                bgcolor: 'background.paper', 
+                                border: '1px solid', 
+                                borderColor: 'divider',
+                                borderRadius: 1
+                              }}>
+                                {selectedOrder.shippingInfo.note}
+                              </Typography>
+                            </Box>
+                          )}
+                          {/* แสดงหมายเหตุจากลูกค้า (ถ้ามี) */}
+                          {selectedOrder.customerInfo?.note && (
+                            <Box>
+                              <Typography variant="caption" color="text.secondary">หมายเหตุจากผู้สั่งซื้อ</Typography>
+                              <Typography variant="body2" sx={{ 
+                                p: 1, 
+                                bgcolor: 'background.paper', 
+                                border: '1px solid', 
+                                borderColor: 'divider',
+                                borderRadius: 1
+                              }}>
+                                {selectedOrder.customerInfo.note}
+                              </Typography>
+                            </Box>
+                          )}
                         </>
                       )}
                     </Stack>
@@ -908,7 +987,6 @@ export default function OrderHistoryClient() {
                             }}
                             onClick={() => setShowImageModal(true)}
                             onError={(e) => {
-                              // Fallback if image fails to load
                               const target = e.target as HTMLImageElement;
                               target.src = 'https://via.placeholder.com/300x400?text=ไม่พบรูปภาพ';
                             }}
@@ -922,7 +1000,17 @@ export default function OrderHistoryClient() {
             </DialogContent>
             
             <DialogActions sx={{ p: 2, bgcolor: 'background.neutral' }}>
-              <Button onClick={() => setShowOrderDetail(false)} color="primary">
+              <Button 
+                onClick={() => setShowOrderDetail(false)} 
+                color="primary"
+                variant="contained"
+                sx={{ 
+                  fontWeight: 500,
+                  borderRadius: '4px',
+                  px: 3,
+                  py: 1
+                }}
+              >
                 ปิด
               </Button>
             </DialogActions>
@@ -936,10 +1024,34 @@ export default function OrderHistoryClient() {
         onClose={() => setShowImageModal(false)}
         maxWidth="md"
         fullWidth
+        fullScreen={isMobile}
+        PaperProps={{
+          sx: {
+            borderRadius: isMobile ? 0 : 2,
+            m: isMobile ? 0 : 2,
+            overflow: 'hidden'
+          }
+        }}
       >
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          หลักฐานการชำระเงิน
-          <IconButton onClick={() => setShowImageModal(false)}>
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          p: { xs: 1.5, sm: 2 },
+          bgcolor: '#f9f9f9'
+        }}>
+          <Typography variant="h6" sx={{ fontWeight: 500 }}>หลักฐานการชำระเงิน</Typography>
+          <IconButton 
+            onClick={() => setShowImageModal(false)}
+            sx={{
+              color: 'text.secondary',
+              '&:hover': {
+                backgroundColor: 'rgba(0, 0, 0, 0.04)'
+              }
+            }}
+          >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
@@ -955,7 +1067,6 @@ export default function OrderHistoryClient() {
                 objectFit: 'contain'
               }}
               onError={(e) => {
-                // Fallback if image fails to load
                 const target = e.target as HTMLImageElement;
                 target.src = 'https://via.placeholder.com/800x600?text=ไม่พบรูปภาพ';
               }}
