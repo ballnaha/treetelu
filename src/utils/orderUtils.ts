@@ -12,7 +12,7 @@ import { getBangkokDateTime, convertToBangkokTime } from './dateUtils';
  * ถ้าเริ่มเดือนใหม่ จะเริ่มที่ 001 ใหม่ เช่น TT2506001 สำหรับเดือนมิถุนายน
  */
 export async function generateOrderNumber(): Promise<string> {
-  const now = new Date();
+  const now = getBangkokDateTime();
   const yearShort = now.getFullYear().toString().slice(-2); // เอาเลข 2 หลักสุดท้ายของปี ค.ศ.
   const month = (now.getMonth() + 1).toString().padStart(2, '0'); // เดือน 01-12
   const prefix = `TT${yearShort}${month}`;
@@ -53,7 +53,10 @@ export async function generateOrderNumber(): Promise<string> {
 }
 
 // กำหนดชนิดข้อมูลสำหรับวิธีการชำระเงิน
-type PaymentMethodType = 'BANK_TRANSFER' | 'CREDIT_CARD' | 'PROMPTPAY' | 'COD';
+export type PaymentMethodType = 'BANK_TRANSFER' | 'CREDIT_CARD' | 'PROMPTPAY' | 'COD';
+
+// กำหนดชนิดข้อมูลสำหรับสถานะการชำระเงิน
+export type PaymentStatusType = 'PENDING' | 'CONFIRMED' | 'REJECTED';
 
 // กำหนดชนิดข้อมูลสำหรับข้อมูลคำสั่งซื้อ
 type OrderDataInput = {
@@ -93,7 +96,7 @@ type OrderDataInput = {
   userId?: number | string | null;
   discount?: number;
   discountCode?: string;
-  paymentStatus?: 'PENDING' | 'CONFIRMED' | 'REJECTED';
+  paymentStatus?: PaymentStatusType;
   paymentReference?: string; // Omise charge ID
 };
 
@@ -261,8 +264,8 @@ export async function createOrder(orderData: OrderDataInput) {
             zipCode: shippingInfo.zipCode,
             deliveryDate: shippingInfo.deliveryDate ? 
               (typeof shippingInfo.deliveryDate === 'string' ? 
-               new Date(shippingInfo.deliveryDate) : 
-               shippingInfo.deliveryDate) : 
+               convertToBangkokTime(new Date(shippingInfo.deliveryDate)) : 
+               convertToBangkokTime(shippingInfo.deliveryDate)) : 
               null,
             deliveryTime: shippingInfo.deliveryTime || '',
             cardMessage: shippingInfo.cardMessage || '',
@@ -285,8 +288,8 @@ export async function createOrder(orderData: OrderDataInput) {
             quantity: item.quantity,
             unitPrice: new Decimal(item.unitPrice),
             totalPrice: new Decimal(item.quantity * item.unitPrice),
-            createdAt: bangkokNow,
-            updatedAt: bangkokNow
+            createdAt: getBangkokDateTime(),
+            updatedAt: getBangkokDateTime()
           }))
         }
       };

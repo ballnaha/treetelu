@@ -1,42 +1,104 @@
 /**
  * Utility functions สำหรับการส่งข้อความแจ้งเตือนไปยัง Discord
  */
+import { getBangkokDateTime } from './dateUtils';
 
 /**
  * ส่งข้อความแจ้งเตือนไปยัง Discord webhook
  * @param message ข้อความหรือ embed ที่จะส่งไปยัง Discord
  * @param webhookUrl URL ของ Discord webhook
+ * @param debugInfo ข้อมูลสำหรับการ debug เพิ่มเติม (optional)
  * @returns Promise ที่จะ resolve เมื่อส่งข้อความสำเร็จ
  */
 export async function sendDiscordNotification(
   message: string | object,
-  webhookUrl = process.env.DISCORD_WEBHOOK_URL
-): Promise<Response> {
-  if (!webhookUrl) {
-    throw new Error('Discord webhook URL is not defined in environment variables');
-  }
+  webhookUrl = process.env.DISCORD_WEBHOOK_URL,
+  debugInfo: Record<string, any> = {}
+): Promise<Response | null> {
+  try {
+    // ตรวจสอบว่า webhookUrl ถูกกำหนดและมีรูปแบบที่ถูกต้อง
+    if (!webhookUrl) {
+      console.error('Discord webhook URL is not defined in environment variables');
+      return null; // คืนค่า null แทนที่จะโยน error
+    }
 
-  // สร้าง body ของ request
-  let body: any;
-  
-  if (typeof message === 'string') {
-    // ถ้าเป็น string จะส่งเป็นข้อความธรรมดา
-    body = {
-      content: message,
-    };
-  } else {
-    // ถ้าเป็น object จะส่งเป็น embed
-    body = message;
-  }
+    // ตรวจสอบว่า webhookUrl เป็น URL ที่ถูกต้องหรือไม่
+    if (!webhookUrl.startsWith('http')) {
+      console.error('Invalid Discord webhook URL format:', webhookUrl);
+      return null;
+    }
 
-  // ส่ง request ไปยัง Discord webhook
-  return fetch(webhookUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+    // สร้าง body ของ request
+    let body: any;
+    
+    if (typeof message === 'string') {
+      // ถ้าเป็น string จะส่งเป็นข้อความธรรมดา
+      body = {
+        content: message,
+      };
+    } else {
+      // ถ้าเป็น object จะส่งเป็น embed
+      body = message;
+    }
+
+    // เพิ่มข้อมูล timestamp เพื่อป้องกันการส่งซ้ำ
+    // ใช้ ISO string ตามมาตรฐาน Discord เพื่อให้แสดงเวลาถูกต้อง
+    // Discord ใช้ ISO8601 ซึ่งจะแปลงเป็นเวลาตาม timezone ของผู้ใช้โดยอัตโนมัติ
+    const now = new Date();
+    const timestamp = now.toISOString();
+    
+    if (body.embeds && Array.isArray(body.embeds) && body.embeds.length > 0) {
+      // ถ้ามี embeds ให้กำหนด timestamp ให้กับทุก embed
+      body.embeds = body.embeds.map((embed: any) => ({
+        ...embed,
+        timestamp: timestamp
+      }));
+    }
+
+    // Log ข้อมูลที่จะส่งไป Discord
+    console.log('Sending Discord notification with data:', JSON.stringify({
+      ...debugInfo,
+      webhookUrlValid: !!webhookUrl,
+      webhookUrlLength: webhookUrl?.length || 0,
+      messageType: typeof message,
+      hasEmbeds: !!body.embeds,
+      embeds: body.embeds ? body.embeds.length : 0,
+      timestamp: timestamp
+    }, null, 2));
+
+    // ส่ง request ไปยัง Discord webhook โดยกำหนด timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // timeout 10 วินาที
+
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Discord webhook error:', response.status, errorText);
+        return null; // คืนค่า null แทนที่จะโยน error
+      }
+      
+      console.log('Discord notification sent successfully');
+      return response;
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      console.error('Error fetching Discord webhook:', fetchError);
+      return null; // คืนค่า null แทนที่จะโยน error
+    }
+  } catch (error) {
+    console.error('Error in sendDiscordNotification:', error);
+    return null; // คืนค่า null แทนที่จะโยน error
+  }
 }
 
 /**
@@ -45,6 +107,14 @@ export async function sendDiscordNotification(
  * @returns Discord embed object
  */
 export function createOrderNotificationEmbed(orderData: any) {
+  console.log('Creating order notification embed with data:', JSON.stringify({
+    orderNumber: orderData?.orderNumber,
+    paymentMethod: orderData?.paymentMethod,
+    customerInfo: orderData?.customerInfo,
+    hasItems: !!orderData?.items,
+    itemsLength: orderData?.items?.length
+  }, null, 2));
+
   // ตรวจสอบว่ามีข้อมูล items หรือไม่ และป้องกัน error
   if (!orderData || !orderData.items || !Array.isArray(orderData.items) || orderData.items.length === 0) {
     console.warn('Invalid or missing items in order data for Discord notification');
@@ -65,63 +135,107 @@ export function createOrderNotificationEmbed(orderData: any) {
     };
   }
   
-  // คำนวณราคารวมทั้งหมด
-  const subtotal = Number(orderData.items.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * Number(item.quantity)), 0));
-  
-  // คำนวณค่าจัดส่ง: ฟรีค่าจัดส่งเมื่อซื้อสินค้ามากกว่าหรือเท่ากับ 1,500 บาท
-  const shippingCost = subtotal >= 1500 ? 0 : 100;
-  
-  // คำนวณส่วนลด (ถ้ามี)
-  const discount = Number(orderData.discount || 0);
-  
-  // คำนวณยอดรวมสุทธิ
-  const totalAmount = subtotal + shippingCost - discount;
+  try {
+    // คำนวณราคารวมทั้งหมด
+    const subtotal = Number(orderData.items.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * Number(item.quantity)), 0));
+    
+    // คำนวณค่าจัดส่ง: ฟรีค่าจัดส่งเมื่อซื้อสินค้ามากกว่าหรือเท่ากับ 1,500 บาท
+    const shippingCost = subtotal >= 1500 ? 0 : 100;
+    
+    // คำนวณส่วนลด (ถ้ามี)
+    const discount = Number(orderData.discount || 0);
+    
+    // คำนวณยอดรวมสุทธิ
+    const totalAmount = subtotal + shippingCost - discount;
 
-  // สร้างรายการสินค้า
-  const itemsField = orderData.items.map((item: any, index: number) => {
-    return `${index + 1}. ${item.productName} x${item.quantity} (${Number(item.unitPrice).toLocaleString()} บาท/ชิ้น)`;
-  }).join('\n');
+    // ตรวจสอบข้อมูลลูกค้า
+    const customerInfo = orderData.customerInfo || {};
+    const customerName = `${customerInfo.firstName || ''} ${customerInfo.lastName || ''}`.trim() || 'ไม่ระบุ';
+    const customerEmail = customerInfo.email || 'ไม่ระบุ';
+    const customerPhone = customerInfo.phone || 'ไม่ระบุ';
 
-  // สร้าง embed
-  return {
-    embeds: [
-      {
-        title: `📦 คำสั่งซื้อใหม่ #${orderData.orderNumber}`,
-        color: 0x24B493, // สีเขียวของ TreeTelu
-        fields: [
-          {
-            name: '👤 ข้อมูลลูกค้า',
-            value: `**ชื่อ:** ${orderData.customerInfo.firstName} ${orderData.customerInfo.lastName}\n**อีเมล:** ${orderData.customerInfo.email}\n**โทร:** ${orderData.customerInfo.phone}`,
-            inline: false
-          },
-          {
-            name: '🛒 รายการสินค้า',
-            value: itemsField,
-            inline: false
-          },
-          {
-            name: '💰 ยอดรวม',
-            value: `**สินค้า:** ${subtotal.toLocaleString()} บาท\n**ค่าจัดส่ง:** ${shippingCost === 0 ? 'ฟรี' : `${shippingCost.toLocaleString()} บาท`}${discount > 0 ? `\n**ส่วนลด${orderData.discountCode ? ` (${orderData.discountCode})` : ''}:** -${discount.toLocaleString()} บาท` : ''}\n**รวมทั้งสิ้น:** ${totalAmount.toLocaleString()} บาท`,
-            inline: true
-          },
-          {
-            name: '💳 วิธีการชำระเงิน',
-            value: getPaymentMethodThai(orderData.paymentMethod),
-            inline: true
-          },
-          {
-            name: '🚚 ที่อยู่จัดส่ง',
-            value: `**ผู้รับ:** ${orderData.shippingInfo.receiverName} ${orderData.shippingInfo.receiverLastname}\n**โทร:** ${orderData.shippingInfo.receiverPhone}\n**ที่อยู่:** ${orderData.shippingInfo.addressLine} ${orderData.shippingInfo.tambonName} ${orderData.shippingInfo.amphureName} ${orderData.shippingInfo.provinceName} ${orderData.shippingInfo.zipCode}`,
-            inline: false
+    // ตรวจสอบข้อมูลการจัดส่ง
+    const shippingInfo = orderData.shippingInfo || {};
+    const receiverName = `${shippingInfo.receiverName || ''} ${shippingInfo.receiverLastname || ''}`.trim() || 'ไม่ระบุ';
+    const receiverPhone = shippingInfo.receiverPhone || 'ไม่ระบุ';
+    const addressLine = shippingInfo.addressLine || '';
+    const tambonName = shippingInfo.tambonName || '';
+    const amphureName = shippingInfo.amphureName || '';
+    const provinceName = shippingInfo.provinceName || '';
+    const zipCode = shippingInfo.zipCode || '';
+    const fullAddress = `${addressLine} ${tambonName} ${amphureName} ${provinceName} ${zipCode}`.trim() || 'ไม่ระบุ';
+
+    // สร้างรายการสินค้า
+    let itemsField = '';
+    try {
+      itemsField = orderData.items.map((item: any, index: number) => {
+        const productName = item.productName || `สินค้า #${item.productId || index + 1}`;
+        const quantity = Number(item.quantity) || 1;
+        const unitPrice = Number(item.unitPrice) || 0;
+        return `${index + 1}. ${productName} x${quantity} (${unitPrice.toLocaleString()} บาท/ชิ้น)`;
+      }).join('\n');
+    } catch (error) {
+      console.error('Error generating items field for Discord notification:', error);
+      itemsField = 'ไม่สามารถแสดงรายการสินค้าได้';
+    }
+
+    // สร้าง embed
+    return {
+      embeds: [
+        {
+          title: `📦 คำสั่งซื้อใหม่ #${orderData.orderNumber || 'ไม่ระบุ'}`,
+          color: 0x24B493, // สีเขียวของ TreeTelu
+          fields: [
+            {
+              name: '👤 ข้อมูลลูกค้า',
+              value: `**ชื่อ:** ${customerName}\n**อีเมล:** ${customerEmail}\n**โทร:** ${customerPhone}`,
+              inline: false
+            },
+            {
+              name: '🛒 รายการสินค้า',
+              value: itemsField || 'ไม่มีรายการสินค้า',
+              inline: false
+            },
+            {
+              name: '💰 ยอดรวม',
+              value: `**สินค้า:** ${subtotal.toLocaleString()} บาท\n**ค่าจัดส่ง:** ${shippingCost === 0 ? 'ฟรี' : `${shippingCost.toLocaleString()} บาท`}${discount > 0 ? `\n**ส่วนลด${orderData.discountCode ? ` (${orderData.discountCode})` : ''}:** -${discount.toLocaleString()} บาท` : ''}\n**รวมทั้งสิ้น:** ${totalAmount.toLocaleString()} บาท`,
+              inline: true
+            },
+            {
+              name: '💳 วิธีการชำระเงิน',
+              value: getPaymentMethodThai(orderData.paymentMethod || 'ไม่ระบุ'),
+              inline: true
+            },
+            {
+              name: '🚚 ที่อยู่จัดส่ง',
+              value: `**ผู้รับ:** ${receiverName}\n**โทร:** ${receiverPhone}\n**ที่อยู่:** ${fullAddress}`,
+              inline: false
+            }
+          ],
+          timestamp: new Date().toISOString(),
+          footer: {
+            text: 'TreeTelu Order System'
           }
-        ],
-        timestamp: new Date().toISOString(),
-        footer: {
-          text: 'TreeTelu Order System'
         }
-      }
-    ]
-  };
+      ]
+    };
+  } catch (error) {
+    console.error('Error creating order notification embed:', error);
+    // ส่งข้อความแจ้งเตือนอย่างง่ายในกรณีเกิด error
+    return {
+      embeds: [
+        {
+          title: `📦 คำสั่งซื้อใหม่ ${orderData?.orderNumber ? `#${orderData.orderNumber}` : ''}`,
+          color: 0xFF0000, // สีแดง
+          description: 'มีคำสั่งซื้อใหม่ แต่เกิดข้อผิดพลาดในการแสดงรายละเอียด กรุณาตรวจสอบในระบบ',
+          timestamp: new Date().toISOString(),
+          footer: {
+            text: 'TreeTelu Order System'
+          }
+        }
+      ]
+    };
+  }
 }
 
 /**

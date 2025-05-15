@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { generateOrderNumber } from '@/utils/orderUtils';
 import Stripe from 'stripe';
+import prisma from '@/lib/prisma';
+import { PaymentMethod, PaymentStatus, OrderStatus } from '@prisma/client';
+import { getBangkokDateTime, convertToBangkokTime } from '@/utils/dateUtils';
+import { sendDiscordNotification, createOrderNotificationEmbed } from '@/utils/discordUtils';
+import { generateOrderNumber } from '@/utils/orderUtils';
 
 // สร้าง Stripe instance
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
@@ -157,10 +160,12 @@ async function createOrderFromPendingPayment(pendingPayment: any) {
       tambonName: metadata.shippingInfo?.tambonName || 'จัดส่งให้ผู้รับโดยตรง',
       zipCode: metadata.shippingInfo?.zipCode || shippingAddress.postal_code || '10200',
       // เพิ่มข้อมูลวันที่จัดส่ง เวลาที่จัดส่ง ข้อความในการ์ด และหมายเหตุ
-      deliveryDate: deliveryDate ? new Date(deliveryDate) : null,
+      deliveryDate: deliveryDate ? convertToBangkokTime(new Date(deliveryDate)) : null,
       deliveryTime: deliveryTime,
       cardMessage: cardMessage,
-      additionalNote: additionalNote
+      additionalNote: additionalNote,
+      createdAt: getBangkokDateTime(),
+      updatedAt: getBangkokDateTime()
     } : {
       receiverName: firstName,
       receiverLastname: lastName,
@@ -175,25 +180,27 @@ async function createOrderFromPendingPayment(pendingPayment: any) {
       tambonName: shippingAddress.state || 'แขวงพระบรมมหาราชวัง',
       zipCode: shippingAddress.postal_code || '10200',
       // เพิ่มข้อมูลวันที่จัดส่ง เวลาที่จัดส่ง ข้อความในการ์ด และหมายเหตุ
-      deliveryDate: deliveryDate ? new Date(deliveryDate) : null,
+      deliveryDate: deliveryDate ? convertToBangkokTime(new Date(deliveryDate)) : null,
       deliveryTime: deliveryTime,
       cardMessage: cardMessage,
-      additionalNote: additionalNote
+      additionalNote: additionalNote,
+      createdAt: getBangkokDateTime(),
+      updatedAt: getBangkokDateTime()
     };
     
     // ตรวจสอบวิธีการชำระเงินที่แท้จริงจาก metadata ของ Stripe
     // payment_method_types (เช่น 'card', 'promptpay')
     // payment_method_details (สำหรับใช้ข้อมูลอ้างอิงเพิ่มเติม ถ้ามี)
-    let paymentMethod = 'CREDIT_CARD'; // ค่าเริ่มต้น
+    let paymentMethod: PaymentMethod = 'CREDIT_CARD' as PaymentMethod; // ระบุ type โดยตรง
     let stripePaymentMethodType = 'card'; // ค่าเริ่มต้น
     
     // ตรวจสอบจาก payment_method_details โดยตรง (ข้อมูลที่ชัดเจนที่สุด)
     if (metadata.payment_method_details && metadata.payment_method_details.type) {
       if (metadata.payment_method_details.type === 'promptpay') {
-        paymentMethod = 'PROMPTPAY';
+        paymentMethod = 'PROMPTPAY' as PaymentMethod;
         stripePaymentMethodType = 'promptpay';
       } else if (metadata.payment_method_details.type === 'card') {
-        paymentMethod = 'CREDIT_CARD';
+        paymentMethod = 'CREDIT_CARD' as PaymentMethod;
         stripePaymentMethodType = 'card';
       }
     }
@@ -207,11 +214,11 @@ async function createOrderFromPendingPayment(pendingPayment: any) {
       
       // ตรวจดูว่าใช้ method อะไรจริงๆ
       if (paymentMethodTypes.includes('promptpay') && (metadata.payment_method === 'promptpay' || metadata.payment_type === 'promptpay')) {
-        paymentMethod = 'PROMPTPAY';
+        paymentMethod = 'PROMPTPAY' as PaymentMethod;
         stripePaymentMethodType = 'promptpay';
       } else if ((paymentMethodTypes.includes('card') || paymentMethodTypes.includes('credit_card')) && 
                 (metadata.payment_method === 'card' || metadata.payment_type === 'card')) {
-        paymentMethod = 'CREDIT_CARD';
+        paymentMethod = 'CREDIT_CARD' as PaymentMethod;
         stripePaymentMethodType = 'card';
       }
     }
@@ -219,10 +226,10 @@ async function createOrderFromPendingPayment(pendingPayment: any) {
     // ตรวจสอบเพิ่มเติมจาก payment_method
     if (metadata.payment_method) {
       if (metadata.payment_method === 'promptpay') {
-        paymentMethod = 'PROMPTPAY';
+        paymentMethod = 'PROMPTPAY' as PaymentMethod;
         stripePaymentMethodType = 'promptpay';
       } else if (metadata.payment_method === 'card' || metadata.payment_method === 'credit_card') {
-        paymentMethod = 'CREDIT_CARD';
+        paymentMethod = 'CREDIT_CARD' as PaymentMethod;
         stripePaymentMethodType = 'card';
       }
     }
@@ -230,17 +237,17 @@ async function createOrderFromPendingPayment(pendingPayment: any) {
     // ตรวจสอบจาก payment_type
     if (metadata.payment_type) {
       if (metadata.payment_type === 'promptpay') {
-        paymentMethod = 'PROMPTPAY';
+        paymentMethod = 'PROMPTPAY' as PaymentMethod;
         stripePaymentMethodType = 'promptpay';
       } else if (metadata.payment_type === 'card' || metadata.payment_type === 'credit_card') {
-        paymentMethod = 'CREDIT_CARD';
+        paymentMethod = 'CREDIT_CARD' as PaymentMethod;
         stripePaymentMethodType = 'card';
       }
     }
     
     // ตรวจสอบจาก status ถ้าเป็น promptpay_confirmed
     if (metadata.status === 'promptpay_confirmed') {
-      paymentMethod = 'PROMPTPAY';
+      paymentMethod = 'PROMPTPAY' as PaymentMethod;
       stripePaymentMethodType = 'promptpay';
     }
     
@@ -253,11 +260,13 @@ async function createOrderFromPendingPayment(pendingPayment: any) {
       shippingCost,
       discount,
       finalAmount,
-      paymentMethod: paymentMethod,
-      paymentStatus: 'CONFIRMED',
-      status: 'PAID',
+      paymentMethod: paymentMethod as PaymentMethod,
+      paymentStatus: 'CONFIRMED' as PaymentStatus,
+      status: 'PAID' as OrderStatus,
       stripeSessionId: pendingPayment.charge_id,
       stripePaymentMethodType: stripePaymentMethodType,
+      createdAt: getBangkokDateTime(),
+      updatedAt: getBangkokDateTime(),
       customerInfo: {
         create: {
           firstName,
@@ -271,7 +280,7 @@ async function createOrderFromPendingPayment(pendingPayment: any) {
         create: shippingInfoData
       },
       orderItems: {
-        create: await Promise.all(lineItems.map(async (item: any) => {
+        create: (await Promise.all(lineItems.map(async (item: any) => {
           const unitPrice = (item.price?.unit_amount || 0) / 100; // แปลงจากสตางค์เป็นบาท
           const quantity = item.quantity || 1;
           
@@ -329,7 +338,7 @@ async function createOrderFromPendingPayment(pendingPayment: any) {
             unitPrice: unitPrice,
             totalPrice: unitPrice * quantity
           };
-        }).filter(item => item !== null)) // กรองรายการที่เป็น null (ค่าจัดส่ง) ออกไป
+        }))).filter((item: any) => item !== null) // กรองรายการที่เป็น null (ค่าจัดส่ง) ออกไป
       }
     };
     
@@ -349,18 +358,18 @@ async function createOrderFromPendingPayment(pendingPayment: any) {
     await prisma.paymentInfo.create({
       data: {
         orderId: order.id,
-        paymentMethod: paymentMethod,
+        paymentMethod: paymentMethod === 'PROMPTPAY' ? 'PROMPTPAY' : 'CREDIT_CARD',
         transactionId: pendingPayment.charge_id,
         amount: finalAmount,
         status: 'CONFIRMED',
-        paymentDate: new Date(),
+        paymentDate: getBangkokDateTime(),
         // เก็บข้อมูลเพิ่มเติมจาก metadata ถ้ามี
         bankName: paymentMethod === 'PROMPTPAY' ? 'พร้อมเพย์' : 
                  (metadata.payment_details?.bank || metadata.payment_details?.card_brand || 'บัตรเครดิต/เดบิต'),
         // ข้อมูลสำหรับบัตรเครดิต
         slipUrl: metadata.receipt_url || null,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: getBangkokDateTime(),
+        updatedAt: getBangkokDateTime()
       }
     });
     
@@ -371,13 +380,41 @@ async function createOrderFromPendingPayment(pendingPayment: any) {
       },
       data: {
         processed: true,
-        processed_at: new Date(),
+        processed_at: getBangkokDateTime(),
         order_id: order.id,
-        updated_at: new Date()
+        updated_at: getBangkokDateTime()
       }
     });
     
     console.log(`Created order ${order.orderNumber} from pending payment ${pendingPayment.id}`);
+    
+    // ส่ง Discord notification
+    try {
+      console.log('Sending Discord notification for verified payment - DIRECT', {
+        webhookUrl: !!process.env.DISCORD_WEBHOOK_URL,
+        orderNumber: order.orderNumber
+      });
+      // เตรียมข้อมูลสำหรับ Discord
+      const orderData = {
+        ...order,
+        items: order.orderItems.map((item: any) => ({
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: parseFloat(item.unitPrice.toString())
+        })),
+        discount: parseFloat(order.discount.toString()),
+        discountCode: order.discountCode,
+        paymentMethod: order.paymentMethod
+      };
+      
+      const embed = createOrderNotificationEmbed(orderData);
+      const discordResult = await sendDiscordNotification(embed);
+      console.log('Discord notification result:', discordResult ? 'success' : 'failed');
+    } catch (discordError) {
+      console.error('Error sending Discord notification:', discordError);
+      // ไม่หยุดการทำงานหากการส่งแจ้งเตือนไม่สำเร็จ
+    }
     
     return order;
   } catch (error) {
@@ -452,7 +489,7 @@ export async function GET(request: NextRequest) {
       // ตรวจสอบสถานะการชำระเงิน
       const isPaymentConfirmed = 
         (order.paymentStatus === 'CONFIRMED') || 
-        (order.paymentInfo && order.paymentInfo.some(info => info.status === 'CONFIRMED'));
+        (order.paymentInfo && Array.isArray(order.paymentInfo) ? order.paymentInfo.some((info: any) => info.status === 'CONFIRMED') : order.paymentInfo?.status === 'CONFIRMED');
 
       if (isPaymentConfirmed) {
         console.log(`API: Payment confirmed for order: ${order.orderNumber}`);
@@ -482,9 +519,48 @@ export async function GET(request: NextRequest) {
                 data: {
                   paymentStatus: 'CONFIRMED',
                   status: 'PAID',
-                  updatedAt: new Date()
+                  updatedAt: getBangkokDateTime()
                 }
               });
+              
+              // ส่ง Discord notification
+              try {
+                console.log('Sending Discord notification for verified payment - DIRECT', {
+                  webhookUrl: !!process.env.DISCORD_WEBHOOK_URL,
+                  orderNumber: order.orderNumber
+                });
+                // เตรียมข้อมูลสำหรับ Discord
+                const orderWithItems = await prisma.order.findUnique({
+                  where: { id: order.id },
+                  include: {
+                    customerInfo: true,
+                    shippingInfo: true,
+                    orderItems: true
+                  }
+                });
+                
+                if (orderWithItems) {
+                  const orderData = {
+                    ...orderWithItems,
+                    items: orderWithItems.orderItems.map((item: any) => ({
+                      productId: item.productId,
+                      productName: item.productName,
+                      quantity: item.quantity,
+                      unitPrice: parseFloat(item.unitPrice.toString())
+                    })),
+                    discount: parseFloat(orderWithItems.discount.toString()),
+                    discountCode: orderWithItems.discountCode,
+                    paymentMethod: orderWithItems.paymentMethod
+                  };
+                  
+                  const embed = createOrderNotificationEmbed(orderData);
+                  const discordResult = await sendDiscordNotification(embed);
+                  console.log('Discord notification result:', discordResult ? 'success' : 'failed');
+                }
+              } catch (discordError) {
+                console.error('Error sending Discord notification:', discordError);
+                // ไม่ต้องหยุดการทำงานหากการส่งแจ้งเตือนไม่สำเร็จ
+              }
               
               // ส่งข้อมูลกลับไปยังผู้ใช้
               return NextResponse.json({
@@ -525,143 +601,146 @@ export async function GET(request: NextRequest) {
     // ถ้าไม่พบข้อมูลใน orders ให้ค้นหาในตาราง pending_payments
     console.log(`API: No order found for session ID: ${sessionId}, checking pending_payments...`);
     
-    const pendingPayment = await prisma.pendingPayment.findFirst({
-      where: {
-        charge_id: sessionId,
-        processed: false // ค้นหาเฉพาะรายการที่ยังไม่ได้ประมวลผล
-      }
-    });
-    
-    if (pendingPayment) {
-      console.log(`API: Found pending payment for session ID: ${sessionId}, status: ${pendingPayment.status}`);
+    // ค้นหาเฉพาะเมื่อมี sessionId
+    if (sessionId) {
+      const pendingPayment = await prisma.pendingPayment.findFirst({
+        where: {
+          charge_id: sessionId,
+          processed: false // ค้นหาเฉพาะรายการที่ยังไม่ได้ประมวลผล
+        }
+      });
       
-      // ถ้าสถานะเป็น CONFIRMED และยังไม่ได้ประมวลผล ให้สร้าง order
-      if (pendingPayment.status === 'CONFIRMED' && !pendingPayment.processed) {
-        try {
-          console.log(`API: Creating order from pending payment ${pendingPayment.id}`);
-          const createdOrder = await createOrderFromPendingPayment(pendingPayment);
-          
-          return NextResponse.json({
-            success: true,
-            orderNumber: createdOrder.orderNumber,
-            transactionId: sessionId,
-            paymentStatus: 'CONFIRMED',
-            order: {
-              id: createdOrder.id,
-              orderNumber: createdOrder.orderNumber
-            }
-          });
-        } catch (createOrderError) {
-          console.error('API: Error creating order from pending payment:', createOrderError);
-          
-          // ตรวจสอบว่าเป็น error เกี่ยวกับ amphureName หรือไม่
-          const errorMessage = createOrderError instanceof Error ? createOrderError.message : 'Unknown error';
-          const isAmphureNameError = errorMessage.includes('amphureName');
-          
-          // ลองอัพเดทข้อมูล pending_payment เพื่อแก้ไขข้อผิดพลาด
-          if (isAmphureNameError) {
-            console.log('API: Trying to update pending payment with default amphureName');
-            try {
-              // อัพเดต metadata เพื่อให้มี amphureName
-              const metadata = pendingPayment.metadata || {};
-              if (metadata.shipping && metadata.shipping.address) {
-                metadata.shipping.address.state = 'จัดส่งให้ผู้รับโดยตรง';
-              } else if (metadata.shipping) {
-                metadata.shipping.address = { state: 'จัดส่งให้ผู้รับโดยตรง' };
-              } else {
-                metadata.shipping = { address: { state: 'จัดส่งให้ผู้รับโดยตรง' } };
+      if (pendingPayment) {
+        console.log(`API: Found pending payment for session ID: ${sessionId}, status: ${pendingPayment.status}`);
+        
+        // ถ้าสถานะเป็น CONFIRMED และยังไม่ได้ประมวลผล ให้สร้าง order
+        if (pendingPayment.status === 'CONFIRMED' && !pendingPayment.processed) {
+          try {
+            console.log(`API: Creating order from pending payment ${pendingPayment.id}`);
+            const createdOrder = await createOrderFromPendingPayment(pendingPayment);
+            
+            return NextResponse.json({
+              success: true,
+              orderNumber: createdOrder.orderNumber,
+              transactionId: sessionId,
+              paymentStatus: 'CONFIRMED',
+              order: {
+                id: createdOrder.id,
+                orderNumber: createdOrder.orderNumber
               }
-              
-              // อัพเดทข้อมูล
-              await prisma.pendingPayment.update({
-                where: { id: pendingPayment.id },
-                data: { metadata }
-              });
-              
-              // ลองสร้าง order อีกครั้ง
-              const updatedPendingPayment = await prisma.pendingPayment.findUnique({
-                where: { id: pendingPayment.id }
-              });
-              
-              if (updatedPendingPayment) {
-                const createdOrder = await createOrderFromPendingPayment(updatedPendingPayment);
-                return NextResponse.json({
-                  success: true,
-                  orderNumber: createdOrder.orderNumber,
-                  transactionId: sessionId,
-                  paymentStatus: 'CONFIRMED',
-                  order: {
-                    id: createdOrder.id,
-                    orderNumber: createdOrder.orderNumber
-                  }
+            });
+          } catch (createOrderError) {
+            console.error('API: Error creating order from pending payment:', createOrderError);
+            
+            // ตรวจสอบว่าเป็น error เกี่ยวกับ amphureName หรือไม่
+            const errorMessage = createOrderError instanceof Error ? createOrderError.message : 'Unknown error';
+            const isAmphureNameError = errorMessage.includes('amphureName');
+            
+            // ลองอัพเดทข้อมูล pending_payment เพื่อแก้ไขข้อผิดพลาด
+            if (isAmphureNameError) {
+              console.log('API: Trying to update pending payment with default amphureName');
+              try {
+                // อัพเดต metadata เพื่อให้มี amphureName
+                const metadata = pendingPayment.metadata || {} as Record<string, any>;
+                if ((metadata as any).shipping && (metadata as any).shipping.address) {
+                  (metadata as any).shipping.address.state = 'จัดส่งให้ผู้รับโดยตรง';
+                } else if ((metadata as any).shipping) {
+                  (metadata as any).shipping.address = { state: 'จัดส่งให้ผู้รับโดยตรง' };
+                } else {
+                  (metadata as any).shipping = { address: { state: 'จัดส่งให้ผู้รับโดยตรง' } };
+                }
+                
+                // อัพเดทข้อมูล
+                await prisma.pendingPayment.update({
+                  where: { id: pendingPayment.id },
+                  data: { metadata }
                 });
+                
+                // ลองสร้าง order อีกครั้ง
+                const updatedPendingPayment = await prisma.pendingPayment.findUnique({
+                  where: { id: pendingPayment.id }
+                });
+                
+                if (updatedPendingPayment) {
+                  const createdOrder = await createOrderFromPendingPayment(updatedPendingPayment);
+                  return NextResponse.json({
+                    success: true,
+                    orderNumber: createdOrder.orderNumber,
+                    transactionId: sessionId,
+                    paymentStatus: 'CONFIRMED',
+                    order: {
+                      id: createdOrder.id,
+                      orderNumber: createdOrder.orderNumber
+                    }
+                  });
+                }
+              } catch (updateError) {
+                console.error('API: Error updating pending payment:', updateError);
               }
-            } catch (updateError) {
-              console.error('API: Error updating pending payment:', updateError);
             }
+            
+            // ส่งข้อมูล pending payment กลับไปเพื่อให้แสดงผลที่เหมาะสม
+            return NextResponse.json({
+              success: true,
+              orderNumber: "PENDING", // ยังไม่มีเลขที่คำสั่งซื้อ
+              transactionId: sessionId,
+              paymentStatus: pendingPayment.status === 'CONFIRMED' ? 'CONFIRMED' : 'PENDING',
+              pendingPayment: {
+                id: pendingPayment.id,
+                amount: pendingPayment.amount,
+                status: pendingPayment.status,
+                paymentMethod: pendingPayment.payment_method
+              },
+              errorCreatingOrder: true
+            });
           }
-          
-          // ส่งข้อมูล pending payment กลับไปเพื่อให้แสดงผลที่เหมาะสม
-          return NextResponse.json({
-            success: true,
-            orderNumber: "PENDING", // ยังไม่มีเลขที่คำสั่งซื้อ
-            transactionId: sessionId,
-            paymentStatus: pendingPayment.status === 'CONFIRMED' ? 'CONFIRMED' : 'PENDING',
-            pendingPayment: {
-              id: pendingPayment.id,
-              amount: pendingPayment.amount,
-              status: pendingPayment.status,
-              paymentMethod: pendingPayment.payment_method
-            },
-            errorCreatingOrder: true
-          });
         }
-      }
-      
-      // กรณีที่ยังไม่ได้ยืนยันการชำระเงินหรือมีการประมวลผลไปแล้ว
-      return NextResponse.json({
-        success: true,
-        orderNumber: "PENDING", // ยังไม่มีเลขที่คำสั่งซื้อ
-        transactionId: sessionId,
-        paymentStatus: pendingPayment.status === 'CONFIRMED' ? 'CONFIRMED' : 'PENDING',
-        pendingPayment: {
-          id: pendingPayment.id,
-          amount: pendingPayment.amount,
-          status: pendingPayment.status,
-          paymentMethod: pendingPayment.payment_method
-        }
-      });
-    }
-    
-    // ลองหา pending payment ที่ถูกประมวลผลแล้ว
-    const processedPayment = await prisma.pendingPayment.findFirst({
-      where: {
-        charge_id: sessionId,
-        processed: true
-      }
-    });
-    
-    if (processedPayment && processedPayment.order_id) {
-      console.log(`API: Found processed payment with order ID: ${processedPayment.order_id}`);
-      
-      // ค้นหา order ที่เกี่ยวข้อง
-      const relatedOrder = await prisma.order.findUnique({
-        where: { id: processedPayment.order_id }
-      });
-      
-      if (relatedOrder) {
+        
+        // กรณีที่ยังไม่ได้ยืนยันการชำระเงินหรือมีการประมวลผลไปแล้ว
         return NextResponse.json({
           success: true,
-          orderNumber: relatedOrder.orderNumber,
+          orderNumber: "PENDING", // ยังไม่มีเลขที่คำสั่งซื้อ
           transactionId: sessionId,
-          paymentStatus: relatedOrder.paymentStatus,
-          order: {
-            id: relatedOrder.id,
-            orderNumber: relatedOrder.orderNumber,
-            totalAmount: relatedOrder.totalAmount,
-            finalAmount: relatedOrder.finalAmount
+          paymentStatus: pendingPayment.status === 'CONFIRMED' ? 'CONFIRMED' : 'PENDING',
+          pendingPayment: {
+            id: pendingPayment.id,
+            amount: pendingPayment.amount,
+            status: pendingPayment.status,
+            paymentMethod: pendingPayment.payment_method
           }
         });
+      }
+      
+      // ลองหา pending payment ที่ถูกประมวลผลแล้ว
+      const processedPayment = await prisma.pendingPayment.findFirst({
+        where: {
+          charge_id: sessionId,
+          processed: true
+        }
+      });
+      
+      if (processedPayment && processedPayment.order_id) {
+        console.log(`API: Found processed payment with order ID: ${processedPayment.order_id}`);
+        
+        // ค้นหา order ที่เกี่ยวข้อง
+        const relatedOrder = await prisma.order.findUnique({
+          where: { id: processedPayment.order_id }
+        });
+        
+        if (relatedOrder) {
+          return NextResponse.json({
+            success: true,
+            orderNumber: relatedOrder.orderNumber,
+            transactionId: sessionId,
+            paymentStatus: relatedOrder.paymentStatus,
+            order: {
+              id: relatedOrder.id,
+              orderNumber: relatedOrder.orderNumber,
+              totalAmount: relatedOrder.totalAmount,
+              finalAmount: relatedOrder.finalAmount
+            }
+          });
+        }
       }
     }
     

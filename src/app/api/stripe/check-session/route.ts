@@ -5,6 +5,7 @@ import { Resend } from 'resend';
 import { sendDiscordNotification, createOrderNotificationEmbed } from '@/utils/discordUtils';
 import { format, addHours } from 'date-fns';
 import thLocale from 'date-fns/locale/th';
+import { getBangkokDateTime } from '@/utils/dateUtils';
 
 // ตั้งค่า Resend API Key
 const resend = new Resend(process.env.RESEND_API_KEY as string);
@@ -61,19 +62,23 @@ export async function GET(request: NextRequest) {
 
     if (session.status === 'complete' && session.payment_status === 'paid') {
       console.log('Session is complete and paid, updating order status');
+      
+      // สร้างเวลาปัจจุบันของไทย
+      const thaiDateTime = getBangkokDateTime();
+      
       await prisma.$transaction([
         prisma.$executeRaw`
           UPDATE orders 
           SET status = 'PAID', 
               paymentStatus = 'CONFIRMED',
-              updatedAt = NOW()
+              updatedAt = ${thaiDateTime}
           WHERE id = ${order.id}
         `,
         prisma.$executeRaw`
           UPDATE payment_info 
           SET status = 'CONFIRMED',
-              paymentDate = NOW(),
-              updatedAt = NOW()
+              paymentDate = ${thaiDateTime},
+              updatedAt = ${thaiDateTime}
           WHERE orderId = ${order.id}
         `,
         prisma.$executeRaw`
@@ -81,7 +86,7 @@ export async function GET(request: NextRequest) {
           SET status = 'paid',
               amount = ${session.amount_total ? session.amount_total / 100 : 0},
               payment_method = ${session.payment_method_types ? session.payment_method_types[0] : 'card'},
-              updatedAt = NOW()
+              updatedAt = ${thaiDateTime}
           WHERE sessionId = ${sessionId}
         `
       ]);
@@ -156,12 +161,35 @@ export async function GET(request: NextRequest) {
           // ส่งการแจ้งเตือนไปยัง Discord
           try {
             console.log('Sending Discord notification...');
-            const embed = createOrderNotificationEmbed({
-              ...orderData,
-              id: order.id
-            });
-            const discordResult = await sendDiscordNotification(embed);
-            console.log('Discord notification result:', discordResult);
+            
+            // ตรวจสอบว่าได้มีการส่ง Discord notification สำหรับคำสั่งซื้อนี้ไปแล้วหรือไม่
+            // โดยตรวจสอบจากตาราง log_notification ถ้ามี หรือดูจาก updatedAt ของ order
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000); // 5 นาทีที่ผ่านมา
+            
+            // ดึงประวัติการอัพเดต order ในช่วง 5 นาทีที่ผ่านมา (อาจมีการส่ง webhook แล้ว)
+            const recentUpdates = await prisma.$queryRaw`
+              SELECT COUNT(*) as count FROM payment_info 
+              WHERE orderId = ${order.id} 
+              AND status = 'CONFIRMED' 
+              AND updatedAt > ${fiveMinutesAgo}
+            `;
+            
+            let notificationCount = 0;
+            if (recentUpdates && Array.isArray(recentUpdates) && recentUpdates.length > 0) {
+              notificationCount = Number(recentUpdates[0].count || 0);
+            }
+            
+            if (notificationCount > 1) {
+              console.log(`Skip sending Discord notification: Order ${order.id} was recently updated, notification was likely sent by webhook already`);
+            } else {
+              // ส่งการแจ้งเตือนไปยัง Discord ตามปกติ
+              const embed = createOrderNotificationEmbed({
+                ...orderData,
+                id: order.id
+              });
+              const discordResult = await sendDiscordNotification(embed);
+              console.log('Discord notification result:', discordResult);
+            }
           } catch (discordError) {
             console.error('Error sending Discord notification:', discordError);
           }

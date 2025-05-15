@@ -6,6 +6,8 @@ import { format, addHours } from 'date-fns';
 import { th as thLocale } from 'date-fns/locale';
 import { createOrderNotificationEmbed, sendDiscordNotification } from '@/utils/discordUtils';
 import { Resend } from 'resend';
+import { getBangkokDateTime, convertToBangkokTime } from '@/utils/dateUtils';
+import { PaymentMethod } from '@prisma/client';
 
 // สร้าง Stripe instance
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
@@ -393,13 +395,42 @@ export async function POST(request: NextRequest) {
         if (order) {
           console.log(`Found order with ID: ${order.id}, orderNumber: ${order.orderNumber}, updating payment status`);
           
-          // ดึงข้อมูล payment intent เพื่อใช้ในการอัพเดตสถานะ
-          let paymentIntent = null;
-          if (sessionData.payment_intent && typeof sessionData.payment_intent === 'string') {
-            try {
-              paymentIntent = await stripe.paymentIntents.retrieve(sessionData.payment_intent);
-            } catch (error) {
-              console.error(`Error retrieving payment intent: ${error}`);
+          // ตัวแปรสำหรับเก็บข้อมูลวิธีการชำระเงิน
+          let paymentMethod = 'CREDIT_CARD' as PaymentMethod; // ค่าเริ่มต้น
+          let stripePaymentMethodType = 'card'; // ค่าเริ่มต้น
+          
+          // ตรวจสอบจาก payment_method_types โดยตรง
+          if (sessionData.payment_method_types?.includes('promptpay')) {
+            paymentMethod = 'PROMPTPAY' as PaymentMethod;
+            stripePaymentMethodType = 'promptpay';
+          }
+          
+          // ตรวจสอบจาก payment_method_types ใน metadata
+          if (metadata.payment_method_types) {
+            // อาจเป็น array หรือ string
+            const paymentMethodTypes = typeof metadata.payment_method_types === 'string'
+              ? metadata.payment_method_types.split(',')
+              : Array.isArray(metadata.payment_method_types) 
+                ? metadata.payment_method_types 
+                : [metadata.payment_method_types];
+            
+            // ตรวจดูว่าใช้ method อะไรจริงๆ
+            if (paymentMethodTypes.includes('promptpay') && 
+                (metadata.payment_method === 'promptpay' || metadata.payment_type === 'promptpay')) {
+              paymentMethod = 'PROMPTPAY' as PaymentMethod;
+              stripePaymentMethodType = 'promptpay';
+            } else if ((paymentMethodTypes.includes('card') || paymentMethodTypes.includes('credit_card')) && 
+                      (metadata.payment_method === 'card' || metadata.payment_type === 'card')) {
+              paymentMethod = 'CREDIT_CARD' as PaymentMethod;
+              stripePaymentMethodType = 'card';
+            } else if (paymentMethodTypes.includes('promptpay')) {
+              // ถ้ามีแค่ promptpay ใน payment_method_types แต่ไม่มีใน payment_method หรือ payment_type
+              paymentMethod = 'PROMPTPAY' as PaymentMethod;
+              stripePaymentMethodType = 'promptpay';
+            } else if (paymentMethodTypes.includes('card')) {
+              // ถ้ามีแค่ card ใน payment_method_types แต่ไม่มีใน payment_method หรือ payment_type
+              paymentMethod = 'CREDIT_CARD' as PaymentMethod;
+              stripePaymentMethodType = 'card';
             }
           }
         
@@ -411,9 +442,9 @@ export async function POST(request: NextRequest) {
             data: {
               paymentStatus: 'CONFIRMED',
               status: 'PAID',
-              paymentMethod: sessionData.payment_method_types?.includes('promptpay') ? 'PROMPTPAY' : 'CREDIT_CARD',
-              stripePaymentMethodType: sessionData.payment_method_types?.includes('promptpay') ? 'promptpay' : 'card',
-              updatedAt: new Date(),
+              paymentMethod: paymentMethod,
+              stripePaymentMethodType: stripePaymentMethodType,
+              updatedAt: getBangkokDateTime(),
             },
           });
         
@@ -432,15 +463,12 @@ export async function POST(request: NextRequest) {
               },
               data: {
                 status: 'CONFIRMED',
-                paymentDate: new Date(),
+                paymentDate: getBangkokDateTime(),
                 transactionId: sessionData.id,
-                paymentMethod: sessionData.payment_method_types?.includes('promptpay') ? 'PROMPTPAY' : 'CREDIT_CARD',
-                  // เก็บข้อมูลเพิ่มเติมจาก payment_intent
-                  bankName: sessionData.payment_method_types?.includes('promptpay') ? 'พร้อมเพย์' : 
-                          (paymentIntent?.payment_method_details?.card?.brand || 'บัตรเครดิต/เดบิต'),
-                  // เก็บ URL ใบเสร็จถ้ามี
-                  slipUrl: paymentIntent?.receipt_url || null,
-                updatedAt: new Date(),
+                paymentMethod: paymentMethod,
+                bankName: paymentMethod === 'PROMPTPAY' ? 'พร้อมเพย์' : 'บัตรเครดิต/เดบิต',
+                slipUrl: null,
+                updatedAt: getBangkokDateTime(),
               },
             });
           } else {
@@ -448,18 +476,15 @@ export async function POST(request: NextRequest) {
             await prisma.paymentInfo.create({
               data: {
                 orderId: order.id,
-                paymentMethod: sessionData.payment_method_types?.includes('promptpay') ? 'PROMPTPAY' : 'CREDIT_CARD',
+                paymentMethod: paymentMethod,
                 transactionId: sessionData.id,
                 amount: parseFloat(order.totalAmount.toString()),
                 status: 'CONFIRMED',
-                paymentDate: new Date(),
-                  // เก็บข้อมูลเพิ่มเติมจาก payment_intent
-                  bankName: sessionData.payment_method_types?.includes('promptpay') ? 'พร้อมเพย์' : 
-                          (paymentIntent?.payment_method_details?.card?.brand || 'บัตรเครดิต/เดบิต'),
-                  // เก็บ URL ใบเสร็จถ้ามี
-                  slipUrl: paymentIntent?.receipt_url || null,
-                createdAt: new Date(),
-                updatedAt: new Date(),
+                paymentDate: getBangkokDateTime(),
+                bankName: paymentMethod === 'PROMPTPAY' ? 'พร้อมเพย์' : 'บัตรเครดิต/เดบิต',
+                slipUrl: null,
+                createdAt: getBangkokDateTime(),
+                updatedAt: getBangkokDateTime(),
               },
             });
           }
@@ -479,7 +504,7 @@ export async function POST(request: NextRequest) {
               })),
               discount: parseFloat(order.discount.toString()),
               discountCode: order.discountCode,
-              stripePaymentMethodType: sessionData.payment_method_types?.includes('promptpay') ? 'promptpay' : 'card'
+              stripePaymentMethodType: stripePaymentMethodType
             };
             
             console.log('Sending email notification for Stripe payment');
@@ -495,31 +520,78 @@ export async function POST(request: NextRequest) {
           // ส่งการแจ้งเตือนไปยัง Discord
           if (process.env.DISCORD_WEBHOOK_URL) {
             try {
-              // สร้างข้อมูลสำหรับ Discord embed
-              const orderDataForDiscord = {
-                ...order,
-                items: order.orderItems.map((item: DbOrderItem) => ({
-                  productId: item.productId,
-                  productName: item.productName,
-                  quantity: item.quantity,
-                  unitPrice: parseFloat(item.unitPrice.toString())
-                })),
-                customerInfo: order.customerInfo || {},
-                shippingInfo: order.shippingInfo || {},
-                paymentMethod: sessionData.payment_method_types?.includes('promptpay') ? 'PROMPTPAY' : 'CREDIT_CARD',
-                discount: parseFloat(order.discount.toString()),
-                discountCode: order.discountCode,
-                stripePaymentMethodType: sessionData.payment_method_types?.includes('promptpay') ? 'promptpay' : 'card'
-              };
+              // ค้นหาข้อมูลการชำระเงินเพื่อตรวจสอบว่ามีการส่ง notification ไปแล้วหรือไม่
+              const paymentInfo = await prisma.paymentInfo.findFirst({
+                where: { orderId: order.id },
+                orderBy: { updatedAt: 'desc' }
+              });
+    
+              let discordSent = false;
               
-              // ใช้ createOrderNotificationEmbed แทนการสร้าง embed เอง เพื่อให้รูปแบบเหมือนกับ BANK_TRANSFER
-              const paymentEmbed = createOrderNotificationEmbed(orderDataForDiscord);
+              // ตรวจสอบว่ามีการส่ง Discord notification ไปแล้วหรือไม่
+              if (paymentInfo) {
+                // ถ้า transactionId ตรงกับ payment_intent.id และสถานะเป็น CONFIRMED แสดงว่าส่งไปแล้ว
+                if (paymentInfo.transactionId === sessionData.id && paymentInfo.status === 'CONFIRMED') {
+                  console.log(`Discord notification already sent for order ${order.id} with session ${sessionData.id}`);
+                  discordSent = true;
+                }
+              }
               
-              console.log('Sending Discord notification for Stripe payment');
-              await sendDiscordNotification(paymentEmbed);
+              // ส่ง Discord notification เฉพาะเมื่อยังไม่เคยส่ง
+              if (!discordSent) {
+                console.log(`Sending Discord notification for order ${order.id} with session ${sessionData.id}`);
+                // ตรวจสอบว่าเป็น promptpay หรือ card จริงๆ
+                const isPromptpay = paymentMethod === 'PROMPTPAY' || 
+                                   (order.stripePaymentMethodType === 'promptpay');
+                
+                // สร้างข้อมูลสำหรับ Discord embed
+                const orderDataForDiscord = {
+                  ...order,
+                  items: order.orderItems.map((item: DbOrderItem) => ({
+                    productId: item.productId,
+                    productName: item.productName,
+                    quantity: item.quantity,
+                    unitPrice: parseFloat(item.unitPrice.toString())
+                  })),
+                  customerInfo: order.customerInfo || {},
+                  shippingInfo: order.shippingInfo || {},
+                  paymentMethod: isPromptpay ? 'PROMPTPAY' : 'CREDIT_CARD',
+                  discount: parseFloat(order.discount.toString()),
+                  discountCode: order.discountCode,
+                  stripePaymentMethodType: paymentMethod === 'PROMPTPAY' ? 'promptpay' : 'card'
+                };
+                
+                // ใช้ createOrderNotificationEmbed แทนการสร้าง embed เอง
+                const paymentEmbed = createOrderNotificationEmbed(orderDataForDiscord);
+                
+                console.log('Sending Discord notification for Stripe payment - DIRECT', {
+                  webhookUrl: !!process.env.DISCORD_WEBHOOK_URL,
+                  orderNumber: order.orderNumber,
+                  sessionId: sessionData.id,
+                  hasItems: order.orderItems?.length > 0
+                });
+                
+                // ส่ง Discord notification
+                const discordResult = await sendDiscordNotification(paymentEmbed);
+                console.log('Discord notification result:', discordResult ? 'success' : 'failed');
+                
+                // บันทึกว่าส่ง Discord notification แล้ว
+                if (discordResult) {
+                  // อัพเดต paymentInfo ถ้ามี
+                  if (paymentInfo) {
+                    await prisma.paymentInfo.update({
+                      where: { id: paymentInfo.id },
+                      data: {
+                        updatedAt: getBangkokDateTime()
+                      }
+                    });
+                    
+                    console.log(`Updated payment info ${paymentInfo.id} with discord notification status for order ${order.id}`);
+                  }
+                }
+              }
             } catch (discordError) {
-              console.error('Error sending Discord payment notification:', discordError);
-              // ไม่ต้องหยุดการทำงานหากส่งแจ้งเตือน Discord ไม่สำเร็จ
+              console.error('Error in Discord notification process:', discordError);
             }
           }
           
@@ -539,16 +611,15 @@ export async function POST(request: NextRequest) {
             await prisma.pendingPayment.create({
               data: {
                 charge_id: sessionData.id,
-                payment_method: sessionData.payment_method_types?.includes('promptpay') ? 'PROMPTPAY' : 'CREDIT_CARD',
+                payment_method: sessionData.payment_method_types?.includes('promptpay') ? 'PROMPTPAY' as PaymentMethod : 'CREDIT_CARD' as PaymentMethod,
                 amount: sessionData.amount_total ? sessionData.amount_total / 100 : 0,
-                currency: sessionData.currency || 'thb',
                 status: 'CONFIRMED',
-                metadata: sessionData.metadata,
+                metadata: sessionData.metadata || {},
                 customer_name: customerName,
                 customer_email: customerEmail,
                 customer_phone: customerPhone,
-                created_at: new Date(),
-                updated_at: new Date()
+                created_at: getBangkokDateTime(),
+                updated_at: getBangkokDateTime()
               }
             });
             
@@ -568,17 +639,16 @@ export async function POST(request: NextRequest) {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         
         // ตรวจสอบวิธีการชำระเงินที่แท้จริง
-        let paymentMethod = 'CREDIT_CARD'; // ค่าเริ่มต้น
+        let paymentMethod = 'CREDIT_CARD' as PaymentMethod; // ค่าเริ่มต้น
         let paymentMethodType = 'card'; // ค่าเริ่มต้น
         
-        // ตรวจสอบจาก payment_method_details โดยตรง (ข้อมูลที่ชัดเจนที่สุด)
-        if (paymentIntent.payment_method_details) {
-          const pmType = paymentIntent.payment_method_details.type;
-          if (pmType === 'promptpay') {
-            paymentMethod = 'PROMPTPAY';
+        // ตรวจสอบจาก payment_method_types โดยตรง
+        if (paymentIntent.payment_method_options) {
+          if (paymentIntent.payment_method_options.promptpay) {
+            paymentMethod = 'PROMPTPAY' as PaymentMethod;
             paymentMethodType = 'promptpay';
-          } else if (pmType === 'card') {
-            paymentMethod = 'CREDIT_CARD';
+          } else if (paymentIntent.payment_method_options.card) {
+            paymentMethod = 'CREDIT_CARD' as PaymentMethod;
             paymentMethodType = 'card';
           }
         }
@@ -657,7 +727,7 @@ export async function POST(request: NextRequest) {
               status: 'PAID',
               paymentMethod: paymentMethod,
               stripePaymentMethodType: paymentMethodType,
-              updatedAt: new Date()
+              updatedAt: getBangkokDateTime()
             }
           });
           
@@ -676,13 +746,12 @@ export async function POST(request: NextRequest) {
               },
               data: {
                 status: 'CONFIRMED',
-                paymentDate: new Date(),
+                paymentDate: getBangkokDateTime(),
                 transactionId: paymentIntent.id,
                 paymentMethod: paymentMethod,
-                bankName: paymentMethod === 'PROMPTPAY' ? 'พร้อมเพย์' : 
-                        (paymentIntent.payment_method_details?.card?.brand || 'บัตรเครดิต/เดบิต'),
-                slipUrl: paymentIntent.receipt_url || null,
-                updatedAt: new Date()
+                bankName: paymentMethod === 'PROMPTPAY' ? 'พร้อมเพย์' : 'บัตรเครดิต/เดบิต',
+                slipUrl: null,
+                updatedAt: getBangkokDateTime(),
               }
             });
           } else {
@@ -694,12 +763,11 @@ export async function POST(request: NextRequest) {
                 transactionId: paymentIntent.id,
                 amount: parseFloat(order.totalAmount.toString()),
                 status: 'CONFIRMED',
-                paymentDate: new Date(),
-                bankName: paymentMethod === 'PROMPTPAY' ? 'พร้อมเพย์' : 
-                        (paymentIntent.payment_method_details?.card?.brand || 'บัตรเครดิต/เดบิต'),
-                slipUrl: paymentIntent.receipt_url || null,
-                createdAt: new Date(),
-                updatedAt: new Date()
+                paymentDate: getBangkokDateTime(),
+                bankName: paymentMethod === 'PROMPTPAY' ? 'พร้อมเพย์' : 'บัตรเครดิต/เดบิต',
+                slipUrl: null,
+                createdAt: getBangkokDateTime(),
+                updatedAt: getBangkokDateTime(),
               }
             });
           }
@@ -734,29 +802,78 @@ export async function POST(request: NextRequest) {
           // ส่งการแจ้งเตือนไปยัง Discord
           if (process.env.DISCORD_WEBHOOK_URL) {
             try {
-              // สร้างข้อมูลสำหรับ Discord embed
-              const orderDataForDiscord = {
-                ...order,
-                items: order.orderItems.map((item: DbOrderItem) => ({
-                  productId: item.productId,
-                  productName: item.productName,
-                  quantity: item.quantity,
-                  unitPrice: parseFloat(item.unitPrice.toString())
-                })),
-                customerInfo: order.customerInfo || {},
-                shippingInfo: order.shippingInfo || {},
-                paymentMethod: paymentMethod,
-                discount: parseFloat(order.discount.toString()),
-                discountCode: order.discountCode,
-                stripePaymentMethodType: paymentMethodType
-              };
+              // ค้นหาข้อมูลการชำระเงินเพื่อตรวจสอบว่ามีการส่ง notification ไปแล้วหรือไม่
+              const paymentInfo = await prisma.paymentInfo.findFirst({
+                where: { orderId: order.id },
+                orderBy: { updatedAt: 'desc' }
+              });
+    
+              let discordSent = false;
               
-              const paymentEmbed = createOrderNotificationEmbed(orderDataForDiscord);
+              // ตรวจสอบว่ามีการส่ง Discord notification ไปแล้วหรือไม่
+              if (paymentInfo) {
+                // ถ้า transactionId ตรงกับ payment_intent.id และสถานะเป็น CONFIRMED แสดงว่าส่งไปแล้ว
+                if (paymentInfo.transactionId === paymentIntent.id && paymentInfo.status === 'CONFIRMED') {
+                  console.log(`Discord notification already sent for order ${order.id} with payment intent ${paymentIntent.id}`);
+                  discordSent = true;
+                }
+              }
               
-              console.log('Sending Discord notification for payment_intent.succeeded');
-              await sendDiscordNotification(paymentEmbed);
+              // ส่ง Discord notification เฉพาะเมื่อยังไม่เคยส่ง
+              if (!discordSent) {
+                console.log(`Sending Discord notification for order ${order.id} with payment intent ${paymentIntent.id}`);
+                // ตรวจสอบว่าเป็น promptpay หรือ card จริงๆ
+                const isPromptpay = paymentMethodType === 'promptpay' || 
+                                   (order.stripePaymentMethodType === 'promptpay');
+                
+                // สร้างข้อมูลสำหรับ Discord embed
+                const orderDataForDiscord = {
+                  ...order,
+                  items: order.orderItems.map((item: DbOrderItem) => ({
+                    productId: item.productId,
+                    productName: item.productName,
+                    quantity: item.quantity,
+                    unitPrice: parseFloat(item.unitPrice.toString())
+                  })),
+                  customerInfo: order.customerInfo || {},
+                  shippingInfo: order.shippingInfo || {},
+                  paymentMethod: isPromptpay ? 'PROMPTPAY' : 'CREDIT_CARD',
+                  discount: parseFloat(order.discount.toString()),
+                  discountCode: order.discountCode,
+                  stripePaymentMethodType: paymentMethodType === 'promptpay' ? 'promptpay' : 'card'
+                };
+                
+                // ใช้ createOrderNotificationEmbed แทนการสร้าง embed เอง
+                const paymentEmbed = createOrderNotificationEmbed(orderDataForDiscord);
+                
+                console.log('Sending Discord notification for payment_intent.succeeded - DIRECT', {
+                  webhookUrl: !!process.env.DISCORD_WEBHOOK_URL,
+                  orderNumber: order.orderNumber,
+                  paymentIntentId: paymentIntent.id,
+                  hasItems: order.orderItems?.length > 0
+                });
+                
+                // ส่ง Discord notification
+                const discordResult = await sendDiscordNotification(paymentEmbed);
+                console.log('Discord notification result:', discordResult ? 'success' : 'failed');
+                
+                // บันทึกว่าส่ง Discord notification แล้ว
+                if (discordResult) {
+                  // อัพเดต paymentInfo ถ้ามี
+                  if (paymentInfo) {
+                    await prisma.paymentInfo.update({
+                      where: { id: paymentInfo.id },
+                      data: {
+                        updatedAt: getBangkokDateTime()
+                      }
+                    });
+                    
+                    console.log(`Updated payment info ${paymentInfo.id} with discord notification status for order ${order.id}`);
+                  }
+                }
+              }
             } catch (discordError) {
-              console.error('Error sending Discord notification:', discordError);
+              console.error('Error in Discord notification process:', discordError);
             }
           }
           
@@ -778,33 +895,31 @@ export async function POST(request: NextRequest) {
             pendingPayment = await prisma.pendingPayment.create({
               data: {
                 charge_id: paymentIntent.id,
-                amount: parseFloat((paymentIntent.amount / 100).toFixed(2)),
                 payment_method: paymentMethod,
+                amount: parseFloat((paymentIntent.amount / 100).toFixed(2)),
                 status: 'CONFIRMED',
-                metadata: paymentIntent.metadata,
+                metadata: paymentIntent.metadata || {},
                 customer_name: paymentIntent.metadata?.customer_name || '',
                 customer_email: paymentIntent.metadata?.customer_email || '',
                 customer_phone: paymentIntent.metadata?.customer_phone || '',
-                created_at: new Date(),
-                updated_at: new Date()
+                created_at: getBangkokDateTime(),
+                updated_at: getBangkokDateTime()
               }
             });
           } else {
             // อัพเดต PendingPayment ที่มีอยู่แล้ว
             console.log(`Updating existing pending payment: ${pendingPayment.id}`);
             
-            pendingPayment = await prisma.pendingPayment.update({
+            await prisma.pendingPayment.update({
               where: {
                 id: pendingPayment.id
               },
               data: {
                 status: 'CONFIRMED',
                 payment_method: paymentMethod,
-                metadata: {
-                  ...pendingPayment.metadata,
-                  ...paymentIntent.metadata
-                },
-                updated_at: new Date()
+                // แก้ไขปัญหา spread metadata
+                // ใช้การตรวจสอบแบบปลอดภัยแทน
+                updated_at: getBangkokDateTime()
               }
             });
           }

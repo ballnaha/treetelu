@@ -444,11 +444,11 @@ export default function Checkout() {
   // เพิ่มฟังก์ชัน handleStripePayment
   const handleStripePayment = async () => {
     try {
-      console.log('เริ่มกระบวนการชำระเงินด้วย Stripe');
+      //console.log('เริ่มกระบวนการชำระเงินด้วย Stripe');
       setIsSubmitting(true);
       setShowStripeRedirectDialog(true);
       
-      console.log('แสดง Dialog นับถอยหลัง', showStripeRedirectDialog);
+      //console.log('แสดง Dialog นับถอยหลัง', showStripeRedirectDialog);
       
       // แสดงข้อความกำลังดำเนินการ
       setAlertMessage('กำลังเชื่อมต่อไปยัง Stripe เพื่อทำการชำระเงิน...');
@@ -547,11 +547,12 @@ export default function Checkout() {
                       receiverPhone: receiverInfo.phone || "",
                       addressLine: receiverInfo.address || "",
                       addressLine2: "",
-                      provinceId: 0,
+                      // สำหรับจัดส่งให้ผู้อื่น ใช้ค่า ID ที่มีอยู่จริงใน database (กรุงเทพฯ)
+                      provinceId: 1, // ใช้ ID จังหวัดกรุงเทพมหานครที่มีอยู่จริง
                       provinceName: "จัดส่งให้ผู้รับโดยตรง",
-                      amphureId: 0,
+                      amphureId: 1001, // ใช้ ID อำเภอที่มีอยู่จริง
                       amphureName: "จัดส่งให้ผู้รับโดยตรง",
-                      tambonId: 0,
+                      tambonId: 100101, // ใช้ ID ตำบลที่มีอยู่จริง
                       tambonName: "จัดส่งให้ผู้รับโดยตรง",
                       zipCode: "10200",
                       deliveryDate: deliveryDate && isClient ? format(new Date(deliveryDate), 'yyyy-MM-dd') : "",
@@ -622,13 +623,13 @@ export default function Checkout() {
         setRedirectUrl(result.url);
       
         // redirect ไปยัง Stripe โดยตรง โดยไม่นับถอยหลัง
-        console.log('กำลังเปลี่ยนเส้นทางไปยัง Stripe URL:', result.url);
+        //console.log('กำลังเปลี่ยนเส้นทางไปยัง Stripe URL:', result.url);
         // ไม่ต้องปิด Dialog - ให้ Dialog แสดงต่อเนื่องจนกว่าจะเปลี่ยนหน้า
         window.location.href = result.url;
         
         // เพิ่ม timeout เพื่อให้ overlay ยังคงแสดงระหว่างที่ browser เปลี่ยนหน้า
         setTimeout(() => {
-          console.log('หากยังไม่เปลี่ยนหน้า นี่คือ timeout หลังจากสั่ง redirect');
+          //console.log('หากยังไม่เปลี่ยนหน้า นี่คือ timeout หลังจากสั่ง redirect');
         }, 3000);
       } else {
         setShowStripeRedirectDialog(false); // ปิด Dialog เมื่อไม่พบ URL
@@ -868,7 +869,7 @@ export default function Checkout() {
       paymentPollingRef.current = null;
     }
     
-    console.log(`เปลี่ยนวิธีการชำระเงินเป็น: ${value}`);
+    //console.log(`เปลี่ยนวิธีการชำระเงินเป็น: ${value}`);
   };
 
   // เพิ่มฟังก์ชันตรวจสอบสถานะการชำระเงิน PromptPay
@@ -1012,7 +1013,7 @@ export default function Checkout() {
         return;
       } else if (paymentMethod === 'stripe' || paymentMethod === 'stripe_promptpay') {
         // เรียกใช้งานฟังก์ชัน handleStripePayment โดยตรง โดยไม่ต้องรอ async function
-        console.log('เรียกใช้งานฟังก์ชัน handleStripePayment');
+        //console.log('เรียกใช้งานฟังก์ชัน handleStripePayment');
         handleStripePayment();
         return;
       }
@@ -1051,11 +1052,12 @@ export default function Checkout() {
               receiverPhone: receiverInfo.phone || "",
               addressLine: receiverInfo.address || "",
               addressLine2: "",
-              provinceId: 0,
+              // สำหรับจัดส่งให้ผู้อื่น ใช้ค่า ID ที่มีอยู่จริงใน database (กรุงเทพฯ)
+              provinceId: 1, // ใช้ ID จังหวัดกรุงเทพมหานครที่มีอยู่จริง
               provinceName: "จัดส่งให้ผู้รับโดยตรง",
-              amphureId: 0,
+              amphureId: 1, // ใช้ ID อำเภอที่มีอยู่จริง
               amphureName: "จัดส่งให้ผู้รับโดยตรง",
-              tambonId: 0,
+              tambonId: 1, // ใช้ ID ตำบลที่มีอยู่จริง
               tambonName: "จัดส่งให้ผู้รับโดยตรง",
               zipCode: "10200",
               deliveryDate: deliveryDate && isClient ? format(new Date(deliveryDate), 'yyyy-MM-dd') : "",

@@ -39,6 +39,7 @@ const checkoutSchema = z.object({
     unitPrice: z.number()
   })).min(1, 'กรุณาเลือกสินค้าอย่างน้อย 1 รายการ'),
   paymentMethod: z.literal('STRIPE'),
+  paymentMethodType: z.string().optional(),
   userId: z.union([z.number(), z.string(), z.null()]).optional(),
   discount: z.number().default(0),
   discountCode: z.string().optional()
@@ -126,7 +127,9 @@ export async function POST(request: NextRequest) {
     
     // สร้าง session สำหรับ Stripe Checkout
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card', 'promptpay'],
+      payment_method_types: validatedData.paymentMethodType === 'promptpay' 
+        ? ['promptpay'] // เฉพาะ promptpay
+        : ['card', 'promptpay'], // ทั้ง card และ promptpay
       line_items: lineItems,
       mode: 'payment',
       success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/orders/complete?session_id={CHECKOUT_SESSION_ID}`,
@@ -136,6 +139,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         order_id: result.order.id.toString(),
         order_number: result.order.orderNumber,
+        payment_method_type: validatedData.paymentMethodType || 'card' // เพิ่มข้อมูลการชำระเงินใน metadata
       },
     });
     
