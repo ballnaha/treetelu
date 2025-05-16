@@ -1,5 +1,9 @@
 import { NextRequest } from 'next/server';
 import { verify } from 'jsonwebtoken';
+import { NextAuthOptions } from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import prisma from './prisma';
+import { compare } from 'bcryptjs';
 
 interface DecodedToken {
   id: string | number;
@@ -136,4 +140,56 @@ export const checkAdminAuth = (
   }
   
   return { isChecking: false }; // ผ่านการตรวจสอบ
-} 
+}
+
+export const authOptions: NextAuthOptions = {
+  providers: [
+    CredentialsProvider({
+      name: 'Credentials',
+      credentials: {
+        email: { label: 'อีเมล', type: 'email' },
+        password: { label: 'รหัสผ่าน', type: 'password' }
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          return null;
+        }
+
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email }
+        });
+
+        if (!user || !(await compare(credentials.password, user.password))) {
+          return null;
+        }
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+        };
+      }
+    })
+  ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.role = user.role;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session?.user) {
+        (session.user as any).role = token.role;
+      }
+      return session;
+    }
+  },
+  pages: {
+    signIn: '/login',
+  },
+  session: {
+    strategy: 'jwt',
+  },
+}; 
