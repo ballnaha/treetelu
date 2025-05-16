@@ -140,6 +140,7 @@ export default function PaymentConfirmationAdmin() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
 
   // โหลดข้อมูลการชำระเงิน
   const fetchPayments = async () => {
@@ -269,46 +270,71 @@ export default function PaymentConfirmationAdmin() {
   const handleConfirmDelete = () => {
     if (!selectedPayment) return;
     
+    console.log('เริ่มกระบวนการ handleConfirmDelete สำหรับข้อมูล ID:', selectedPayment.id);
     setSelectedAction('delete');
     setOpenDeleteDialog(true);
-    handleMenuClose();
+    // เก็บ ID ที่ต้องการลบแยกไว้ต่างหาก
+    setPaymentToDelete(selectedPayment.id);
+    console.log('เปิด dialog ยืนยันการลบ, openDeleteDialog =', true);
+    console.log('เก็บ ID ที่ต้องการลบ:', selectedPayment.id);
+    
+    // ปิดเมนูโดยไม่รีเซ็ต selectedPayment
+    setAnchorEl(null);
   };
 
-  const handleCloseDeleteDialog = () => {
-    setOpenDeleteDialog(false);
-    setSelectedPayment(null);
-  };
-
-  const handleDelete = async () => {
-    if (!selectedPayment) return;
+  // เพิ่มฟังก์ชันตัวช่วยเพื่อลบข้อมูล โดยไม่ขึ้นกับ state selectedPayment
+  const deletePaymentById = async (paymentId: string) => {
+    if (!paymentId) {
+      console.log('ไม่พบ paymentId ใน deletePaymentById');
+      return;
+    }
 
     try {
-      setLoading(true); // แสดง loading ขณะลบข้อมูล
+      console.log('เริ่มกระบวนการลบข้อมูล ID:', paymentId);
+      setLoading(true);
       
-      const response = await fetch(`/api/admin/payment-confirmation/${selectedPayment.id}`, {
+      const response = await fetch(`/api/payment-confirmation?id=${paymentId}`, {
         method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Cache-Control': 'no-cache'
+        }
       });
 
+      console.log('ผลการเรียก API:', response.status, response.statusText);
+      
       if (!response.ok) {
-        const errorData = await response.json();
+        let errorData;
+        try {
+          errorData = await response.json();
+          console.error('ข้อผิดพลาดจาก API:', errorData);
+        } catch (parseError) {
+          console.error('ไม่สามารถแยกวิเคราะห์ข้อผิดพลาดได้:', parseError);
+          errorData = { message: `HTTP error: ${response.status} ${response.statusText}` };
+        }
         throw new Error(errorData.message || 'ไม่สามารถลบการชำระเงินได้');
       }
 
+      console.log('ลบข้อมูลสำเร็จ');
+      
       // ลบออกจากหน้าจอ
-      setPayments(payments.filter(payment => payment.id !== selectedPayment.id));
+      setPayments(payments.filter(payment => payment.id !== paymentId));
       handleCloseDeleteDialog();
       
       // แสดงข้อความสำเร็จ
-      setError(null); // ล้าง error ถ้ามี
+      setError(null);
     } catch (err: any) {
       console.error('Delete error:', err);
       setError(err.message || 'ไม่สามารถลบการชำระเงินได้');
     } finally {
       setLoading(false);
+      // รีเซ็ต paymentToDelete
+      setPaymentToDelete(null);
     }
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setOpenDeleteDialog(false);
+    setSelectedPayment(null);
   };
 
   // จัดการการค้นหา
@@ -450,15 +476,28 @@ export default function PaymentConfirmationAdmin() {
     }
   };
 
-  // ฟังก์ชันสำหรับฟอร์แมตวันที่เวลาเป็นเวลาไทย
+  // ฟังก์ชันแสดงวันที่ในรูปแบบที่อ่านง่ายสำหรับมนุษย์
   const formatThaiDateTime = (dateString: string) => {
     try {
-      const date = parseISO(dateString);
-      // ไม่ต้องบวกเวลาเพิ่ม เนื่องจากข้อมูลในฐานข้อมูลเป็นเวลาประเทศไทยอยู่แล้ว
-      return format(date, 'dd MMMM yyyy เวลา HH:mm น.', { locale: th });
+      // แยกส่วน string วันที่และเวลาออกมา
+      // ตัวอย่าง: "2025-05-12T15:28:30.000Z" => { date: "2025-05-12", time: "15:28:30" }
+      const parts = dateString.split('T');
+      if (parts.length !== 2) return dateString;
+      
+      const datePart = parts[0]; // "2025-05-12"
+      const timePart = parts[1].substr(0, 8); // "15:28:30"
+      
+      // แยกส่วนวันที่เพื่อแปลงเป็นรูปแบบไทย
+      const [year, month, day] = datePart.split('-');
+      
+      // สร้างวันที่ด้วย date-fns เพื่อใช้ในการแปลงชื่อเดือนเป็นภาษาไทย
+      const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+      const monthName = monthNames[parseInt(month) - 1];
+      
+      // สร้างรูปแบบวันที่ไทย: "12 พ.ค. 2025 15:28 น."
+      return `${parseInt(day)} ${monthName} ${year} ${timePart.substr(0, 5)} น.`;
     } catch (error) {
-      console.error('Error formatting date:', error);
-      return dateString; // คืนค่าเดิมถ้าเกิดข้อผิดพลาด
+      return dateString; // ส่งคืนค่าเดิมถ้ามีข้อผิดพลาด
     }
   };
 
@@ -992,14 +1031,23 @@ export default function PaymentConfirmationAdmin() {
               ยกเลิก
             </Button>
             
-            <StyledButton
+            <Button
               variant="contained"
               color="error"
-              onClick={handleDelete}
+              onClick={() => {
+                console.log('กดปุ่มลบ, จะเรียกฟังก์ชันลบข้อมูล');
+                console.log('paymentToDelete:', paymentToDelete);
+                if (paymentToDelete) {
+                  deletePaymentById(paymentToDelete);
+                } else {
+                  console.error('ไม่พบ ID ที่ต้องการลบ');
+                }
+              }}
               startIcon={<DeleteOutlineIcon />}
+              sx={{ borderRadius: 1 }}
             >
               ลบ
-            </StyledButton>
+            </Button>
           </DialogActions>
         </Dialog>
       </Container>

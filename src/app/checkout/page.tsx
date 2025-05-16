@@ -652,10 +652,10 @@ export default function Checkout() {
     setIsMounted(true);
     
     // ล้าง interval เมื่อ component unmounts
-    return () => {
+      return () => {
       if (redirectCountdownRef.current) {
         clearInterval(redirectCountdownRef.current);
-      }
+    }
     };
   }, []);
 

@@ -198,68 +198,68 @@ export default function LoginClient() {
     setIsMounted(true);
     
     try {
-      // รับค่า LINE Login URL จาก environment variable หรือใช้ค่าเริ่มต้น
-      const lineClientId = process.env.NEXT_PUBLIC_LINE_CLIENT_ID || '';
+    // รับค่า LINE Login URL จาก environment variable หรือใช้ค่าเริ่มต้น
+    const lineClientId = process.env.NEXT_PUBLIC_LINE_CLIENT_ID || '';
       const lineRedirectUri = process.env.NEXT_PUBLIC_LINE_REDIRECT_URI || 'http://localhost:3001/api/auth/line/callback';
-      
+    
       if (lineClientId) {
         // สร้าง LINE Login URL เมื่อมีการตั้งค่า CLIENT_ID
         const state = Math.random().toString(36).substring(2);
         const loginUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${lineClientId}&redirect_uri=${encodeURIComponent(lineRedirectUri)}&state=${state}&scope=profile&bot_prompt=normal`;
-        setLineLoginUrl(loginUrl);
+    setLineLoginUrl(loginUrl);
         
         // เก็บ state ใน session storage เพื่อตรวจสอบการ callback
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('line_auth_state', state);
         }
       }
-      
-      // ---------- แก้ไขส่วนการตรวจสอบ URL parameters ----------
-      // ดักแยกการแสดงผล error อย่างชัดเจน
-      const errorType = searchParams.get('error_type');
-      
-      // ทำตรรกะแยกชัดเจน
-      if (errorType === 'session_expired') {
-        // กรณี session หมดอายุ
-        setError({
-          message: '', // ไม่ต้องใช้ข้อความจาก URL
-          type: 'session_expired'
-        });
-      } 
-      else if (errorType === 'invalid_credentials') {
-        // กรณีรหัสผ่านผิด
-        setError({
-          message: '', // ไม่ต้องใช้ข้อความจาก URL
-          type: 'invalid_credentials'
-        });
-      }
-      else {
-        // กรณีอื่นๆ ดูที่ข้อความ
-        const message = searchParams.get('message');
-        if (message) {
-          const decodedMessage = decodeURIComponent(message);
-          
-          // พยายามวิเคราะห์ประเภท error จากข้อความ
-          if (decodedMessage.includes('เซสชัน') || decodedMessage.includes('หมดอายุ')) {
-            setError({
-              message: '',
-              type: 'session_expired'
-            });
-          }
-          else if (decodedMessage.includes('อีเมล') || decodedMessage.includes('รหัสผ่าน')) {
-            setError({
-              message: '',
-              type: 'invalid_credentials'
-            });
-          }
-          else {
-            // กรณีอื่นๆ ให้แสดงข้อความจาก URL
-            setError({
-              message: decodedMessage,
-              type: 'auth_error'
-            });
-          }
+    
+    // ---------- แก้ไขส่วนการตรวจสอบ URL parameters ----------
+    // ดักแยกการแสดงผล error อย่างชัดเจน
+    const errorType = searchParams.get('error_type');
+    
+    // ทำตรรกะแยกชัดเจน
+    if (errorType === 'session_expired') {
+      // กรณี session หมดอายุ
+      setError({
+        message: '', // ไม่ต้องใช้ข้อความจาก URL
+        type: 'session_expired'
+      });
+    } 
+    else if (errorType === 'invalid_credentials') {
+      // กรณีรหัสผ่านผิด
+      setError({
+        message: '', // ไม่ต้องใช้ข้อความจาก URL
+        type: 'invalid_credentials'
+      });
+    }
+    else {
+      // กรณีอื่นๆ ดูที่ข้อความ
+      const message = searchParams.get('message');
+      if (message) {
+        const decodedMessage = decodeURIComponent(message);
+        
+        // พยายามวิเคราะห์ประเภท error จากข้อความ
+        if (decodedMessage.includes('เซสชัน') || decodedMessage.includes('หมดอายุ')) {
+          setError({
+            message: '',
+            type: 'session_expired'
+          });
         }
+        else if (decodedMessage.includes('อีเมล') || decodedMessage.includes('รหัสผ่าน')) {
+          setError({
+            message: '',
+            type: 'invalid_credentials'
+          });
+        }
+        else {
+          // กรณีอื่นๆ ให้แสดงข้อความจาก URL
+          setError({
+            message: decodedMessage,
+            type: 'auth_error'
+          });
+        }
+      }
       }
     } catch (err: any) {
       // ข้อผิดพลาดจากการเชื่อมต่อ
@@ -459,8 +459,8 @@ export default function LoginClient() {
         return;
       }
       
-      if (lineLoginUrl) {
-        window.location.href = lineLoginUrl;
+    if (lineLoginUrl) {
+      window.location.href = lineLoginUrl;
       } else {
         setError({
           message: 'ไม่สามารถเชื่อมต่อกับ LINE ได้ในขณะนี้ โปรดลองอีกครั้งในภายหลัง',

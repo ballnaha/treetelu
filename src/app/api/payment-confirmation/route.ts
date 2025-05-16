@@ -44,10 +44,10 @@ async function uploadFileToStorage(file: Buffer, filename: string): Promise<stri
     revalidatePath('/admin/payment-confirmations', 'layout');
     revalidatePath('/', 'layout');
     
-    console.log(`Resized and saved image to: ${filePath}`);
+    //console.log(`Resized and saved image to: ${filePath}`);
     return fileUrl;
   } catch (error) {
-    console.error('Error processing image:', error);
+    //console.error('Error processing image:', error);
     throw new Error('ไม่สามารถประมวลผลรูปภาพได้');
   }
 }
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://treetelu.com';
     const absoluteSlipUrl = slipUrl.startsWith('http') ? slipUrl : `${baseUrl}${slipUrl}`;
     
-    console.log('Absolute slip URL for Discord:', absoluteSlipUrl);
+    //console.log('Absolute slip URL for Discord:', absoluteSlipUrl);
     
     // ตรวจสอบว่ามีคำสั่งซื้อจริง (optional)
     try {
@@ -183,15 +183,15 @@ export async function POST(request: NextRequest) {
     // ส่งแจ้งเตือนไปยัง Discord พร้อมรูปสลิป
     try {
       // ข้อมูลเกี่ยวกับ path
-      console.log('Current working directory:', process.cwd());
-      console.log('Slip URL from database:', slipUrl);
-      console.log('Full image path:', path.join(process.cwd(), 'public', slipUrl));
+      //console.log('Current working directory:', process.cwd());
+      //console.log('Slip URL from database:', slipUrl);
+      //console.log('Full image path:', path.join(process.cwd(), 'public', slipUrl));
       
       // ตรวจสอบว่าไฟล์มีอยู่จริงหรือไม่
       try {
         const fullImagePath = path.join(process.cwd(), 'public', slipUrl);
         const fileExists = fs.existsSync(fullImagePath);
-        console.log('Image file exists:', fileExists);
+        //console.log('Image file exists:', fileExists);
       } catch (fileCheckError) {
         console.error('Error checking file existence:', fileCheckError);
       }
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
         slipUrl: absoluteSlipUrl // ใช้ absolute URL
       });
       
-      console.log('Sending Discord notification with payload:', JSON.stringify(discordPayload, null, 2));
+      //console.log('Sending Discord notification with payload:', JSON.stringify(discordPayload, null, 2));
       
       // ส่งแจ้งเตือนไปยัง Discord
       await sendDiscordNotification(discordPayload);
@@ -272,4 +272,118 @@ export async function GET() {
     status: 405,
     headers: getNoCacheHeaders()
   });
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const url = new URL(req.url);
+    const id = url.searchParams.get('id');
+    console.log('ได้รับคำขอลบข้อมูล payment confirmation ID:', id);
+
+    if (!id) {
+      console.log('ไม่พบ ID ในคำขอ');
+      return NextResponse.json({ success: false, message: 'ไม่พบ id' }, { status: 400 });
+    }
+
+    // ดึงข้อมูล payment-confirmation เพื่อลบไฟล์
+    const payment = await prisma.paymentConfirmation.findUnique({
+      where: { id: id }
+    });
+
+    if (!payment) {
+      console.log('ไม่พบข้อมูล payment confirmation สำหรับ ID:', id);
+      return NextResponse.json({ success: false, message: 'ไม่พบข้อมูล' }, { status: 404 });
+    }
+
+    console.log('พบข้อมูล payment confirmation:', payment);
+
+    // ลบไฟล์รูปภาพถ้ามี
+    if (payment.slipUrl) {
+      try {
+        // แยกเส้นทางไฟล์จาก URL
+        let imagePath = payment.slipUrl;
+        
+        // ตัด query string ออก (เช่น ?t=123456)
+        if (imagePath.includes('?')) {
+          imagePath = imagePath.split('?')[0];
+        }
+        
+        // กำหนดโฟลเดอร์ตาม environment
+        const isProd = process.env.NODE_ENV === 'production';
+        
+        // ในสภาพแวดล้อม Production
+        if (isProd) {
+          // เส้นทางเต็มสำหรับไฟล์ใน uploads directory (นอก public)
+          const fullImagePath = path.join(process.cwd(), 'uploads', imagePath.replace(/^\/uploads\//, ''));
+          console.log('Production - ตรวจสอบไฟล์รูปภาพที่:', fullImagePath);
+          
+          if (fs.existsSync(fullImagePath)) {
+            console.log('พบไฟล์รูปภาพใน uploads directory กำลังลบ...');
+            fs.unlinkSync(fullImagePath);
+            console.log('ลบไฟล์รูปภาพเรียบร้อย');
+          } else {
+            console.log('ไม่พบไฟล์รูปภาพใน uploads directory');
+          }
+        } 
+        // ในสภาพแวดล้อม Development
+        else {
+          // เส้นทางเต็มสำหรับไฟล์ใน public directory
+          const fullImagePath = path.join(process.cwd(), 'public', imagePath);
+          console.log('Development - ตรวจสอบไฟล์รูปภาพที่:', fullImagePath);
+          
+          if (fs.existsSync(fullImagePath)) {
+            console.log('พบไฟล์รูปภาพใน public directory กำลังลบ...');
+            fs.unlinkSync(fullImagePath);
+            console.log('ลบไฟล์รูปภาพเรียบร้อย');
+          } else {
+            console.log('ไม่พบไฟล์รูปภาพใน public directory');
+            
+            // ลองตรวจสอบใน path อื่นๆ ที่อาจเป็นไปได้
+            const alternativePath = path.join(process.cwd(), imagePath);
+            console.log('ลองตรวจสอบไฟล์รูปภาพที่ path ทางเลือก:', alternativePath);
+            
+            if (fs.existsSync(alternativePath)) {
+              console.log('พบไฟล์รูปภาพที่ path ทางเลือก กำลังลบ...');
+              fs.unlinkSync(alternativePath);
+              console.log('ลบไฟล์รูปภาพเรียบร้อย');
+            } else {
+              console.log('ไม่พบไฟล์รูปภาพที่ path ทางเลือก');
+            }
+          }
+        }
+      } catch (fileError) {
+        // แสดงข้อผิดพลาดในการลบไฟล์ แต่ไม่ทำให้การลบข้อมูลล้มเหลว
+        console.error('เกิดข้อผิดพลาดในการลบไฟล์รูปภาพ:', fileError);
+      }
+    }
+
+    // ลบข้อมูลในฐานข้อมูล
+    console.log('กำลังลบข้อมูลจากฐานข้อมูล...');
+    await prisma.paymentConfirmation.delete({
+      where: { id: id }
+    });
+    console.log('ลบข้อมูลจากฐานข้อมูลเรียบร้อย');
+
+    // Revalidate paths เพื่ออัพเดท UI
+    revalidatePath('/admin/payment-confirmation');
+    revalidatePath('/admin/payment-confirmations');
+    revalidatePath('/');
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'ลบข้อมูลเรียบร้อย' 
+    }, {
+      headers: getNoCacheHeaders()
+    });
+  } catch (error) {
+    console.error('เกิดข้อผิดพลาดในการลบข้อมูล:', error);
+    return NextResponse.json({ 
+      success: false, 
+      message: 'เกิดข้อผิดพลาด', 
+      error: String(error) 
+    }, { 
+      status: 500,
+      headers: getNoCacheHeaders()
+    });
+  }
 } 

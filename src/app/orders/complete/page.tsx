@@ -350,7 +350,7 @@ export default function OrderComplete() {
             setTimeout(() => {
               setRetryCount(prev => prev + 1);
             }, retryInterval);
-            return;
+        return;
           } else {
             throw new Error('ไม่สามารถรับข้อมูลการชำระเงินได้ในเวลาที่กำหนด');
           }
@@ -405,7 +405,7 @@ export default function OrderComplete() {
         console.log(`Retry attempt ${retryCount} triggered for ${isStripePayment ? 'Stripe' : 'regular'} payment`);
         // ใช้ requestAnimationFrame เพื่อป้องกัน Maximum update depth exceeded
         window.requestAnimationFrame(() => {
-          checkPayment();
+      checkPayment();
         });
       }, 100); // ใช้เวลาสั้นๆ เพื่อให้มั่นใจว่าไม่เกิด state update ซ้อนกัน
       
@@ -433,7 +433,7 @@ export default function OrderComplete() {
     
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <CircularProgress size={60} thickness={4} />
+          <CircularProgress size={60} thickness={4} />
         <Typography variant="h6" sx={{ mt: 3 }}>
           {isStripePayment 
             ? 'กำลังตรวจสอบข้อมูลการชำระเงินจาก Stripe...'
@@ -451,7 +451,7 @@ export default function OrderComplete() {
             หากคุณได้รับอีเมลยืนยันการชำระเงินจาก Stripe แล้ว แสดงว่าการชำระเงินสำเร็จเรียบร้อย กรุณารอระบบอัปเดตข้อมูล...
           </Typography>
         )}
-      </Box>
+        </Box>
     );
   }
 
@@ -459,32 +459,32 @@ export default function OrderComplete() {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100vh', p: 3 }}>
         <Typography variant="h5" color="error" gutterBottom>
-          {error}
-        </Typography>
-        <Button 
+              {error}
+            </Typography>
+              <Button 
           variant="contained"
           startIcon={<HomeIcon />}
           onClick={() => router.push('/')}
           sx={{ mt: 2 }}
         >
           กลับหน้าหลัก
-        </Button>
-      </Box>
+              </Button>
+            </Box>
     );
   }
 
   if (!paymentData) {
-    return (
+  return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100vh', p: 3 }}>
         <Typography variant="h5" color="error" gutterBottom>
-          ไม่พบข้อมูลการชำระเงิน
-        </Typography>
+              ไม่พบข้อมูลการชำระเงิน
+            </Typography>
         <Typography variant="body1" color="text.secondary" paragraph>
           ระบบไม่สามารถตรวจสอบข้อมูลการชำระเงินได้ในขณะนี้ แต่คำสั่งซื้อของคุณอาจถูกดำเนินการแล้ว
-        </Typography>
+            </Typography>
         <Typography variant="body2" color="text.secondary" paragraph>
           คุณสามารถตรวจสอบสถานะคำสั่งซื้อได้ในอีเมลที่ได้รับ หรือติดต่อเราโดยตรง
-        </Typography>
+            </Typography>
         <Button
           variant="contained"
           startIcon={<HomeIcon />}
@@ -493,7 +493,7 @@ export default function OrderComplete() {
         >
           กลับหน้าหลัก
         </Button>
-      </Box>
+        </Box>
     );
   }
 
@@ -568,7 +568,7 @@ export default function OrderComplete() {
                   mb: 1
                 }}
               >
-                ชำระเงินสำเร็จ
+          ชำระเงินสำเร็จ
               </Typography>
               
               <Typography 
@@ -599,8 +599,8 @@ export default function OrderComplete() {
             }}>
               <Box sx={{ display: 'flex', flexDirection: 'column', mb: 3 }}>
                 <Typography variant="subtitle2" gutterBottom sx={{ color: '#475569' }}>
-                  เลขที่คำสั่งซื้อ
-                </Typography>
+                    เลขที่คำสั่งซื้อ
+                  </Typography>
                 <OrderNumberDisplay orderNumber={paymentData.orderNumber} />
               </Box>
               
@@ -630,15 +630,15 @@ export default function OrderComplete() {
               </Typography>
               <Typography variant="body2" sx={{ color: '#64748b' }}>
                 หากมีข้อสงสัย โปรดติดต่อเราที่ <strong>Line: @treetelu</strong> หรืออีเมล <strong>info@treetelu.com</strong>
-              </Typography>
+                  </Typography>
             </Box>
-            
+                  
             <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 3 }}>
-              <Button 
-                variant="contained" 
+                  <Button
+          variant="contained"
                 size="large"
-                startIcon={<HomeIcon />}
-                onClick={() => router.push('/')}
+          startIcon={<HomeIcon />}
+          onClick={() => router.push('/')}
                 sx={{ 
                   bgcolor: '#24B493',
                   '&:hover': {
@@ -649,8 +649,8 @@ export default function OrderComplete() {
                   borderRadius: 2,
                   boxShadow: '0 4px 14px 0 rgba(36, 180, 147, 0.25)'
                 }}
-              >
-                กลับหน้าหลัก
+        >
+          กลับหน้าหลัก
               </Button>
             </Box>
           </Box>
@@ -698,8 +698,8 @@ const OrderNumberDisplay = ({ orderNumber }: { orderNumber: string }) => {
           ระบบกำลังสร้างเลขที่คำสั่งซื้อ โปรดรอสักครู่
         </Typography>
       </Box>
-    );
-  }
+  );
+} 
   
   return (
     <Typography 

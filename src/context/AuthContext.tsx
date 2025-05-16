@@ -60,7 +60,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             const parsedUser = JSON.parse(userData);
             // ตรวจสอบว่าข้อมูลเปลี่ยนแปลงจริงๆ ก่อนเรียก setUser
             if (JSON.stringify(parsedUser) !== JSON.stringify(user)) {
-              setUser(parsedUser);
+            setUser(parsedUser);
             }
           }
         } catch (error) {
