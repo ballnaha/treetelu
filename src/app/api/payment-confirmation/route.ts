@@ -63,8 +63,41 @@ const paymentConfirmationSchema = z.object({
   notes: z.string().optional(),
 });
 
+// ฟังก์ชันสำหรับสร้าง response headers ที่ป้องกันการ cache
+function getNoCacheHeaders() {
+  return {
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    'Surrogate-Control': 'no-store',
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
+    // ตรวจสอบว่าเป็น POST request จริงๆ
+    if (request.method !== 'POST') {
+      return NextResponse.json({
+        success: false,
+        message: "Method not allowed",
+      }, { 
+        status: 405,
+        headers: getNoCacheHeaders()
+      });
+    }
+    
+    // ตรวจสอบว่า request มาจากหน้า payment-confirmation หรือไม่
+    const referer = request.headers.get('referer');
+    if (!referer || !referer.includes('/payment-confirmation')) {
+      return NextResponse.json({
+        success: false,
+        message: "Invalid request origin",
+      }, { 
+        status: 403,
+        headers: getNoCacheHeaders()
+      });
+    }
+    
     // รับข้อมูลแบบ FormData
     const formData = await request.formData();
     
@@ -95,7 +128,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: false,
         message: "กรุณาอัพโหลดหลักฐานการโอนเงิน (สลิป)",
-      }, { status: 400 });
+      }, { 
+        status: 400,
+        headers: getNoCacheHeaders()
+      });
     }
     
     // อ่านข้อมูลไฟล์
@@ -190,7 +226,10 @@ export async function POST(request: NextRequest) {
         id: paymentConfirmation.id,
         orderNumber: validatedData.orderNumber,
       },
-    }, { status: 201 });
+    }, { 
+      status: 201,
+      headers: getNoCacheHeaders()
+    });
 
   } catch (error) {
     console.error("Error processing payment confirmation:", error);
@@ -207,14 +246,20 @@ export async function POST(request: NextRequest) {
         success: false,
         message: "ข้อมูลไม่ถูกต้อง",
         errors: formattedErrors
-      }, { status: 400 });
+      }, { 
+        status: 400,
+        headers: getNoCacheHeaders()
+      });
     }
     
     // ถ้าเป็น error อื่นๆ จะส่ง error ทั่วไปกลับไป
     return NextResponse.json({
       success: false,
       message: error instanceof Error ? error.message : "เกิดข้อผิดพลาดในการบันทึกข้อมูลการชำระเงิน",
-    }, { status: 500 });
+    }, { 
+      status: 500,
+      headers: getNoCacheHeaders()
+    });
   }
 }
 
@@ -223,5 +268,8 @@ export async function GET() {
   return NextResponse.json({
     success: false,
     message: "API สำหรับยืนยันการชำระเงิน โปรดใช้ method POST"
-  }, { status: 405 });
+  }, { 
+    status: 405,
+    headers: getNoCacheHeaders()
+  });
 } 

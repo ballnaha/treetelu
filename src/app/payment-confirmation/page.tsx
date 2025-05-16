@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useRef, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { 
@@ -161,6 +161,7 @@ const BankCard = styled(Box)(({ theme }) => ({
 function PaymentConfirmationClient() {
   const theme = useTheme();
   const router = useRouter();
+  const pathname = usePathname();
   const [orderNumber, setOrderNumber] = useState('');
   const [amount, setAmount] = useState('');
   const [slip, setSlip] = useState<File | null>(null);
@@ -172,6 +173,49 @@ function PaymentConfirmationClient() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmedOrderNumber, setConfirmedOrderNumber] = useState('');
   const [openQRDialog, setOpenQRDialog] = useState(false);
+  const [isValidPath, setIsValidPath] = useState(false);
+
+  // ตรวจสอบว่า path ถูกต้องหรือไม่
+  useEffect(() => {
+    // ตรวจสอบว่าเป็น path ที่ถูกต้องหรือไม่
+    const validPaths = ['/payment-confirmation'];
+    if (!validPaths.includes(pathname)) {
+      // ถ้าไม่ใช่ path ที่ถูกต้อง ให้ redirect ไปที่หน้า 404
+      router.replace('/404');
+      return;
+    }
+    
+    // ถ้าเป็น path ที่ถูกต้อง
+    setIsValidPath(true);
+    
+    // เพิ่ม meta tag เพื่อป้องกันการ cache
+    const meta = document.createElement('meta');
+    meta.httpEquiv = 'Cache-Control';
+    meta.content = 'no-cache, no-store, must-revalidate';
+    document.head.appendChild(meta);
+    
+    const pragma = document.createElement('meta');
+    pragma.httpEquiv = 'Pragma';
+    pragma.content = 'no-cache';
+    document.head.appendChild(pragma);
+    
+    const expires = document.createElement('meta');
+    expires.httpEquiv = 'Expires';
+    expires.content = '0';
+    document.head.appendChild(expires);
+    
+    // ลบ meta tags เมื่อ component unmount
+    return () => {
+      document.head.removeChild(meta);
+      document.head.removeChild(pragma);
+      document.head.removeChild(expires);
+    };
+  }, [pathname, router]);
+
+  // ถ้า path ไม่ถูกต้อง ให้ไม่แสดงเนื้อหา
+  if (!isValidPath) {
+    return null;
+  }
 
   // จัดการการเปลี่ยนแปลงหมายเลขคำสั่งซื้อ
   const handleOrderNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -250,21 +294,25 @@ function PaymentConfirmationClient() {
     setError(null);
 
     try {
-      // สร้าง FormData สำหรับส่งข้อมูลไปยัง API
+      // สร้าง FormData สำหรับส่งข้อมูล
       const formData = new FormData();
       formData.append('orderNumber', orderNumber);
       formData.append('amount', amount);
-      
-      // เพิ่มค่าธนาคารเป็นไทยพาณิชย์เสมอ
-      formData.append('bankName', 'ธนาคารไทยพาณิชย์');
-      
-      // เพิ่มไฟล์สลิป
       formData.append('slip', slip);
       
-      // ส่งข้อมูลไปยัง API
-      const response = await fetch('/api/payment-confirmation', {
+      // เพิ่ม timestamp เพื่อป้องกันการ cache
+      const timestamp = Date.now();
+      const apiUrl = `/api/payment-confirmation?t=${timestamp}`;
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         body: formData,
+        // เพิ่ม headers เพื่อป้องกันการ cache
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
       });
       
       const result = await response.json();
@@ -738,7 +786,6 @@ function PaymentConfirmationClient() {
   );
 }
 
-// Default export หลักของหน้า
 export default function PaymentConfirmation() {
   return (
     <ClientOnly>
