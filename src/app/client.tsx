@@ -363,7 +363,8 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
     currentYear,
     showMenu,
     products,
-    featuredBlogs = []
+    featuredBlogs = [],
+    bestsellercategories = [] // เพิ่มพารามิเตอร์ bestsellercategories
   }: {
     cartItems: any[];
     updateQuantity: (id: string, quantity: number) => void;
@@ -377,6 +378,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
     showMenu: boolean;
     products: any[];
     featuredBlogs?: any[];
+    bestsellercategories?: any[]; // เพิ่มประเภทของ bestsellercategories
   }) {
     const [activeCategory, setActiveCategory] = useState('all');
     const [currentSlide, setCurrentSlide] = useState(0);
@@ -765,7 +767,8 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
             <Box sx={{ 
               display: 'grid', 
               gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: 2
+              gap: 2.5,
+              mt: 2
             }}>
               {/* ไม้มงคล Icon */}
               <Box
@@ -776,26 +779,31 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  p: 2,
+                  p: 2.5,
                   textDecoration: 'none',
-                  borderRadius: 2,
+                  borderRadius: 3,
                   aspectRatio: '1/1',
                   backgroundColor: '#F8F9FA',
-                  transition: 'all 0.2s ease',
+                  transition: 'all 0.3s ease',
+                  border: '1px solid rgba(29, 150, 121, 0.1)',
+                  boxShadow: '0 4px 12px rgba(43, 78, 78, 0.05)',
                   '&:hover': {
-                    transform: 'translateY(-3px)',
-                    backgroundColor: '#F0F7F4'
+                    transform: 'translateY(-5px)',
+                    backgroundColor: '#F0F7F4',
+                    boxShadow: '0 8px 24px rgba(43, 78, 78, 0.12)'
                   }
                 }}
               >
                 <Box 
                   sx={{ 
-                    width: 56, 
-                    height: 56, 
+                    width: 60, 
+                    height: 60,
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(29, 150, 121, 0.1)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    mb: 1.5,
+                    mb: 2,
                     color: '#1D9679'
                   }}
                 >
@@ -807,7 +815,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                     <path d="M14 7C14 7 13 8.2 12 8.2C11 8.2 10 7 10 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                   </svg>
                 </Box>
-                <Typography variant="body2" color="text.primary" fontWeight={500} align="center">
+                <Typography variant="body2" color="text.primary" fontWeight={600} align="center">
                   ไม้มงคล
                 </Typography>
               </Box>
@@ -821,25 +829,31 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  p: 2,
+                  p: 2.5,
                   textDecoration: 'none',
-                  borderRadius: 2,
+                  borderRadius: 3,
                   aspectRatio: '1/1',
                   backgroundColor: '#F8F9FA',
-                  transition: 'transform 0.2s ease',
+                  transition: 'all 0.3s ease',
+                  border: '1px solid rgba(29, 150, 121, 0.1)',
+                  boxShadow: '0 4px 12px rgba(43, 78, 78, 0.05)',
                   '&:hover': {
-                    transform: 'translateY(-3px)'
+                    transform: 'translateY(-5px)',
+                    backgroundColor: '#F0F7F4',
+                    boxShadow: '0 8px 24px rgba(43, 78, 78, 0.12)'
                   }
                 }}
               >
                 <Box 
                   sx={{ 
-                    width: 56, 
-                    height: 56, 
+                    width: 60, 
+                    height: 60,
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(29, 150, 121, 0.1)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    mb: 1.5,
+                    mb: 2,
                     color: '#1D9679'
                   }}
                 >
@@ -850,7 +864,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                     <path d="M10 7C10 7 11 5.5 12 5.5C13 5.5 14 7 14 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                   </svg>
                 </Box>
-                <Typography variant="body2" color="text.primary" fontWeight={500} align="center">
+                <Typography variant="body2" color="text.primary" fontWeight={600} align="center">
                   ไม้อวบน้ำ
                 </Typography>
               </Box>
@@ -864,25 +878,31 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  p: 2,
+                  p: 2.5,
                   textDecoration: 'none',
-                  borderRadius: 2,
+                  borderRadius: 3,
                   aspectRatio: '1/1',
                   backgroundColor: '#F8F9FA',
-                  transition: 'transform 0.2s ease',
+                  transition: 'all 0.3s ease',
+                  border: '1px solid rgba(29, 150, 121, 0.1)',
+                  boxShadow: '0 4px 12px rgba(43, 78, 78, 0.05)',
                   '&:hover': {
-                    transform: 'translateY(-3px)'
+                    transform: 'translateY(-5px)',
+                    backgroundColor: '#F0F7F4',
+                    boxShadow: '0 8px 24px rgba(43, 78, 78, 0.12)'
                   }
                 }}
               >
                 <Box 
                   sx={{ 
-                    width: 56, 
-                    height: 56, 
+                    width: 60, 
+                    height: 60,
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(29, 150, 121, 0.1)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    mb: 1.5,
+                    mb: 2,
                     color: '#1D9679'
                   }}
                 >
@@ -894,7 +914,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                     <path d="M5 13.5C5 15 8 16 12 16C16 16 19 15 19 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </Box>
-                <Typography variant="body2" color="text.primary" fontWeight={500} align="center">
+                <Typography variant="body2" color="text.primary" fontWeight={600} align="center">
                   ช่อดอกไม้
                 </Typography>
               </Box>
@@ -908,25 +928,31 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  p: 2,
+                  p: 2.5,
                   textDecoration: 'none',
-                  borderRadius: 2,
+                  borderRadius: 3,
                   aspectRatio: '1/1',
                   backgroundColor: '#F8F9FA',
-                  transition: 'transform 0.2s ease',
+                  transition: 'all 0.3s ease',
+                  border: '1px solid rgba(29, 150, 121, 0.1)',
+                  boxShadow: '0 4px 12px rgba(43, 78, 78, 0.05)',
                   '&:hover': {
-                    transform: 'translateY(-3px)'
+                    transform: 'translateY(-5px)',
+                    backgroundColor: '#F0F7F4',
+                    boxShadow: '0 8px 24px rgba(43, 78, 78, 0.12)'
                   }
                 }}
               >
                 <Box 
                   sx={{ 
-                    width: 56, 
-                    height: 56, 
+                    width: 60, 
+                    height: 60,
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(29, 150, 121, 0.1)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    mb: 1.5,
+                    mb: 2,
                     color: '#1D9679'
                   }}
                 >
@@ -943,457 +969,723 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                     <path d="M9 9L7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </Box>
-                <Typography variant="body2" color="text.primary" fontWeight={500} align="center">
+                <Typography variant="body2" color="text.primary" fontWeight={600} align="center">
                   ของชำร่วย
+                </Typography>
+              </Box>
+              
+              {/* หรีดต้นไม้ Icon (เพิ่มใหม่) */}
+              <Box
+                component={Link}
+                href="/products?category=wreath&sortBy=newest"
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  p: 2.5,
+                  textDecoration: 'none',
+                  borderRadius: 3,
+                  aspectRatio: '1/1',
+                  backgroundColor: '#F8F9FA',
+                  transition: 'all 0.3s ease',
+                  border: '1px solid rgba(29, 150, 121, 0.1)',
+                  boxShadow: '0 4px 12px rgba(43, 78, 78, 0.05)',
+                  '&:hover': {
+                    transform: 'translateY(-5px)',
+                    backgroundColor: '#F0F7F4',
+                    boxShadow: '0 8px 24px rgba(43, 78, 78, 0.12)'
+                  }
+                }}
+              >
+                <Box 
+                  sx={{ 
+                    width: 60, 
+                    height: 60,
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(29, 150, 121, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    mb: 2,
+                    color: '#1D9679'
+                  }}
+                >
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M12 18C15.3137 18 18 15.3137 18 12C18 8.68629 15.3137 6 12 6C8.68629 6 6 8.68629 6 12C6 15.3137 8.68629 18 12 18Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </Box>
+                <Typography variant="body2" color="text.primary" fontWeight={600} align="center">
+                  หรีดต้นไม้
                 </Typography>
               </Box>
             </Box>
           </Container>
           
           {/* แสดงการ์ดสำหรับแท็บเล็ตและจอใหญ่ */}
-          <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3 }, mx: 'auto', display: { xs: 'none', sm: 'block' } }}>
+          <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3 }, mx: 'auto', display: { xs: 'none', sm: 'block' }, mt: 4, mb: 3 }}>
+            {/* หัวข้อหมวดหมู่ */}
             <Box sx={{ 
-              display: 'grid', 
-              gridTemplateColumns: { 
-                sm: 'repeat(2, 1fr)',
-                md: 'repeat(2, 1fr)',
-                lg: 'repeat(4, 1fr)' 
-              },
-              gap: 3
+              textAlign: 'center', 
+              mb: 4
             }}>
-              {/* Tree Card */}
-              <Card 
+              
+            </Box>
+            
+            {/* Masonry Layout */}
+            <Box 
+              sx={{ 
+                display: 'grid',
+                gridTemplateColumns: { 
+                  sm: 'repeat(2, 1fr)',
+                  md: 'repeat(3, 1fr)',
+                  lg: 'repeat(10, 1fr)'
+                },
+                gridTemplateRows: 'masonry',
+                gap: 2.5,
+                gridAutoFlow: 'dense',
+                '& > a:nth-of-type(1)': { 
+                  gridColumn: { lg: 'span 4' },
+                  gridRow: { lg: 'span 2' }
+                },
+                '& > a:nth-of-type(2)': { 
+                  gridColumn: { lg: 'span 3' },
+                  gridRow: { lg: 'span 1' }
+                },
+                '& > a:nth-of-type(3)': { 
+                  gridColumn: { lg: 'span 3' },
+                  gridRow: { lg: 'span 1' }
+                },
+                '& > a:nth-of-type(4)': { 
+                  gridColumn: { lg: 'span 3' },
+                  gridRow: { lg: 'span 1' }
+                },
+                '& > a:nth-of-type(5)': { 
+                  gridColumn: { lg: 'span 3' },
+                  gridRow: { lg: 'span 1' }
+                }
+              }}
+            >
+              {/* ไม้มงคล - การ์ดใหญ่ */}
+              <Box
                 component={Link}
                 href="/products?category=tree&sortBy=newest"
                 sx={{
-                  height: '100%', 
-                  display: 'flex',
-                  flexDirection: 'column',
-                  textDecoration: 'none',
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: 4,
-                  overflow: 'hidden', 
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0px 7px 30px rgba(43, 78, 78, 0.1)',
                   position: 'relative',
+                  height: { sm: 260, md: 320, lg: 440 },
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  boxShadow: '0 8px 25px rgba(0,0,0,0.05)',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  textDecoration: 'none',
+                  border: '1px solid rgba(0,0,0,0.05)',
+                  background: 'rgba(245, 245, 245, 0.7)',
+                  backdropFilter: 'blur(10px)',
                   '&:hover': {
-                    transform: 'translateY(-16px)',
-                    boxShadow: '0px 16px 70px rgba(43, 78, 78, 0.2)',
-                    '& .category-media': {
-                      transform: 'scale(1.1)'
-                    },
-                    '& .category-overlay': {
-                      opacity: 0.3
+                    transform: 'translateY(-8px)',
+                    boxShadow: '0 12px 30px rgba(0,0,0,0.1)',
+                    '& .category-image': {
+                      transform: 'scale(1.03)'
                     }
                   }
                 }}
               >
-                <Box sx={{ position: 'relative', paddingTop: '80%', overflow: 'hidden' }}>
-                  <Box 
-                    className="category-overlay"
-                      sx={{ 
-                        position: 'absolute', 
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                      backgroundColor: 'rgba(0,0,0,0.2)',
-                      zIndex: 1,
-                      opacity: 0,
-                      transition: 'opacity 0.3s ease'
+                <Box sx={{ 
+                  position: 'absolute', 
+                  top: 0, 
+                  left: 0, 
+                  p: 3,
+                  zIndex: 2 
+                }}>
+                  <Typography 
+                    variant="h5" 
+                    component="h3"
+                    sx={{ 
+                      fontWeight: 600,
+                      color: 'text.primary',
+                      mb: 0.5
                     }}
-                  />
+                  >
+                    ไม้มงคล
+                  </Typography>
+                  <Typography 
+                    variant="body2"
+                    sx={{ 
+                      color: 'text.secondary',
+                      fontWeight: 500
+                    }}
+                  >
+                    {products.filter(p => p.category === "tree" && p.productStatus === 'on').length} รายการ
+                  </Typography>
+                </Box>
+
+                <Box sx={{ 
+                  position: 'absolute', 
+                  bottom: 0, 
+                  left: 0, 
+                  p: 3,
+                  zIndex: 2 
+                }}>
+                  <Button
+                    sx={{
+                      color: 'text.primary',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      fontSize: '0.75rem',
+                      letterSpacing: 1,
+                      pl: 0,
+                      '&:hover': {
+                        backgroundColor: 'transparent',
+                        pl: 0.5
+                      },
+                      '&::after': {
+                        content: '""',
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        width: '35px',
+                        height: '2px',
+                        backgroundColor: 'text.primary',
+                        transition: 'width 0.3s ease'
+                      },
+                      '&:hover::after': {
+                        width: '60px'
+                      }
+                    }}
+                  >
+                    ช้อปเลย
+                  </Button>
+                </Box>
+
+                <Box sx={{ 
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  width: '70%',
+                  height: '100%',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}>
                   <Image
-                    className="category-media"
                     src="/images/cover-tree.webp"
                     alt="ไม้มงคล"
                     fill
+                    sizes="(max-width: 600px) 100vw, (max-width: 960px) 50vw, 33vw"
                     style={{
                       objectFit: 'cover',
-                      transition: 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)'
+                      objectPosition: 'center right',
+                      transition: 'transform 0.6s ease'
                     }}
+                    className="category-image"
                     priority
                   />
                 </Box>
-                <CardContent sx={{ 
-                  flexGrow: 1, 
-                  p: 3,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  backgroundColor: 'white' 
-                }}>
-                  <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography 
-                      variant="h6" 
-                      component="h3"
-                      sx={{ 
-                        fontWeight: 700, 
-                        color: 'text.primary',
-                        fontSize: { xs: '1.1rem', md: '1.25rem' }
-                      }}
-                    >
-                      ไม้มงคล
-                      </Typography>
-                    <Avatar sx={{ bgcolor: 'primary.main', width: 35, height: 35 }}>
-                      <ArrowForwardIcon sx={{ fontSize: 18 }} />
-                    </Avatar>
-                  </Box>
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary"
-                    sx={{ 
-                      mb: 2, 
-                      lineHeight: 1.6,
-                      opacity: 0.85
-                    }}
-                  >
-                    ต้นไม้ที่นำโชคและสร้างบรรยากาศที่ดีให้กับบ้านของคุณ
-                      </Typography>
-                  <Chip 
-                    label={`ดูสินค้า `} 
-                        size="small" 
-                        sx={{ 
-                      alignSelf: 'flex-start', 
-                      bgcolor: 'primary.light', 
-                          color: 'white', 
-                      fontWeight: 500,
-                      '& .MuiChip-label': { px: 1.5 }
-                    }} 
-                  />
-  
-                </CardContent>
-                </Card>
-  
-              {/* Succulents Card */}
-              <Card 
+              </Box>
+              
+              {/* ไม้อวบน้ำ */}
+              <Box
                 component={Link}
                 href="/products?category=succulent&sortBy=newest"
                 sx={{
-                  height: '100%', 
-                  display: 'flex',
-                  flexDirection: 'column',
-                  textDecoration: 'none',
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: 4,
-                  overflow: 'hidden', 
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0px 7px 30px rgba(43, 78, 78, 0.1)',
                   position: 'relative',
+                  height: { sm: 260, md: 240, lg: 215 },
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  boxShadow: '0 8px 25px rgba(0,0,0,0.05)',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  textDecoration: 'none',
+                  border: '1px solid rgba(0,0,0,0.05)',
+                  background: 'rgba(240, 247, 244, 0.7)',
+                  backdropFilter: 'blur(10px)',
                   '&:hover': {
-                    transform: 'translateY(-16px)',
-                    boxShadow: '0px 16px 70px rgba(43, 78, 78, 0.2)',
-                    '& .category-media': {
-                      transform: 'scale(1.1)'
-                    },
-                    '& .category-overlay': {
-                      opacity: 0.3
+                    transform: 'translateY(-8px)',
+                    boxShadow: '0 12px 30px rgba(0,0,0,0.1)',
+                    '& .category-image': {
+                      transform: 'scale(1.03)'
                     }
                   }
                 }}
               >
-                <Box sx={{ position: 'relative', paddingTop: '80%', overflow: 'hidden' }}>
-                  <Box 
-                    className="category-overlay"
-                      sx={{ 
-                        position: 'absolute', 
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                      backgroundColor: 'rgba(0,0,0,0.2)',
-                      zIndex: 1,
-                      opacity: 0,
-                      transition: 'opacity 0.3s ease'
+                <Box sx={{ 
+                  position: 'absolute', 
+                  top: 0, 
+                  left: 0, 
+                  p: 3,
+                  zIndex: 2 
+                }}>
+                  <Typography 
+                    variant="h6" 
+                    component="h3"
+                    sx={{ 
+                      fontWeight: 600,
+                      color: 'text.primary',
+                      mb: 0.5
                     }}
-                  />
+                  >
+                    ไม้อวบน้ำ
+                  </Typography>
+                  <Typography 
+                    variant="body2"
+                    sx={{ 
+                      color: 'text.secondary',
+                      fontWeight: 500
+                    }}
+                  >
+                    {products.filter(p => p.category === "succulent" && p.productStatus === 'on').length} รายการ
+                  </Typography>
+                </Box>
+
+                <Box sx={{ 
+                  position: 'absolute', 
+                  bottom: 0, 
+                  left: 0, 
+                  p: 3,
+                  zIndex: 2 
+                }}>
+                  <Button
+                    sx={{
+                      color: 'text.primary',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      fontSize: '0.75rem',
+                      letterSpacing: 1,
+                      pl: 0,
+                      '&:hover': {
+                        backgroundColor: 'transparent',
+                        pl: 0.5
+                      },
+                      '&::after': {
+                        content: '""',
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        width: '35px',
+                        height: '2px',
+                        backgroundColor: 'text.primary',
+                        transition: 'width 0.3s ease'
+                      },
+                      '&:hover::after': {
+                        width: '60px'
+                      }
+                    }}
+                  >
+                    ช้อปเลย
+                  </Button>
+                </Box>
+
+                <Box sx={{ 
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  width: '60%',
+                  height: '100%',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}>
                   <Image
-                    className="category-media"
                     src="/images/cover-succulent.webp"
                     alt="ไม้อวบน้ำ"
                     fill
+                    sizes="(max-width: 600px) 100vw, (max-width: 960px) 50vw, 33vw"
                     style={{
                       objectFit: 'cover',
-                      transition: 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)'
+                      objectPosition: 'center right',
+                      transition: 'transform 0.6s ease'
                     }}
-                    priority
+                    className="category-image"
                   />
                 </Box>
-                <CardContent sx={{ 
-                  flexGrow: 1, 
-                  p: 3,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  backgroundColor: 'white' 
-                }}>
-                  <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography 
-                      variant="h6" 
-                      component="h3"
-                      sx={{ 
-                        fontWeight: 700, 
-                        color: 'text.primary',
-                        fontSize: { xs: '1.1rem', md: '1.25rem' }
-                      }}
-                    >
-                      ไม้อวบน้ำ
-                      </Typography>
-                    <Avatar sx={{ bgcolor: 'primary.main', width: 35, height: 35 }}>
-                      <ArrowForwardIcon sx={{ fontSize: 18 }} />
-                    </Avatar>
-                  </Box>
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary"
-                    sx={{ 
-                      mb: 2, 
-                      lineHeight: 1.6,
-                      opacity: 0.85
-                    }}
-                  >
-                    ไม้ที่เลี้ยงง่าย ทนแล้ง เหมาะสำหรับผู้เริ่มต้น
-                      </Typography>
-                  <Chip 
-                    label={`ดูสินค้า`}
-                        size="small" 
-                        sx={{ 
-                      alignSelf: 'flex-start', 
-                      bgcolor: 'primary.light', 
-                          color: 'white', 
-                      fontWeight: 500,
-                      '& .MuiChip-label': { px: 1.5 }
-                    }} 
-                  />
-                </CardContent>
-                </Card>
-  
-              {/* Flower Bouquets Card */}
-              <Card 
+              </Box>
+              
+              {/* ช่อดอกไม้ */}
+              <Box
                 component={Link}
                 href="/products?category=bouquet&sortBy=newest"
                 sx={{
-                  height: '100%', 
-                  display: 'flex',
-                  flexDirection: 'column',
-                  textDecoration: 'none',
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: 4,
-                  overflow: 'hidden', 
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0px 7px 30px rgba(43, 78, 78, 0.1)',
                   position: 'relative',
+                  height: { sm: 260, md: 240, lg: 215 },
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  boxShadow: '0 8px 25px rgba(0,0,0,0.05)',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  textDecoration: 'none',
+                  border: '1px solid rgba(0,0,0,0.05)',
+                  background: 'rgba(250, 245, 245, 0.7)',
+                  backdropFilter: 'blur(10px)',
                   '&:hover': {
-                    transform: 'translateY(-16px)',
-                    boxShadow: '0px 16px 70px rgba(43, 78, 78, 0.2)',
-                    '& .category-media': {
-                      transform: 'scale(1.1)'
-                    },
-                    '& .category-overlay': {
-                      opacity: 0.3
+                    transform: 'translateY(-8px)',
+                    boxShadow: '0 12px 30px rgba(0,0,0,0.1)',
+                    '& .category-image': {
+                      transform: 'scale(1.03)'
                     }
                   }
                 }}
               >
-                <Box sx={{ position: 'relative', paddingTop: '80%', overflow: 'hidden' }}>
-                  <Box 
-                    className="category-overlay"
-                      sx={{ 
-                        position: 'absolute', 
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                      backgroundColor: 'rgba(0,0,0,0.2)',
-                      zIndex: 1,
-                      opacity: 0,
-                      transition: 'opacity 0.3s ease'
+                <Box sx={{ 
+                  position: 'absolute', 
+                  top: 0, 
+                  left: 0, 
+                  p: 3,
+                  zIndex: 2 
+                }}>
+                  <Typography 
+                    variant="h6" 
+                    component="h3"
+                    sx={{ 
+                      fontWeight: 600,
+                      color: 'text.primary',
+                      mb: 0.5
                     }}
-                  />
+                  >
+                    ช่อดอกไม้
+                  </Typography>
+                  <Typography 
+                    variant="body2"
+                    sx={{ 
+                      color: 'text.secondary',
+                      fontWeight: 500
+                    }}
+                  >
+                    {products.filter(p => p.category === "bouquet" && p.productStatus === 'on').length} รายการ
+                  </Typography>
+                </Box>
+
+                <Box sx={{ 
+                  position: 'absolute', 
+                  bottom: 0, 
+                  left: 0, 
+                  p: 3,
+                  zIndex: 2 
+                }}>
+                  <Button
+                    sx={{
+                      color: 'text.primary',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      fontSize: '0.75rem',
+                      letterSpacing: 1,
+                      pl: 0,
+                      '&:hover': {
+                        backgroundColor: 'transparent',
+                        pl: 0.5
+                      },
+                      '&::after': {
+                        content: '""',
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        width: '35px',
+                        height: '2px',
+                        backgroundColor: 'text.primary',
+                        transition: 'width 0.3s ease'
+                      },
+                      '&:hover::after': {
+                        width: '60px'
+                      }
+                    }}
+                  >
+                    ช้อปเลย
+                  </Button>
+                </Box>
+
+                <Box sx={{ 
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  width: '60%',
+                  height: '100%',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}>
                   <Image
-                    className="category-media"
                     src="/images/cover-flower.webp"
                     alt="ช่อดอกไม้"
                     fill
+                    sizes="(max-width: 600px) 100vw, (max-width: 960px) 50vw, 33vw"
                     style={{
                       objectFit: 'cover',
-                      transition: 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)'
+                      objectPosition: 'center right',
+                      transition: 'transform 0.6s ease'
                     }}
-                    priority
+                    className="category-image"
                   />
                 </Box>
-                <CardContent sx={{ 
-                  flexGrow: 1, 
-                  p: 3,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  backgroundColor: 'white' 
-                }}>
-                  <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography 
-                      variant="h6" 
-                      component="h3"
-                      sx={{ 
-                        fontWeight: 700, 
-                        color: 'text.primary',
-                        fontSize: { xs: '1.1rem', md: '1.25rem' }
-                      }}
-                    >
-                        ช่อดอกไม้
-                      </Typography>
-                    <Avatar sx={{ bgcolor: 'primary.main', width: 35, height: 35 }}>
-                      <ArrowForwardIcon sx={{ fontSize: 18 }} />
-                    </Avatar>
-                  </Box>
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary"
-                    sx={{ 
-                      mb: 2, 
-                      lineHeight: 1.6,
-                      opacity: 0.85
-                    }}
-                  >
-                    ช่อดอกไม้สดคัดพิเศษ สำหรับทุกโอกาสพิเศษ
-                      </Typography>
-                  <Chip 
-                    label={`ดูสินค้า`}   
-                        size="small" 
-                        sx={{ 
-                      alignSelf: 'flex-start', 
-                      bgcolor: 'primary.light', 
-                          color: 'white', 
-                      fontWeight: 500,
-                      '& .MuiChip-label': { px: 1.5 }
-                    }} 
-                  />
-                </CardContent>
-                </Card>
-  
-              {/* Plant Souvenir Card */}
-              <Card 
+              </Box>
+              
+              {/* ของชำร่วย */}
+              <Box
                 component={Link}
                 href="/products?category=souvenir&sortBy=newest"
                 sx={{
-                  height: '100%', 
-                  display: 'flex',
-                  flexDirection: 'column',
-                  textDecoration: 'none',
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: 4,
-                  overflow: 'hidden', 
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0px 7px 30px rgba(43, 78, 78, 0.1)',
                   position: 'relative',
+                  height: { sm: 260, md: 240, lg: 215 },
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  boxShadow: '0 8px 25px rgba(0,0,0,0.05)',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  textDecoration: 'none',
+                  border: '1px solid rgba(0,0,0,0.05)',
+                  background: 'rgba(242, 242, 247, 0.7)',
+                  backdropFilter: 'blur(10px)',
                   '&:hover': {
-                    transform: 'translateY(-16px)',
-                    boxShadow: '0px 16px 70px rgba(43, 78, 78, 0.2)',
-                    '& .category-media': {
-                      transform: 'scale(1.1)'
-                    },
-                    '& .category-overlay': {
-                      opacity: 0.3
+                    transform: 'translateY(-8px)',
+                    boxShadow: '0 12px 30px rgba(0,0,0,0.1)',
+                    '& .category-image': {
+                      transform: 'scale(1.03)'
                     }
                   }
                 }}
               >
-                <Box sx={{ position: 'relative', paddingTop: '80%', overflow: 'hidden' }}>
-                  <Box 
-                    className="category-overlay"
-                      sx={{ 
-                        position: 'absolute', 
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                      backgroundColor: 'rgba(0,0,0,0.2)',
-                      zIndex: 1,
-                      opacity: 0,
-                      transition: 'opacity 0.3s ease'
-                    }}
-                  />
-                  <Image
-                    className="category-media"
-                    src="/images/cover-gift.jpg"
-                    alt="ของชำร่วยต้นไม้"
-                    fill
-                    style={{
-                      objectFit: 'cover',
-                      transition: 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)'
-                    }}
-                    priority
-                  />
-                </Box>
-                <CardContent sx={{ 
-                  flexGrow: 1, 
+                <Box sx={{ 
+                  position: 'absolute', 
+                  top: 0, 
+                  left: 0, 
                   p: 3,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  backgroundColor: 'white' 
+                  zIndex: 2 
                 }}>
-                  <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography 
-                      variant="h6" 
-                      component="h3"
-                      sx={{ 
-                        fontWeight: 700, 
-                        color: 'text.primary',
-                        fontSize: { xs: '1.1rem', md: '1.25rem' }
-                      }}
-                    >
-                        ของชำร่วยต้นไม้
-                      </Typography>
-                    <Avatar sx={{ bgcolor: 'primary.main', width: 35, height: 35 }}>
-                      <ArrowForwardIcon sx={{ fontSize: 18 }} />
-                    </Avatar>
-                  </Box>
                   <Typography 
-                    variant="body2" 
-                    color="text.secondary"
+                    variant="h6" 
+                    component="h3"
                     sx={{ 
-                      mb: 2, 
-                      lineHeight: 1.6,
-                      opacity: 0.85
+                      fontWeight: 600,
+                      color: 'text.primary',
+                      mb: 0.5
                     }}
                   >
-                    ของชำร่วยต้นไม้สำหรับทุกโอกาส
-                      </Typography>
-                  <Chip 
-                    label={`ดูสินค้า`} 
-                        size="small" 
-                        sx={{ 
-                      alignSelf: 'flex-start', 
-                      bgcolor: 'primary.light', 
-                          color: 'white', 
-                      fontWeight: 500,
-                      '& .MuiChip-label': { px: 1.5 }
-                    }} 
+                    ของชำร่วย
+                  </Typography>
+                  <Typography 
+                    variant="body2"
+                    sx={{ 
+                      color: 'text.secondary',
+                      fontWeight: 500
+                    }}
+                  >
+                    {products.filter(p => p.category === "souvenir" && p.productStatus === 'on').length} รายการ
+                  </Typography>
+                </Box>
+
+                <Box sx={{ 
+                  position: 'absolute', 
+                  bottom: 0, 
+                  left: 0, 
+                  p: 3,
+                  zIndex: 2 
+                }}>
+                  <Button
+                    sx={{
+                      color: 'text.primary',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      fontSize: '0.75rem',
+                      letterSpacing: 1,
+                      pl: 0,
+                      '&:hover': {
+                        backgroundColor: 'transparent',
+                        pl: 0.5
+                      },
+                      '&::after': {
+                        content: '""',
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        width: '35px',
+                        height: '2px',
+                        backgroundColor: 'text.primary',
+                        transition: 'width 0.3s ease'
+                      },
+                      '&:hover::after': {
+                        width: '60px'
+                      }
+                    }}
+                  >
+                    ช้อปเลย
+                  </Button>
+                </Box>
+
+                <Box sx={{ 
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  width: '60%',
+                  height: '100%',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}>
+                  <Image
+                    src="/images/cover-gift.jpg"
+                    alt="ของชำร่วย"
+                    fill
+                    sizes="(max-width: 600px) 100vw, (max-width: 960px) 50vw, 33vw"
+                    style={{
+                      objectFit: 'cover',
+                      objectPosition: 'center right',
+                      transition: 'transform 0.6s ease'
+                    }}
+                    className="category-image"
                   />
-                </CardContent>
-                </Card>
+                </Box>
+              </Box>
+              
+              {/* หรีดต้นไม้ */}
+              <Box
+                component={Link}
+                href="/products?category=wreath&sortBy=newest"
+                sx={{
+                  position: 'relative',
+                  height: { sm: 260, md: 240, lg: 215 },
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  boxShadow: '0 8px 25px rgba(0,0,0,0.05)',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  textDecoration: 'none',
+                  border: '1px solid rgba(0,0,0,0.05)',
+                  background: 'rgba(245, 247, 242, 0.7)',
+                  backdropFilter: 'blur(10px)',
+                  '&:hover': {
+                    transform: 'translateY(-8px)',
+                    boxShadow: '0 12px 30px rgba(0,0,0,0.1)',
+                    '& .category-image': {
+                      transform: 'scale(1.03)'
+                    }
+                  }
+                }}
+              >
+                <Box sx={{ 
+                  position: 'absolute', 
+                  top: 0, 
+                  left: 0, 
+                  p: 3,
+                  zIndex: 2 
+                }}>
+                  <Typography 
+                    variant="h6" 
+                    component="h3"
+                    sx={{ 
+                      fontWeight: 600,
+                      color: 'text.primary',
+                      mb: 0.5
+                    }}
+                  >
+                    หรีดต้นไม้
+                  </Typography>
+                  <Typography 
+                    variant="body2"
+                    sx={{ 
+                      color: 'text.secondary',
+                      fontWeight: 500
+                    }}
+                  >
+                    {products.filter(p => p.category === "wreath" && p.productStatus === 'on').length} รายการ
+                  </Typography>
+                </Box>
+
+                <Box sx={{ 
+                  position: 'absolute', 
+                  bottom: 0, 
+                  left: 0, 
+                  p: 3,
+                  zIndex: 2 
+                }}>
+                  <Button
+                    sx={{
+                      color: 'text.primary',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      fontSize: '0.75rem',
+                      letterSpacing: 1,
+                      pl: 0,
+                      '&:hover': {
+                        backgroundColor: 'transparent',
+                        pl: 0.5
+                      },
+                      '&::after': {
+                        content: '""',
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        width: '35px',
+                        height: '2px',
+                        backgroundColor: 'text.primary',
+                        transition: 'width 0.3s ease'
+                      },
+                      '&:hover::after': {
+                        width: '60px'
+                      }
+                    }}
+                  >
+                    ช้อปเลย
+                  </Button>
+                </Box>
+
+                <Box sx={{ 
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  width: '60%',
+                  height: '100%',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}>
+                  <Image
+                    src="/images/cover-wreath.webp"
+                    alt="หรีดต้นไม้"
+                    fill
+                    sizes="(max-width: 600px) 100vw, (max-width: 960px) 50vw, 33vw"
+                    style={{
+                      objectFit: 'cover',
+                      objectPosition: 'center right',
+                      transition: 'transform 0.6s ease'
+                    }}
+                    className="category-image"
+                  />
+                </Box>
+              </Box>
             </Box>
           </Container>
         </Section>
   
           
-          {/* เพิ่ม Category Swiper สำหรับต้นไม้ */}
-          <CategorySwiper 
-            category="tree" 
-            title="ต้นไม้มงคล" 
-            
-          />
-          
-          {/* เพิ่ม Category Swiper สำหรับไม้อวบน้ำ */}
-          <CategorySwiper 
-            category="succulent" 
-            title="ไม้อวบน้ำ" 
-             
-          />
-  
-          {/* เพิ่ม Category Swiper สำหรับของชำร่วยต้นไม้ */}
-          <CategorySwiper 
-            category="souvenir" 
-            title="ของชำร่วย" 
-             
-          />
+          {/* ส่วนของ CategorySwiper */}
+          {bestsellercategories.length > 0 ? (
+            bestsellercategories.map((category) => (
+              <CategorySwiper
+                key={category.id}
+                category={category.categoryName || 'tree'}
+                title={category.categoryDesc || 'ต้นไม้มงคล'}
+              />
+            ))
+          ) : (
+            // แสดง CategorySwiper แบบเดิมถ้าไม่มีข้อมูล bestseller categories
+            <>
+              <CategorySwiper 
+                category="tree" 
+                title="ต้นไม้มงคล" 
+              />
+              
+              <CategorySwiper 
+                category="succulent" 
+                title="ไม้อวบน้ำ" 
+              />
+    
+              <CategorySwiper 
+                category="souvenir" 
+                title="ของชำร่วย" 
+              />
+            </>
+          )}
   
         <Section
           id="products"
@@ -2229,6 +2521,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
     const { getTotalItems, openCart, closeCart, cartItems, updateQuantity, removeItem, isCartOpen } = useCart();
     const [products, setProducts] = useState(initialProducts || []);
     const [categories, setCategories] = useState(initialCategories || []);
+    const [bestsellercategories, setBestsellerCategories] = useState<any[]>([]); // เพิ่ม state สำหรับเก็บหมวดหมู่ bestseller
     const [featuredBlogs, setFeaturedBlogs] = useState<any[]>([]); // เพิ่ม state สำหรับเก็บบทความ
     const [loading, setLoading] = useState(!initialProducts);
     const [error, setError] = useState<string | null>(null);
@@ -2263,6 +2556,15 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
         }
         const categoriesData = await categoriesRes.json();
         setCategories(categoriesData);
+        
+        // ดึงข้อมูลหมวดหมู่ bestseller จาก API
+        const bestsellerRes = await fetch('/api/categories?bestseller=on');
+        if (bestsellerRes.ok) {
+          const bestsellerData = await bestsellerRes.json();
+          setBestsellerCategories(bestsellerData);
+        } else {
+          console.error('Error loading bestseller categories:', bestsellerRes.status);
+        }
         
         // ดึงข้อมูลบทความเด่นจาก API
         const blogsRes = await fetch('/api/featured-blogs');
@@ -2355,6 +2657,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
           showMenu={!isMobile}
           products={products}
           featuredBlogs={featuredBlogs}
+          bestsellercategories={bestsellercategories} // ส่ง bestsellercategories ไปยัง MainContent
         />
       </Box>
     );

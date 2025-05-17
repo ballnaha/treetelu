@@ -1,121 +1,160 @@
 'use client';
 
-import { useAuth } from '@/context/AuthContext';
-import Image from 'next/image';
 import React, { useState, useEffect } from 'react';
-import { Button, CircularProgress, Box, styled } from '@mui/material';
+import { Button, CircularProgress, Box, styled, Tooltip } from '@mui/material';
+import Image from 'next/image';
 
 interface LineLoginButtonProps {
   text?: string;
   size?: 'small' | 'medium' | 'large';
   className?: string;
+  iconOnly?: boolean;
+  tooltip?: string;
 }
 
-// styled component สำหรับปุ่ม LINE
+// สร้างปุ่มที่มี Style เฉพาะสำหรับ LINE Login แบบเต็มปุ่ม
 const LineButton = styled(Button)(({ theme }) => ({
-  backgroundColor: '#06C755',
-  color: 'white',
-  fontWeight: 500,
   textTransform: 'none',
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(1),
+  fontWeight: 600,
+  fontSize: '1rem',
+  padding: '12px 24px',
+  borderRadius: '30px',
+  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
   transition: 'all 0.3s ease',
+  backgroundColor: '#06C755',
+  color: '#ffffff',
   '&:hover': {
-    backgroundColor: '#06b14d',
     transform: 'translateY(-2px)',
-    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)'
+    boxShadow: '0 6px 12px rgba(0, 0, 0, 0.15)',
+    backgroundColor: '#05a949',
   },
-  '&.Mui-disabled': {
-    backgroundColor: '#06C755',
-    opacity: 0.75,
-  }
 }));
 
-const LineLoginButton: React.FC<LineLoginButtonProps> = ({ 
-  text = 'เข้าสู่ระบบด้วย LINE', 
+// สร้างปุ่มที่มี Style เฉพาะสำหรับ LINE Login แบบไอคอนวงกลม
+const CircleLineButton = styled(Button)(({ theme }) => ({
+  minWidth: '65px',
+  width: '65px',
+  height: '65px',
+  borderRadius: '50%',
+  padding: 0,
+  boxShadow: '0 6px 16px rgba(0, 0, 0, 0.1)',
+  transition: 'all 0.3s ease',
+  backgroundColor: '#06C755',
+  '&:hover': {
+    transform: 'translateY(-4px)',
+    boxShadow: '0 8px 20px rgba(0, 0, 0, 0.15)',
+    backgroundColor: '#05a949',
+  },
+}));
+
+export default function LineLoginButton({
+  text = 'เข้าสู่ระบบด้วย LINE',
   size = 'medium',
-  className = ''
-}) => {
-  const { loginWithLine } = useAuth();
+  className,
+  iconOnly = false,
+  tooltip = 'เข้าสู่ระบบด้วย LINE',
+}: LineLoginButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-  
-  // ใช้ useEffect เพื่อป้องกัน hydration mismatch
+  const [lineLoginUrl, setLineLoginUrl] = useState('');
+
   useEffect(() => {
-    setIsMounted(true);
+    try {
+      // รับค่า LINE Login URL จาก environment variable หรือใช้ค่าเริ่มต้น
+      const lineClientId = process.env.NEXT_PUBLIC_LINE_CLIENT_ID || '';
+      const lineRedirectUri = process.env.NEXT_PUBLIC_LINE_REDIRECT_URI || 'http://localhost:3001/api/auth/line/callback';
+    
+      if (lineClientId) {
+        // สร้าง LINE Login URL เมื่อมีการตั้งค่า CLIENT_ID
+        const state = Math.random().toString(36).substring(2);
+        const loginUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${lineClientId}&redirect_uri=${encodeURIComponent(lineRedirectUri)}&state=${state}&scope=profile&bot_prompt=normal`;
+        setLineLoginUrl(loginUrl);
+        
+        // เก็บ state ใน session storage เพื่อตรวจสอบการ callback
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('line_auth_state', state);
+        }
+      }
+    } catch (error) {
+      console.error('LINE URL setup error:', error);
+    }
   }, []);
-  
-  // กำหนดขนาดของปุ่มตาม size ที่รับมา
-  const buttonSizes = {
-    small: { py: 0.75, px: 1.5, fontSize: '0.75rem', iconSize: 24 },
-    medium: { py: 1, px: 2, fontSize: '0.875rem', iconSize: 28 },
-    large: { py: 1.5, px: 3, fontSize: '1rem', iconSize: 32 }
-  };
-  const sizeClass = buttonSizes[size];
-  
-  const handleLogin = () => {
-    if (isLoading) return;
-    
-    setIsLoading(true);
-    loginWithLine();
-    
-    // กรณีไม่มีการ redirect ภายใน 5 วินาที
-    setTimeout(() => {
+
+  const handleLineLogin = async () => {
+    try {
+      setIsLoading(true);
+      
+      if (!lineLoginUrl) {
+        console.error('LINE login URL is not available');
+        setIsLoading(false);
+        return;
+      }
+      
+      // เมื่อคลิกปุ่ม ให้ redirect ไปที่ LINE OAuth
+      window.location.href = lineLoginUrl;
+    } catch (error) {
+      console.error('LINE login error:', error);
       setIsLoading(false);
-    }, 5000);
+    }
   };
 
-  // แสดงปุ่มเปล่าเพื่อรักษาโครงสร้างหน้าเว็บระหว่างการโหลด
-  if (!isMounted) {
+  const iconSize = size === 'small' ? 18 : size === 'large' ? 24 : 20;
+  
+  // ถ้าเป็นแบบไอคอนวงกลม
+  if (iconOnly) {
     return (
-      <Box 
-        sx={{ 
-          width: '100%', 
-          height: sizeClass.py * 16 + 40, 
-          borderRadius: 1.5,
-          backgroundColor: '#06C755'
-        }}
-      />
+      <Tooltip title={tooltip} arrow>
+        <CircleLineButton
+          type="button"
+          variant="contained"
+          size={size === 'small' ? 'small' : size === 'large' ? 'large' : 'medium'}
+          onClick={handleLineLogin}
+          disabled={isLoading}
+          className={className}
+          aria-label="เข้าสู่ระบบด้วย LINE"
+        >
+          {isLoading ? (
+            <CircularProgress size={iconSize} color="inherit" />
+          ) : (
+            <Box sx={{ position: 'relative', width: 30, height: 30 }}>
+              <Image
+                src="/images/line-badge.png"
+                alt="LINE"
+                width={30}
+                height={30}
+              />
+            </Box>
+          )}
+        </CircleLineButton>
+      </Tooltip>
     );
   }
-  
+
+  // แบบปุ่มปกติ
   return (
     <LineButton
-      onClick={handleLogin}
-      disabled={isLoading}
+      type="button"
+      variant="contained"
       fullWidth
+      size={size === 'small' ? 'small' : size === 'large' ? 'large' : 'medium'}
+      onClick={handleLineLogin}
+      disabled={isLoading}
       className={className}
-      sx={{
-        borderRadius: 1.5,
-        py: sizeClass.py,
-        px: sizeClass.px,
-        fontSize: sizeClass.fontSize
-      }}
-      suppressHydrationWarning
+      startIcon={
+        isLoading ? (
+          <CircularProgress size={iconSize} color="inherit" />
+        ) : (
+          <Box sx={{ position: 'relative', width: iconSize, height: iconSize, mr: 1 }}>
+            <Image
+              src="/images/line-badge.png"
+              alt="LINE"
+              width={iconSize}
+              height={iconSize}
+            />
+          </Box>
+        )
+      }
     >
-      {isLoading ? (
-        <>
-          <CircularProgress 
-            size={20} 
-            sx={{ color: 'white', mr: 1 }}
-          />
-          <span>กำลังดำเนินการ...</span>
-        </>
-      ) : (
-        <>
-          <Image 
-            src="/images/line-icon.png" 
-            alt="LINE" 
-            width={sizeClass.iconSize} 
-            height={sizeClass.iconSize}
-            style={{ objectFit: 'contain' }}
-          />
-          {text}
-        </>
-      )}
+      {isLoading ? 'กำลังโหลด...' : text}
     </LineButton>
   );
-};
-
-export default LineLoginButton; 
+} 

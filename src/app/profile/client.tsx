@@ -54,7 +54,9 @@ interface UserProfile {
   createdAt: string;
   isAdmin?: string | boolean;
   isLineUser?: boolean; // เพิ่มฟิลด์เพื่อบ่งชี้ว่าเป็นผู้ใช้ LINE หรือไม่
+  isGoogleUser?: boolean; // เพิ่มฟิลด์เพื่อบ่งชี้ว่าเป็นผู้ใช้ Google หรือไม่
   lineId?: string; // เพิ่ม lineId
+  googleId?: string; // เพิ่ม googleId
   avatar?: string; // เพิ่ม avatar
 }
 
@@ -172,7 +174,9 @@ export default function ProfileClient() {
         
         // ตรวจสอบว่าเป็นผู้ใช้ LINE หรือไม่จากอีเมล
         const isLineUser = data.user.email?.includes('@lineuser.treetelu.com') || user?.isLineUser || !!data.user.lineId;
+        const isGoogleUser = user?.isGoogleUser || data.user.googleId; // เพิ่มการตรวจสอบผู้ใช้ Google
         data.user.isLineUser = isLineUser;
+        data.user.isGoogleUser = isGoogleUser; // เพิ่มค่า isGoogleUser เข้าไปในข้อมูลผู้ใช้
         
         setProfile(data.user);
         setEditedProfile(data.user);
@@ -184,6 +188,7 @@ export default function ProfileClient() {
         if (user) {
           // ตรวจสอบว่าเป็นผู้ใช้ LINE หรือไม่
           const isLineUser = typeof user.isLineUser === 'boolean' ? user.isLineUser : false;
+          const isGoogleUser = typeof user.isGoogleUser === 'boolean' ? user.isGoogleUser : false; // เพิ่มการตรวจสอบ Google User
           
           const mockProfile: UserProfile = {
             id: typeof user.id === 'number' ? user.id : Number(user.id) || 1,
@@ -193,6 +198,7 @@ export default function ProfileClient() {
             createdAt: new Date().toISOString(),
             isAdmin: user.isAdmin,
             isLineUser: isLineUser, // ใช้ค่าที่มาจาก auth context
+            isGoogleUser: isGoogleUser, // เพิ่ม isGoogleUser
             avatar: user.avatar // เพิ่ม avatar
           };
           
@@ -678,7 +684,15 @@ export default function ProfileClient() {
                 <ListItem sx={{ px: 0, py: 0.5 }}>
                   <Button
                     fullWidth
-                    onClick={() => profile?.isLineUser ? logout('', 'line_logout') : logout()}
+                    onClick={() => {
+                      if (profile?.isLineUser) {
+                        logout('', 'line_logout');
+                      } else if (profile?.isGoogleUser) {
+                        logout('', 'google_logout');
+                      } else {
+                        logout();
+                      }
+                    }}
                     startIcon={<LogoutIcon sx={{ color: 'error.main' }} />}
                     color="inherit"
                     sx={{ 
@@ -761,14 +775,14 @@ export default function ProfileClient() {
                         iconPosition="start" 
                         {...a11yProps(0)} 
                       />
-                      {!profile?.isLineUser && (
+                      {!profile?.isLineUser && !profile?.isGoogleUser ? (
                         <Tab 
                           label="รหัสผ่าน" 
                           icon={<SecurityIcon sx={{ fontSize: 18 }} />} 
                           iconPosition="start" 
                           {...a11yProps(1)} 
                         />
-                      )}
+                      ) : null}
                     </Tabs>
                   </Box>
                   
@@ -820,7 +834,7 @@ export default function ProfileClient() {
                         
                         <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
                           {!isEditing ? (
-                            !profile?.isLineUser && (
+                            !profile?.isLineUser && !profile?.isGoogleUser && (
                               <Button 
                                 variant="contained" 
                                 color="primary" 
@@ -871,7 +885,7 @@ export default function ProfileClient() {
                       </form>
                     </TabPanel>
                     
-                    {!profile?.isLineUser && (
+                    {!profile?.isLineUser && !profile?.isGoogleUser && (
                       <TabPanel value={tabValue} index={1}>
                         <form onSubmit={handleChangePassword}>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>

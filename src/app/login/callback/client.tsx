@@ -14,6 +14,7 @@ export default function CallbackClient() {
   const [loading, setLoading] = useState(true);
   const [loadingMessage, setLoadingMessage] = useState('กำลังเข้าสู่ระบบ...');
   const [isLineUser, setIsLineUser] = useState(false);
+  const [isGoogleUser, setIsGoogleUser] = useState(false);
   const [hasProcessed, setHasProcessed] = useState(false);
   
   useEffect(() => {
@@ -36,12 +37,14 @@ export default function CallbackClient() {
         const csrfToken = searchParams.get('csrfToken');
         const avatarRaw = searchParams.get('avatar');
         const lineUser = searchParams.get('isLineUser') === 'true';
+        const googleUser = searchParams.get('isGoogleUser') === 'true';
         
         setIsLineUser(lineUser);
+        setIsGoogleUser(googleUser);
         
         let avatar = '';
         if (avatarRaw && avatarRaw !== 'undefined' && avatarRaw !== 'null' &&
-            !avatarRaw.includes('profile.line-scdn.net') && !avatarRaw.includes('obs.line-scdn.net')) {
+            (!avatarRaw.includes('profile.line-scdn.net') && !avatarRaw.includes('obs.line-scdn.net'))) {
           avatar = avatarRaw;
           console.log("Got valid avatar URL:", avatar);
         } else {
@@ -67,6 +70,7 @@ export default function CallbackClient() {
           isAdmin: isAdmin,
           token: token,
           isLineUser: lineUser,
+          isGoogleUser: googleUser,
           avatar: avatar
         };
         
@@ -79,7 +83,7 @@ export default function CallbackClient() {
         }, 1000);
         
       } catch (err: any) {
-        console.error('LINE login callback error:', err);
+        console.error('Login callback error:', err);
         setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ โปรดลองอีกครั้ง');
         setLoading(false);
       }
@@ -138,7 +142,7 @@ export default function CallbackClient() {
           thickness={4}
           sx={{ 
             mb: 3,
-            color: isLineUser ? '#06C755' : '#1976d2'
+            color: isLineUser ? '#06C755' : isGoogleUser ? '#4285F4' : '#1976d2'
           }}
         />
         <Typography variant="h5" sx={{ mb: 1, fontWeight: 500 }}>
@@ -160,8 +164,8 @@ export default function CallbackClient() {
       }}>
         <Box sx={{ mb: 3, textAlign: 'center' }}>
           <img 
-            src="/images/line-badge.png" 
-            alt="LINE Login" 
+            src={isGoogleUser ? "/google-icon.svg" : "/images/line-badge.png"} 
+            alt={isGoogleUser ? "Google Login" : "LINE Login"} 
             style={{ 
               width: '60px',
               height: '60px',

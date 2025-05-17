@@ -105,26 +105,26 @@ model thaitambons {
 }
 
 model Order {
-  id            Int           @id @default(autoincrement())
-  orderNumber   String        @unique @db.VarChar(50)
-  userId        Int?          @db.UnsignedInt
-  status        OrderStatus   @default(PENDING)
-  totalAmount   Decimal       @db.Decimal(10, 2)
-  shippingCost  Decimal       @db.Decimal(10, 2)
-  discount      Decimal       @default(0.00) @db.Decimal(10, 2)
-  discountCode  String?       @db.VarChar(50)
-  finalAmount   Decimal       @db.Decimal(10, 2)
-  paymentMethod PaymentMethod @default(BANK_TRANSFER)
-  paymentStatus PaymentStatus @default(PENDING)
-  createdAt     DateTime      @default(now()) @db.DateTime(0)
-  updatedAt     DateTime      @updatedAt @db.DateTime(0)
-  adminComment  String?       @db.Text
-  stripeSessionId String?     @db.VarChar(255)
-  stripePaymentMethodType String? @db.VarChar(20)
-  customerInfo  CustomerInfo?
-  orderItems    OrderItem[]
-  paymentInfo   PaymentInfo?
-  shippingInfo  ShippingInfo?
+  id                      Int           @id @default(autoincrement())
+  orderNumber             String        @unique @db.VarChar(50)
+  userId                  Int?          @db.UnsignedInt
+  status                  OrderStatus   @default(PENDING)
+  totalAmount             Decimal       @db.Decimal(10, 2)
+  shippingCost            Decimal       @db.Decimal(10, 2)
+  discount                Decimal       @default(0.00) @db.Decimal(10, 2)
+  discountCode            String?       @db.VarChar(50)
+  finalAmount             Decimal       @db.Decimal(10, 2)
+  paymentMethod           PaymentMethod @default(BANK_TRANSFER)
+  paymentStatus           PaymentStatus @default(PENDING)
+  createdAt               DateTime      @default(now()) @db.DateTime(0)
+  updatedAt               DateTime      @updatedAt @db.DateTime(0)
+  adminComment            String?       @db.Text
+  stripeSessionId         String?       @db.VarChar(255)
+  stripePaymentMethodType String?       @db.VarChar(20)
+  customerInfo            CustomerInfo?
+  orderItems              OrderItem[]
+  paymentInfo             PaymentInfo?
+  shippingInfo            ShippingInfo?
 
   @@index([userId], map: "orders_userId_fkey")
   @@map("orders")
@@ -174,7 +174,7 @@ model ShippingInfo {
   addressLine2     String?       @db.VarChar(255)
   provinceId       Int
   provinceName     String        @db.VarChar(100)
-  amphureId         Int
+  amphureId        Int
   amphureName      String        @db.VarChar(100)
   tambonId         Int
   tambonName       String        @db.VarChar(100)
@@ -247,6 +247,7 @@ model users {
   updatedAt       DateTime       @updatedAt @db.Timestamp(0)
   lineId          String?        @db.VarChar(100)
   avatar          String?        @db.VarChar(255)
+  googleId        String?        @db.VarChar(100)
   passwordReset   PasswordReset?
 
   @@map("users")
@@ -305,27 +306,42 @@ model PasswordReset {
 }
 
 model PendingPayment {
-  id               Int       @id @default(autoincrement())
-  charge_id        String    @unique
-  amount           Decimal   @db.Decimal(10, 2)
-  payment_method   String
-  status           String
-  metadata         Json?
-  order_id         Int?      // เชื่อมโยงกับ order เมื่อได้รับการประมวลผล
-  processed        Boolean   @default(false)
-  processed_at     DateTime?
-  customer_email   String?   @db.VarChar(255)
-  customer_name    String?   @db.VarChar(255)
-  customer_phone   String?   @db.VarChar(50)
-  // เพิ่มฟิลด์สำหรับข้อมูลการจัดส่ง
-  deliveryDate     String?   @db.VarChar(50)
-  deliveryTime     String?   @db.VarChar(50)
-  cardMessage      String?   @db.Text
-  additionalNote   String?   @db.Text
-  created_at       DateTime  @default(now())
-  updated_at       DateTime  @updatedAt
+  id             Int       @id @default(autoincrement())
+  charge_id      String    @unique
+  amount         Decimal   @db.Decimal(10, 2)
+  payment_method String
+  status         String
+  metadata       Json?
+  order_id       Int?
+  processed      Boolean   @default(false)
+  processed_at   DateTime?
+  customer_email String?   @db.VarChar(255)
+  customer_name  String?   @db.VarChar(255)
+  customer_phone String?   @db.VarChar(50)
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+  additionalNote String?   @db.Text
+  cardMessage    String?   @db.Text
+  deliveryDate   String?   @db.VarChar(50)
+  deliveryTime   String?   @db.VarChar(50)
 
   @@map("pending_payments")
+}
+
+model NotificationLog {
+  id            Int      @id @default(autoincrement())
+  orderId       Int
+  type          String   @db.VarChar(50)
+  eventType     String   @db.VarChar(100)
+  sent          Boolean  @default(true)
+  transactionId String?  @db.VarChar(255)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([orderId, type, eventType])
+  @@index([orderId])
+  @@index([transactionId])
+  @@map("notification_logs")
 }
 
 enum OrderStatus {
@@ -353,20 +369,4 @@ enum PaymentStatus {
 enum users_isAdmin {
   true
   false
-}
-
-model NotificationLog {
-  id           Int       @id @default(autoincrement())
-  orderId      Int
-  type         String    @db.VarChar(50) // DISCORD, EMAIL, LINE, etc.
-  eventType    String    @db.VarChar(100) // checkout.completed, payment_intent.succeeded
-  sent         Boolean   @default(true)
-  transactionId String?  @db.VarChar(255) // session_id or payment_intent_id
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  @@index([orderId])
-  @@index([transactionId])
-  @@unique([orderId, type, eventType])
-  @@map("notification_logs")
 }

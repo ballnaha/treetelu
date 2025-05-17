@@ -16,7 +16,8 @@ import {
   Link as MuiLink,
   FormControlLabel,
   Checkbox,
-  CircularProgress
+  CircularProgress,
+  Tooltip
 } from '@mui/material';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -28,6 +29,9 @@ import { validateEmail } from '@/utils/validationUtils';
 import { useAuth } from '@/context/AuthContext';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import GoogleLoginButton from '@/app/components/GoogleLoginButton';
+import LineLoginButton from '@/app/components/LineLoginButton';
+import Image from 'next/image';
 
 // Styled components
 const FormContainer = styled(Paper)(({ theme }) => ({
@@ -73,24 +77,6 @@ const StyledButton = styled(Button)(({ theme }) => ({
     transform: 'translateY(-2px)',
     boxShadow: '0 6px 12px rgba(0, 0, 0, 0.15)',
     backgroundColor: theme.palette.primary.dark,
-  },
-}));
-
-// LINE Login Button
-const LineLoginButton = styled(Button)(({ theme }) => ({
-  textTransform: 'none',
-  fontWeight: 600,
-  fontSize: '1rem',
-  padding: '12px 24px',
-  borderRadius: '30px',
-  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-  transition: 'all 0.3s ease',
-  backgroundColor: '#06C755',
-  color: '#ffffff',
-  '&:hover': {
-    transform: 'translateY(-2px)',
-    boxShadow: '0 6px 12px rgba(0, 0, 0, 0.15)',
-    backgroundColor: '#05a949',
   },
 }));
 
@@ -185,6 +171,40 @@ const GeneralErrorAlert = ({ message }: { message: string }) => (
     </Typography>
   </Alert>
 );
+
+// กำหนด style ใหม่สำหรับปุ่ม social login แบบวงกลม
+const SocialIconButton = styled(Button)(({ theme }) => ({
+  minWidth: '65px',
+  width: '65px',
+  height: '65px',
+  borderRadius: '50%',
+  padding: 0,
+  boxShadow: '0 6px 16px rgba(0, 0, 0, 0.1)',
+  transition: 'all 0.3s ease',
+  marginLeft: theme.spacing(2),
+  marginRight: theme.spacing(2),
+  '&:hover': {
+    transform: 'translateY(-4px)',
+    boxShadow: '0 8px 20px rgba(0, 0, 0, 0.15)',
+  },
+}));
+
+// กำหนด style สำหรับกล่องแสดงชื่อไอคอน
+const SocialIconLabel = styled(Typography)(({ theme }) => ({
+  fontSize: '0.75rem',
+  color: theme.palette.text.secondary,
+  fontWeight: 500,
+  marginTop: theme.spacing(1),
+}));
+
+// กำหนด style สำหรับกล่องรวมไอคอนและชื่อ
+const SocialIconBox = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  marginLeft: theme.spacing(2),
+  marginRight: theme.spacing(2),
+}));
 
 export default function LoginClient() {
   const router = useRouter();
@@ -443,38 +463,6 @@ export default function LoginClient() {
       setIsSubmitting(false);
     }
   };
-
-  // เปิด LINE Login
-  const handleLineLogin = () => {
-    try {
-      // ตรวจสอบว่ามีการตั้งค่า LINE_CLIENT_ID หรือไม่
-      const lineClientId = process.env.NEXT_PUBLIC_LINE_CLIENT_ID;
-      
-      if (!lineClientId) {
-        // แสดงข้อความผิดพลาดหากไม่มีการตั้งค่า CLIENT_ID
-        setError({
-          message: 'ระบบเข้าสู่ระบบด้วย LINE ยังไม่ได้รับการตั้งค่า โปรดติดต่อผู้ดูแลระบบ',
-          type: 'auth_error'
-        });
-        return;
-      }
-      
-    if (lineLoginUrl) {
-      window.location.href = lineLoginUrl;
-      } else {
-        setError({
-          message: 'ไม่สามารถเชื่อมต่อกับ LINE ได้ในขณะนี้ โปรดลองอีกครั้งในภายหลัง',
-          type: 'auth_error'
-        });
-      }
-    } catch (error) {
-      console.error('LINE login error:', error);
-      setError({
-        message: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย LINE',
-        type: 'auth_error'
-      });
-    }
-  };
   
   // Prevent layout shift during hydration
   if (!isMounted) {
@@ -513,23 +501,49 @@ export default function LoginClient() {
           </>
         )}
         
-        {/* แบบที่ 1: วางปุ่ม LINE Login ไว้ด้านบนของฟอร์ม */}
-        <Box sx={{ mb: 3 }}>
-          <LineLoginButton
-            type="button"
-            variant="contained"
-            fullWidth
-            size="large"
-            onClick={handleLineLogin}
+        {/* แสดงปุ่ม social login แบบไอคอนวงกลม */}
+        <Box sx={{ 
+          mb: 4, 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center',
+          flexDirection: 'column'
+        }}>
+          <Typography 
+            variant="body2" 
+            color="text.secondary" 
             sx={{ 
-              backgroundColor: '#06C755',
-              '&:hover': {
-                backgroundColor: '#05a949',
-              }
+              mb: 3, 
+              textAlign: 'center',
+              fontSize: '0.95rem'
             }}
           >
-            เข้าสู่ระบบด้วย LINE
-          </LineLoginButton>
+            เข้าสู่ระบบด้วยบัญชีโซเชียล
+          </Typography>
+          
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center',
+            gap: 4
+          }}>
+            <SocialIconBox>
+              <LineLoginButton 
+                iconOnly 
+                size="large" 
+                tooltip="เข้าสู่ระบบด้วยบัญชี LINE ของคุณ"
+              />
+              <SocialIconLabel>LINE</SocialIconLabel>
+            </SocialIconBox>
+            
+            <SocialIconBox>
+              <GoogleLoginButton 
+                iconOnly 
+                size="large" 
+                tooltip="เข้าสู่ระบบด้วยบัญชี Google ของคุณ"
+              />
+              <SocialIconLabel>Google</SocialIconLabel>
+            </SocialIconBox>
+          </Box>
         </Box>
         
         <Divider sx={{ my: 3 }}>

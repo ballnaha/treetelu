@@ -12,6 +12,7 @@ interface User {
   isLoggedIn: boolean;
   isAdmin?: boolean;
   isLineUser?: boolean;
+  isGoogleUser?: boolean;
   token?: string;
   avatar?: string;
 }
@@ -99,6 +100,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           existingUser.isLoggedIn === userData.isLoggedIn &&
           existingUser.isAdmin === userData.isAdmin &&
           existingUser.isLineUser === userData.isLineUser &&
+          existingUser.isGoogleUser === userData.isGoogleUser &&
           existingUser.token === userData.token
         ) {
           console.log('User data unchanged, skipping update');
@@ -122,9 +124,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // ฟังก์ชันสำหรับการออกจากระบบ
   const logout = async (redirectMessage?: string, errorType?: string) => {
     try {
-      // ตรวจสอบว่าเป็นผู้ใช้ LINE หรือไม่
+      // ตรวจสอบว่าเป็นผู้ใช้ LINE หรือ Google หรือไม่
       const userData = localStorage.getItem('user');
       const isLineUser = userData ? JSON.parse(userData)?.isLineUser : false;
+      const isGoogleUser = userData ? JSON.parse(userData)?.isGoogleUser : false;
       
       // ลบข้อมูลทั้งหมดออกจาก localStorage
       localStorage.removeItem('user');
@@ -134,6 +137,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // ลบ cookie ด้วย
       document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       document.cookie = 'csrf_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      document.cookie = 'google_auth_state=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       
       setUser(null);
       
@@ -151,9 +155,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // ไม่ต้อง return ออกจากฟังก์ชันหลัก ให้ทำการ redirect ต่อไปได้
       }
       
-      // สำหรับผู้ใช้ LINE ให้ redirect ไปยังหน้า login เสมอ
+      // สำหรับผู้ใช้ LINE หรือ Google ให้ redirect ไปยังหน้า login เสมอ
       // สำหรับผู้ใช้ทั่วไป ใช้ errorType ในการกำหนดหน้าปลายทาง
-      const redirectUrl = isLineUser || errorType === 'line_logout'
+      const redirectUrl = isLineUser || isGoogleUser || errorType === 'line_logout' || errorType === 'google_logout'
         ? '/login'
         : errorType 
           ? `/login?error_type=${errorType}` 
