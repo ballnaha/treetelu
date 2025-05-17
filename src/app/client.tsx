@@ -1118,7 +1118,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                       fontWeight: 500
                     }}
                   >
-                    {products.filter(p => p.category === "tree" && p.productStatus === 'on').length} รายการ
+                    
                   </Typography>
                 </Box>
 
@@ -1236,7 +1236,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                       fontWeight: 500
                     }}
                   >
-                    {products.filter(p => p.category === "succulent" && p.productStatus === 'on').length} รายการ
+                    
                   </Typography>
                 </Box>
 
@@ -1353,7 +1353,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                       fontWeight: 500
                     }}
                   >
-                    {products.filter(p => p.category === "bouquet" && p.productStatus === 'on').length} รายการ
+                    
                   </Typography>
                 </Box>
 
@@ -1470,7 +1470,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                       fontWeight: 500
                     }}
                   >
-                    {products.filter(p => p.category === "souvenir" && p.productStatus === 'on').length} รายการ
+                    
                   </Typography>
                 </Box>
 
@@ -1587,7 +1587,7 @@ const Section = ({ title, description, children, id, sx }: SectionProps) => {
                       fontWeight: 500
                     }}
                   >
-                    {products.filter(p => p.category === "wreath" && p.productStatus === 'on').length} รายการ
+                   
                   </Typography>
                 </Box>
 
