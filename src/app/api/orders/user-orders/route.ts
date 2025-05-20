@@ -165,8 +165,25 @@ export async function GET(req: NextRequest) {
         ...order,
         createdAt: order.createdAt.toISOString(),
         updatedAt: order.updatedAt.toISOString(),
+        shippingInfo: {
+          ...order.shippingInfo,
+          deliveryDate: order.shippingInfo?.deliveryDate instanceof Date ? 
+            order.shippingInfo.deliveryDate.toISOString() : 
+            order.shippingInfo?.deliveryDate
+        },
         paymentConfirmations: paymentConfirmationsByOrderNumber[order.orderNumber] || []
       };
+      
+      // เพิ่ม log เพื่อตรวจสอบค่า deliveryDate
+      console.log('User Order - DeliveryDate:', 
+        order.orderNumber,
+        order.shippingInfo?.deliveryDate, 
+        typeof order.shippingInfo?.deliveryDate,
+        '--> Converted to:',
+        formattedOrder.shippingInfo?.deliveryDate,
+        typeof formattedOrder.shippingInfo?.deliveryDate
+      );
+      
       return formattedOrder;
     });
     

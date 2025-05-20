@@ -110,8 +110,22 @@ export async function GET(
       ...order,
       createdAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt.toISOString(),
+      shippingInfo: {
+        ...order.shippingInfo,
+        deliveryDate: order.shippingInfo?.deliveryDate instanceof Date ? 
+          order.shippingInfo.deliveryDate.toISOString() : 
+          order.shippingInfo?.deliveryDate
+      },
       paymentConfirmations: paymentConfirmations || []
     };
+    
+    console.log('Order Detail - DeliveryDate:', 
+      order.shippingInfo?.deliveryDate, 
+      typeof order.shippingInfo?.deliveryDate,
+      '--> Converted to:',
+      formattedOrder.shippingInfo?.deliveryDate,
+      typeof formattedOrder.shippingInfo?.deliveryDate
+    );
     
     // แปลง BigInt เป็นสตริง
     const safeOrder = convertBigIntToString(formattedOrder);

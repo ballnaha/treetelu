@@ -128,9 +128,9 @@ export async function createOrder(orderData: OrderDataInput) {
     // สร้างเลขที่คำสั่งซื้อ
     const orderNumber = await generateOrderNumber();
     
-    // ตรวจสอบว่าเป็นการจัดส่งให้ผู้อื่นหรือไม่
-    const isGiftShipping = shippingInfo.provinceId === 0;
-    
+    // ตรวจสอบว่าเป็นการจัดส่งให้ผู้อื่นหรือไม่ (รองรับทั้ง provinceId = 0, -1 และ provinceName = จัดส่งตรงถึงผู้รับ)
+    const isGiftShipping = shippingInfo.provinceId === 0 || shippingInfo.provinceId === -1 || shippingInfo.provinceName === 'จัดส่งตรงถึงผู้รับ';
+
     try {
       console.log('Creating order with data:', JSON.stringify({
         orderNumber,
@@ -192,13 +192,13 @@ export async function createOrder(orderData: OrderDataInput) {
           tambonName = tambon.nameTh;
         }
       } else {
-        // เป็นการจัดส่งให้ผู้อื่น ให้ใช้ ID = 1 ที่มีอยู่ในฐานข้อมูลแน่นอน
-        provinceId = 1;  // ID จังหวัดเริ่มต้น (กรุงเทพฯ)
-        amphureId = 1001;   // ID อำเภอเริ่มต้น
-        tambonId = 100101;    // ID ตำบลเริ่มต้น
-        provinceName = 'จัดส่งให้ผู้รับโดยตรง';
-        amphureName = 'จัดส่งให้ผู้รับโดยตรง';
-        tambonName = 'จัดส่งให้ผู้รับโดยตรง';
+        // เป็นการจัดส่งให้ผู้อื่น ให้ใช้ค่าพิเศษ = -1
+        provinceId = 1;  // ใช้ค่าพิเศษสำหรับจัดส่งให้ผู้อื่น
+        amphureId = 1001;   // ใช้ค่าพิเศษสำหรับจัดส่งให้ผู้อื่น
+        tambonId = 100101;    // ใช้ค่าพิเศษสำหรับจัดส่งให้ผู้อื่น
+        provinceName = 'จัดส่งตรงถึงผู้รับ';
+        amphureName = 'จัดส่งตรงถึงผู้รับ';
+        tambonName = 'จัดส่งตรงถึงผู้รับ';
       }
       
       // ตรวจสอบสินค้า

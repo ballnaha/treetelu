@@ -109,8 +109,23 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
         adminComment: order?.adminComment,
         createdAt: order.createdAt.toISOString(),
         updatedAt: order.updatedAt.toISOString(),
+        shippingInfo: {
+          ...order.shippingInfo,
+          deliveryDate: order.shippingInfo?.deliveryDate instanceof Date ? 
+            order.shippingInfo.deliveryDate.toISOString() : 
+            order.shippingInfo?.deliveryDate
+        },
         paymentConfirmations: paymentConfirmations || []
       };
+      
+      // ลง log เพื่อตรวจสอบว่า deliveryDate ถูกแปลงถูกต้อง
+      console.log('Formatted Order - DeliveryDate:', 
+        order.shippingInfo?.deliveryDate, 
+        typeof order.shippingInfo?.deliveryDate,
+        '--> Converted to:',
+        formattedOrder.shippingInfo?.deliveryDate,
+        typeof formattedOrder.shippingInfo?.deliveryDate
+      );
       
       // Convert BigInt values to strings
       const safeOrder = convertBigIntToString(formattedOrder);
@@ -334,6 +349,12 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
         ...order,
         createdAt: order.createdAt.toISOString(),
         updatedAt: order.updatedAt.toISOString(),
+        shippingInfo: {
+          ...order.shippingInfo,
+          deliveryDate: order.shippingInfo?.deliveryDate instanceof Date ? 
+            order.shippingInfo.deliveryDate.toISOString() : 
+            order.shippingInfo?.deliveryDate
+        },
         // เพิ่ม payment confirmations ที่เกี่ยวข้องกับออเดอร์นี้
         paymentConfirmations: paymentConfirmationsByOrderNumber[order.orderNumber] || []
       };

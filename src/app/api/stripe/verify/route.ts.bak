@@ -1,136 +1,112 @@
-import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-import { generateOrderNumber } from "@/utils/orderUtils";
+import { NextRequest, NextResponse } from 'next/server';
+import Stripe from 'stripe';
+import prisma from '@/lib/prisma';
+import { PaymentMethod, PaymentStatus, OrderStatus } from '@prisma/client';
+import { getBangkokDateTime, convertToBangkokTime } from '@/utils/dateUtils';
+import { sendDiscordNotification, createOrderNotificationEmbed } from '@/utils/discordUtils';
+import { generateOrderNumber } from '@/utils/orderUtils';
+
+// สร้าง Stripe instance
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+  apiVersion: '2025-04-30.basil',
+});
 
 async function createOrderFromPendingPayment(pendingPayment: any) {
   try {
     // ตรวจสอบว่ามี metadata ที่จำเป็นหรือไม่
     if (!pendingPayment.metadata) {
-      throw new Error("ไม่พบข้อมูล metadata ใน pending payment");
+      throw new Error('ไม่พบข้อมูล metadata ใน pending payment');
     }
-
+    
     const metadata = pendingPayment.metadata;
-
+    
     // ข้อมูลลูกค้าและการจัดส่งอาจอยู่ที่ root level หรือใน metadata
-    const customerName =
-      pendingPayment.customer_name || metadata.customer_details?.name || "";
-    const customerEmail =
-      pendingPayment.customer_email || metadata.customer_details?.email || "";
-    const customerPhone =
-      pendingPayment.customer_phone || metadata.customer_details?.phone || "";
-
+    const customerName = pendingPayment.customer_name || metadata.customer_details?.name || '';
+    const customerEmail = pendingPayment.customer_email || metadata.customer_details?.email || '';
+    const customerPhone = pendingPayment.customer_phone || metadata.customer_details?.phone || '';
+    
     // แยกชื่อและนามสกุล
-    const nameParts = customerName.split(" ");
-    const firstName = nameParts[0] || "";
-    const lastName = nameParts.slice(1).join(" ") || "";
-
+    const nameParts = customerName.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    
     // สร้างเลขที่คำสั่งซื้อใหม่
     const orderNumber = await generateOrderNumber();
-
+    
     // ดึงข้อมูลจาก metadata
     const lineItems = metadata.line_items?.data || [];
-
+    
     // ข้อมูลการจัดส่ง
     const shipping = metadata.shipping || {};
     const shippingAddress = shipping.address || {};
-
-    // ตรวจสอบว่าเป็นการจัดส่งให้ผู้อื่นหรือไม่
-    const isShippingToOther =
-      metadata.shippingInfo?.provinceName === "จัดส่งให้ผู้รับโดยตรง" ||
-      metadata.shippingInfo?.amphureName === "จัดส่งให้ผู้รับโดยตรง" ||
-      shippingAddress.city === "จัดส่งให้ผู้รับโดยตรง" ||
-      shippingAddress.state === "จัดส่งให้ผู้รับโดยตรง" ||
-      metadata.shipping_to_other === "true" ||
-      metadata.shipping_tab === "1" ||
-      (deliveryDate && deliveryTime && cardMessage) || // ถ้ามีข้อมูลวันที่ส่ง เวลาส่ง และข้อความในการ์ด น่าจะเป็นการส่งให้ผู้อื่น
-      (receiverName !== firstName && receiverLastname !== lastName); // ชื่อผู้รับไม่ตรงกับชื่อผู้สั่ง
-
+    
     // ตรวจสอบรายละเอียดผู้รับจาก metadata
     const receiverName = metadata.shippingInfo?.receiverName || firstName;
-    const receiverLastname =
-      metadata.shippingInfo?.receiverLastname || lastName;
+    const receiverLastname = metadata.shippingInfo?.receiverLastname || lastName;
     const receiverPhone = metadata.shippingInfo?.receiverPhone || customerPhone;
-    const receiverAddress =
-      metadata.shippingInfo?.addressLine || shippingAddress.line1 || "";
-
+    const receiverAddress = metadata.shippingInfo?.addressLine || shippingAddress.line1 || '';
+    
     // ตรวจสอบข้อมูลวันที่จัดส่ง เวลาที่จัดส่ง และข้อความในการ์ด
-    const deliveryDateStr =
-      metadata.shippingInfo?.deliveryDate ||
-      metadata.deliveryDate ||
-      metadata.delivery_date ||
-      "";
-    const deliveryTime =
-      metadata.shippingInfo?.deliveryTime ||
-      metadata.deliveryTime ||
-      metadata.delivery_time ||
-      "";
-    const cardMessage =
-      metadata.shippingInfo?.cardMessage ||
-      metadata.cardMessage ||
-      metadata.card_message ||
-      "";
-    const additionalNote =
-      metadata.shippingInfo?.additionalNote ||
-      metadata.additionalNote ||
-      metadata.note ||
-      "";
-
+    const deliveryDateStr = metadata.shippingInfo?.deliveryDate || 
+                        metadata.deliveryDate || 
+                        metadata.delivery_date ||
+                        '';
+    const deliveryTime = metadata.shippingInfo?.deliveryTime || 
+                        metadata.deliveryTime || 
+                        metadata.delivery_time ||
+                        '';
+    const cardMessage = metadata.shippingInfo?.cardMessage || 
+                       metadata.cardMessage || 
+                       metadata.card_message ||
+                       '';
+    const additionalNote = metadata.shippingInfo?.additionalNote || 
+                          metadata.additionalNote || 
+                          metadata.note ||
+                          '';
+    
     // แปลง deliveryDateStr เป็น Date object
     let deliveryDate = null;
-    if (deliveryDateStr && deliveryDateStr.trim() !== "") {
+    if (deliveryDateStr && deliveryDateStr.trim() !== '') {
       try {
         // ตรวจสอบรูปแบบวันที่ที่อาจเป็นไปได้
-        if (deliveryDateStr.includes("-")) {
+        if (deliveryDateStr.includes('-')) {
           // อาจเป็นรูปแบบ yyyy-MM-dd หรือ dd-MM-yyyy
-          const parts = deliveryDateStr.split("-");
+          const parts = deliveryDateStr.split('-');
           if (parts.length === 3) {
             // ตรวจสอบว่าเป็นรูปแบบ yyyy-MM-dd หรือไม่ โดยดูความยาวของส่วนแรก
             if (parts[0].length === 4) {
               // น่าจะเป็นรูปแบบ yyyy-MM-dd
-              deliveryDate = new Date(
-                `${parts[0]}-${parts[1]}-${parts[2]}T00:00:00Z`,
-              );
+              deliveryDate = new Date(`${parts[0]}-${parts[1]}-${parts[2]}T00:00:00Z`);
             } else {
               // น่าจะเป็นรูปแบบ dd-MM-yyyy
-              deliveryDate = new Date(
-                `${parts[2]}-${parts[1]}-${parts[0]}T00:00:00Z`,
-              );
+              deliveryDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00Z`);
             }
           }
-        } else if (deliveryDateStr.includes("/")) {
+        } else if (deliveryDateStr.includes('/')) {
           // อาจเป็นรูปแบบ dd/MM/yyyy หรือ MM/dd/yyyy
-          const parts = deliveryDateStr.split("/");
+          const parts = deliveryDateStr.split('/');
           if (parts.length === 3) {
             // ส่วนใหญ่น่าจะเป็นรูปแบบ dd/MM/yyyy
-            deliveryDate = new Date(
-              `${parts[2]}-${parts[1]}-${parts[0]}T00:00:00Z`,
-            );
+            deliveryDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00Z`);
           }
         } else {
           // ลองแปลงแบบปกติ
           deliveryDate = new Date(`${deliveryDateStr}T00:00:00Z`);
         }
-
+        
         // ตรวจสอบว่าเป็นวันที่ที่ถูกต้องหรือไม่
         if (!deliveryDate || isNaN(deliveryDate.getTime())) {
-          console.log(
-            `ไม่สามารถแปลงวันที่จัดส่ง '${deliveryDateStr}' เป็น Date ได้ จะใช้วันที่ปัจจุบันแทน`,
-          );
+          console.log(`ไม่สามารถแปลงวันที่จัดส่ง '${deliveryDateStr}' เป็น Date ได้ จะใช้วันที่ปัจจุบันแทน`);
           deliveryDate = new Date(); // ใช้วันที่ปัจจุบันแทน
         }
       } catch (error) {
-        console.log(
-          `เกิดข้อผิดพลาดในการแปลงวันที่จัดส่ง '${deliveryDateStr}': ${error}`,
-        );
+        console.log(`เกิดข้อผิดพลาดในการแปลงวันที่จัดส่ง '${deliveryDateStr}': ${error}`);
         deliveryDate = new Date(); // ใช้วันที่ปัจจุบันแทน
       }
     }
-
-    console.log(
-      `วันที่จัดส่งที่ได้รับ: '${deliveryDateStr}' แปลงเป็น:`,
-      deliveryDate,
-    );
-
+    
+    console.log(`วันที่จัดส่งที่ได้รับ: '${deliveryDateStr}' แปลงเป็น:`, deliveryDate);
+    
     // ตรวจสอบว่ามีข้อมูลเป็น shipping_options หรือไม่
     let shippingCost = 0;
     if (metadata.shipping_options && metadata.shipping_options.length > 0) {
@@ -140,159 +116,143 @@ async function createOrderFromPendingPayment(pendingPayment: any) {
         shippingCost = parseFloat(shippingOption.shipping_amount) / 100;
       }
     }
-
+    
     // จำนวนเงินทั้งหมด (ถ้าไม่มีใน metadata ให้ใช้จาก pendingPayment)
-    const totalAmount = parseFloat(
-      metadata.amount_total
-        ? metadata.amount_total / 100
-        : pendingPayment.amount,
-    );
-
+    const totalAmount = parseFloat(metadata.amount_total ? (metadata.amount_total / 100) : pendingPayment.amount);
+    
     // ส่วนลด (ถ้ามี)
     const discount = parseFloat(metadata.total_discount || 0) / 100;
-
+    
     // ราคาสุทธิ
     const finalAmount = totalAmount - discount;
-
+    
     // ค่าเริ่มต้นสำหรับ provinceId, amphureId และ tambonId (กรุงเทพฯ เขตพระนคร แขวงพระบรมมหาราชวัง)
     const defaultProvinceId = 1; // กรุงเทพมหานคร
-    const defaultAmphureId = 1001; // เขตพระนคร
-    const defaultTambonId = 100101; // แขวงพระบรมมหาราชวัง
-
+    const defaultAmphureId = 1001;  // เขตพระนคร
+    const defaultTambonId = 100101;   // แขวงพระบรมมหาราชวัง
+    
+    // ตรวจสอบว่าเป็นการจัดส่งให้ผู้อื่นหรือไม่
+    const isShippingToOther = 
+      metadata.shippingInfo?.provinceName === 'จัดส่งให้ผู้รับโดยตรง' || 
+      metadata.shippingInfo?.amphureName === 'จัดส่งให้ผู้รับโดยตรง' ||
+      (shippingAddress.city === 'จัดส่งให้ผู้รับโดยตรง' || shippingAddress.state === 'จัดส่งให้ผู้รับโดยตรง') ||
+      metadata.shipping_to_other === "true" ||
+      metadata.shipping_tab === "1" ||
+      (deliveryDate && deliveryTime && cardMessage) || // ถ้ามีข้อมูลวันที่ส่ง เวลาส่ง และข้อความในการ์ด น่าจะเป็นการส่งให้ผู้อื่น
+      (receiverName !== firstName && receiverLastname !== lastName); // ชื่อผู้รับไม่ตรงกับชื่อผู้สั่ง
+    
     // ข้อมูลการจัดส่ง
     // - กรณีจัดส่งให้ผู้อื่น: ใช้ข้อมูลเดียวกันกับการจัดส่งให้ตัวเอง แต่ปรับชื่อผู้รับและข้อมูลการติดต่อ
     // - กรณีจัดส่งให้ตัวเอง: ใช้ข้อมูลการจัดส่งตามที่กรอกในฟอร์ม
-    const shippingInfoData = isShippingToOther
-      ? {
-          // กรณีจัดส่งให้ผู้อื่น ใช้ข้อมูลเหมือนกับการจัดส่งให้ตัวเอง แต่เปลี่ยนชื่อผู้รับและข้อมูลติดต่อ
-          receiverName,
-          receiverLastname,
-          receiverPhone,
-          addressLine: receiverAddress,
-          addressLine2: "",
-          // ใช้ข้อมูลจังหวัด/อำเภอ/ตำบลเช่นเดียวกับการจัดส่งให้ตัวเอง
-          provinceId: metadata.shippingInfo?.provinceId || defaultProvinceId,
-          provinceName:
-            metadata.shippingInfo?.provinceName || "จัดส่งให้ผู้รับโดยตรง",
-          amphureId: metadata.shippingInfo?.amphureId || defaultAmphureId,
-          amphureName:
-            metadata.shippingInfo?.amphureName || "จัดส่งให้ผู้รับโดยตรง",
-          tambonId: metadata.shippingInfo?.tambonId || defaultTambonId,
-          tambonName:
-            metadata.shippingInfo?.tambonName || "จัดส่งให้ผู้รับโดยตรง",
-          zipCode:
-            metadata.shippingInfo?.zipCode ||
-            shippingAddress.postal_code ||
-            "10200",
-          // เพิ่มข้อมูลวันที่จัดส่ง เวลาที่จัดส่ง ข้อความในการ์ด และหมายเหตุ
-          deliveryDate: deliveryDate ? new Date(deliveryDate) : null,
-          deliveryTime: deliveryTime,
-          cardMessage: cardMessage,
-          additionalNote: additionalNote,
-        }
-      : {
-          receiverName: firstName,
-          receiverLastname: lastName,
-          receiverPhone: customerPhone,
-          addressLine: shippingAddress.line1 || "",
-          addressLine2: shippingAddress.line2 || "",
-          provinceId: defaultProvinceId,
-          provinceName: shippingAddress.city || "กรุงเทพมหานคร",
-          amphureId: defaultAmphureId,
-          amphureName: shippingAddress.state || "เขตพระนคร",
-          tambonId: defaultTambonId,
-          tambonName: shippingAddress.state || "แขวงพระบรมมหาราชวัง",
-          zipCode: shippingAddress.postal_code || "10200",
-          // เพิ่มข้อมูลวันที่จัดส่ง เวลาที่จัดส่ง ข้อความในการ์ด และหมายเหตุ
-          deliveryDate: deliveryDate ? new Date(deliveryDate) : null,
-          deliveryTime: deliveryTime,
-          cardMessage: cardMessage,
-          additionalNote: additionalNote,
-        };
-
+    const shippingInfoData = isShippingToOther ? {
+      // กรณีจัดส่งให้ผู้อื่น ใช้ข้อมูลเหมือนกับการจัดส่งให้ตัวเอง แต่เปลี่ยนชื่อผู้รับและข้อมูลติดต่อ
+      receiverName,
+      receiverLastname,
+      receiverPhone,
+      addressLine: receiverAddress,
+      addressLine2: '',
+      // ใช้ข้อมูลจังหวัด/อำเภอ/ตำบลเช่นเดียวกับการจัดส่งให้ตัวเอง
+      provinceId: metadata.shippingInfo?.provinceId || defaultProvinceId,
+      provinceName: metadata.shippingInfo?.provinceName || 'จัดส่งให้ผู้รับโดยตรง',
+      amphureId: metadata.shippingInfo?.amphureId || defaultAmphureId,
+      amphureName: metadata.shippingInfo?.amphureName || 'จัดส่งให้ผู้รับโดยตรง',
+      tambonId: metadata.shippingInfo?.tambonId || defaultTambonId,
+      tambonName: metadata.shippingInfo?.tambonName || 'จัดส่งให้ผู้รับโดยตรง',
+      zipCode: metadata.shippingInfo?.zipCode || shippingAddress.postal_code || '10200',
+      // เพิ่มข้อมูลวันที่จัดส่ง เวลาที่จัดส่ง ข้อความในการ์ด และหมายเหตุ
+      deliveryDate: deliveryDate ? convertToBangkokTime(new Date(deliveryDate)) : null,
+      deliveryTime: deliveryTime,
+      cardMessage: cardMessage,
+      additionalNote: additionalNote,
+      createdAt: getBangkokDateTime(),
+      updatedAt: getBangkokDateTime()
+    } : {
+      receiverName: firstName,
+      receiverLastname: lastName,
+      receiverPhone: customerPhone,
+      addressLine: shippingAddress.line1 || '',
+      addressLine2: shippingAddress.line2 || '',
+      provinceId: defaultProvinceId,
+      provinceName: shippingAddress.city || 'กรุงเทพมหานคร',
+      amphureId: defaultAmphureId,
+      amphureName: shippingAddress.state || 'เขตพระนคร', 
+      tambonId: defaultTambonId,
+      tambonName: shippingAddress.state || 'แขวงพระบรมมหาราชวัง',
+      zipCode: shippingAddress.postal_code || '10200',
+      // เพิ่มข้อมูลวันที่จัดส่ง เวลาที่จัดส่ง ข้อความในการ์ด และหมายเหตุ
+      deliveryDate: deliveryDate ? convertToBangkokTime(new Date(deliveryDate)) : null,
+      deliveryTime: deliveryTime,
+      cardMessage: cardMessage,
+      additionalNote: additionalNote,
+      createdAt: getBangkokDateTime(),
+      updatedAt: getBangkokDateTime()
+    };
+    
     // ตรวจสอบวิธีการชำระเงินที่แท้จริงจาก metadata ของ Stripe
     // payment_method_types (เช่น 'card', 'promptpay')
     // payment_method_details (สำหรับใช้ข้อมูลอ้างอิงเพิ่มเติม ถ้ามี)
-    let paymentMethod = "CREDIT_CARD"; // ค่าเริ่มต้น
-    let stripePaymentMethodType = "card"; // ค่าเริ่มต้น
-
+    let paymentMethod: PaymentMethod = 'CREDIT_CARD' as PaymentMethod; // ระบุ type โดยตรง
+    let stripePaymentMethodType = 'card'; // ค่าเริ่มต้น
+    
     // ตรวจสอบจาก payment_method_details โดยตรง (ข้อมูลที่ชัดเจนที่สุด)
-    if (
-      metadata.payment_method_details &&
-      metadata.payment_method_details.type
-    ) {
-      if (metadata.payment_method_details.type === "promptpay") {
-        paymentMethod = "PROMPTPAY";
-        stripePaymentMethodType = "promptpay";
-      } else if (metadata.payment_method_details.type === "card") {
-        paymentMethod = "CREDIT_CARD";
-        stripePaymentMethodType = "card";
+    if (metadata.payment_method_details && metadata.payment_method_details.type) {
+      if (metadata.payment_method_details.type === 'promptpay') {
+        paymentMethod = 'PROMPTPAY' as PaymentMethod;
+        stripePaymentMethodType = 'promptpay';
+      } else if (metadata.payment_method_details.type === 'card') {
+        paymentMethod = 'CREDIT_CARD' as PaymentMethod;
+        stripePaymentMethodType = 'card';
       }
     }
-
+    
     // ตรวจสอบจาก payment_method_types ใน metadata
     if (metadata.payment_method_types) {
       // อาจเป็น array หรือ string
-      const paymentMethodTypes = Array.isArray(metadata.payment_method_types)
-        ? metadata.payment_method_types
+      const paymentMethodTypes = Array.isArray(metadata.payment_method_types) 
+        ? metadata.payment_method_types 
         : [metadata.payment_method_types];
-
+      
       // ตรวจดูว่าใช้ method อะไรจริงๆ
-      if (
-        paymentMethodTypes.includes("promptpay") &&
-        (metadata.payment_method === "promptpay" ||
-          metadata.payment_type === "promptpay")
-      ) {
-        paymentMethod = "PROMPTPAY";
-        stripePaymentMethodType = "promptpay";
-      } else if (
-        (paymentMethodTypes.includes("card") ||
-          paymentMethodTypes.includes("credit_card")) &&
-        (metadata.payment_method === "card" || metadata.payment_type === "card")
-      ) {
-        paymentMethod = "CREDIT_CARD";
-        stripePaymentMethodType = "card";
+      if (paymentMethodTypes.includes('promptpay') && (metadata.payment_method === 'promptpay' || metadata.payment_type === 'promptpay')) {
+        paymentMethod = 'PROMPTPAY' as PaymentMethod;
+        stripePaymentMethodType = 'promptpay';
+      } else if ((paymentMethodTypes.includes('card') || paymentMethodTypes.includes('credit_card')) && 
+                (metadata.payment_method === 'card' || metadata.payment_type === 'card')) {
+        paymentMethod = 'CREDIT_CARD' as PaymentMethod;
+        stripePaymentMethodType = 'card';
       }
     }
-
+    
     // ตรวจสอบเพิ่มเติมจาก payment_method
     if (metadata.payment_method) {
-      if (metadata.payment_method === "promptpay") {
-        paymentMethod = "PROMPTPAY";
-        stripePaymentMethodType = "promptpay";
-      } else if (
-        metadata.payment_method === "card" ||
-        metadata.payment_method === "credit_card"
-      ) {
-        paymentMethod = "CREDIT_CARD";
-        stripePaymentMethodType = "card";
+      if (metadata.payment_method === 'promptpay') {
+        paymentMethod = 'PROMPTPAY' as PaymentMethod;
+        stripePaymentMethodType = 'promptpay';
+      } else if (metadata.payment_method === 'card' || metadata.payment_method === 'credit_card') {
+        paymentMethod = 'CREDIT_CARD' as PaymentMethod;
+        stripePaymentMethodType = 'card';
       }
     }
-
+    
     // ตรวจสอบจาก payment_type
     if (metadata.payment_type) {
-      if (metadata.payment_type === "promptpay") {
-        paymentMethod = "PROMPTPAY";
-        stripePaymentMethodType = "promptpay";
-      } else if (
-        metadata.payment_type === "card" ||
-        metadata.payment_type === "credit_card"
-      ) {
-        paymentMethod = "CREDIT_CARD";
-        stripePaymentMethodType = "card";
+      if (metadata.payment_type === 'promptpay') {
+        paymentMethod = 'PROMPTPAY' as PaymentMethod;
+        stripePaymentMethodType = 'promptpay';
+      } else if (metadata.payment_type === 'card' || metadata.payment_type === 'credit_card') {
+        paymentMethod = 'CREDIT_CARD' as PaymentMethod;
+        stripePaymentMethodType = 'card';
       }
     }
-
+    
     // ตรวจสอบจาก status ถ้าเป็น promptpay_confirmed
-    if (metadata.status === "promptpay_confirmed") {
-      paymentMethod = "PROMPTPAY";
-      stripePaymentMethodType = "promptpay";
+    if (metadata.status === 'promptpay_confirmed') {
+      paymentMethod = 'PROMPTPAY' as PaymentMethod;
+      stripePaymentMethodType = 'promptpay';
     }
-
-    console.log(
-      `Detected payment method: ${paymentMethod}, type: ${stripePaymentMethodType}`,
-    );
-
+    
+    console.log(`Detected payment method: ${paymentMethod}, type: ${stripePaymentMethodType}`);
+    
     // สร้างข้อมูลสำหรับการสร้าง order
     const orderData = {
       orderNumber,
@@ -300,157 +260,165 @@ async function createOrderFromPendingPayment(pendingPayment: any) {
       shippingCost,
       discount,
       finalAmount,
-      paymentMethod: paymentMethod,
-      paymentStatus: "CONFIRMED",
-      status: "PAID",
+      paymentMethod: paymentMethod as PaymentMethod,
+      paymentStatus: 'CONFIRMED' as PaymentStatus,
+      status: 'PAID' as OrderStatus,
       stripeSessionId: pendingPayment.charge_id,
       stripePaymentMethodType: stripePaymentMethodType,
+      createdAt: getBangkokDateTime(),
+      updatedAt: getBangkokDateTime(),
       customerInfo: {
         create: {
           firstName,
           lastName,
           email: customerEmail,
           phone: customerPhone,
-          note: metadata.customer_note || "",
-        },
+          note: metadata.customer_note || ''
+        }
       },
       shippingInfo: {
-        create: shippingInfoData,
+        create: shippingInfoData
       },
       orderItems: {
-        create: await Promise.all(
-          lineItems
-            .map(async (item: any) => {
-              const unitPrice = (item.price?.unit_amount || 0) / 100; // แปลงจากสตางค์เป็นบาท
-              const quantity = item.quantity || 1;
-
-              // ข้ามรายการที่เป็นค่าจัดส่ง (หรือรายการที่ไม่ใช่สินค้า)
-              if (
-                item.description?.toLowerCase().includes("ค่าจัดส่ง") ||
-                item.description?.toLowerCase().includes("shipping") ||
-                item.price?.product?.metadata?.is_shipping === "true"
-              ) {
-                console.log(`Skipping shipping item: ${item.description}`);
-                return null;
+        create: (await Promise.all(lineItems.map(async (item: any) => {
+          const unitPrice = (item.price?.unit_amount || 0) / 100; // แปลงจากสตางค์เป็นบาท
+          const quantity = item.quantity || 1;
+          
+          // ข้ามรายการที่เป็นค่าจัดส่ง (หรือรายการที่ไม่ใช่สินค้า)
+          if (
+            item.description?.toLowerCase().includes('ค่าจัดส่ง') ||
+            item.description?.toLowerCase().includes('shipping') ||
+            item.price?.product?.metadata?.is_shipping === 'true'
+          ) {
+            console.log(`Skipping shipping item: ${item.description}`);
+            return null;
+          }
+          
+          // ตรวจสอบข้อมูล productId ที่มาจาก metadata
+          let productId = 0;
+          try {
+            if (item.price?.product?.metadata?.productId) {
+              // แปลงเป็นตัวเลข และตรวจสอบว่าเป็นตัวเลขที่ถูกต้องหรือไม่
+              const parsedId = parseInt(item.price.product.metadata.productId);
+              if (!isNaN(parsedId) && parsedId > 0) {
+                productId = parsedId;
               }
-
-              // ตรวจสอบข้อมูล productId ที่มาจาก metadata
-              let productId = 0;
-              try {
-                if (item.price?.product?.metadata?.productId) {
-                  // แปลงเป็นตัวเลข และตรวจสอบว่าเป็นตัวเลขที่ถูกต้องหรือไม่
-                  const parsedId = parseInt(
-                    item.price.product.metadata.productId,
-                  );
-                  if (!isNaN(parsedId) && parsedId > 0) {
-                    productId = parsedId;
-                  }
-                }
-              } catch (error) {
-                console.error(`Error parsing productId from metadata:`, error);
-              }
-
-              // ตรวจสอบว่า productId มีค่าหรือไม่
-              if (!productId || productId <= 0) {
-                console.error(
-                  `ไม่สามารถกำหนด productId ได้: ${item.description}`,
-                );
-                // ใช้ค่าเริ่มต้น productId = 1
-                productId = 1;
-              }
-
-              // ตรวจสอบว่า product มีอยู่จริงในฐานข้อมูลหรือไม่
-              try {
-                const productExists = await prisma.product.findUnique({
-                  where: { id: productId },
-                });
-
-                if (!productExists) {
-                  console.error(
-                    `ไม่พบสินค้า ID ${productId} ในฐานข้อมูล ใช้ ID=1 แทน`,
-                  );
-                  productId = 1; // ใช้สินค้า ID=1 เป็นค่าเริ่มต้น
-                }
-              } catch (dbError) {
-                console.error(
-                  `เกิดข้อผิดพลาดในการตรวจสอบ product ID ${productId}:`,
-                  dbError,
-                );
-                productId = 1; // ใช้สินค้า ID=1 เป็นค่าเริ่มต้นในกรณีที่เกิดข้อผิดพลาด
-              }
-
-              return {
-                productId: productId,
-                productName: item.description || "สินค้า",
-                productImg: item.price?.product?.images?.[0] || "",
-                quantity: quantity,
-                unitPrice: unitPrice,
-                totalPrice: unitPrice * quantity,
-              };
-            })
-            .filter((item) => item !== null),
-        ), // กรองรายการที่เป็น null (ค่าจัดส่ง) ออกไป
-      },
+            }
+          } catch (error) {
+            console.error(`Error parsing productId from metadata:`, error);
+          }
+          
+          // ตรวจสอบว่า productId มีค่าหรือไม่
+          if (!productId || productId <= 0) {
+            console.error(`ไม่สามารถกำหนด productId ได้: ${item.description}`);
+            // ใช้ค่าเริ่มต้น productId = 1
+            productId = 1;
+          }
+          
+          // ตรวจสอบว่า product มีอยู่จริงในฐานข้อมูลหรือไม่
+          try {
+            const productExists = await prisma.product.findUnique({
+              where: { id: productId }
+            });
+            
+            if (!productExists) {
+              console.error(`ไม่พบสินค้า ID ${productId} ในฐานข้อมูล ใช้ ID=1 แทน`);
+              productId = 1; // ใช้สินค้า ID=1 เป็นค่าเริ่มต้น
+            }
+          } catch (dbError) {
+            console.error(`เกิดข้อผิดพลาดในการตรวจสอบ product ID ${productId}:`, dbError);
+            productId = 1; // ใช้สินค้า ID=1 เป็นค่าเริ่มต้นในกรณีที่เกิดข้อผิดพลาด
+          }
+          
+          return {
+            productId: productId,
+            productName: item.description || 'สินค้า',
+            productImg: item.price?.product?.images?.[0] || '',
+            quantity: quantity,
+            unitPrice: unitPrice,
+            totalPrice: unitPrice * quantity
+          };
+        }))).filter((item: any) => item !== null) // กรองรายการที่เป็น null (ค่าจัดส่ง) ออกไป
+      }
     };
-
-    console.log(
-      "Creating order with data:",
-      JSON.stringify(orderData, null, 2),
-    );
-
+    
+    console.log('Creating order with data:', JSON.stringify(orderData, null, 2));
+    
     // สร้าง order ใหม่
     const order = await prisma.order.create({
       data: orderData,
       include: {
         customerInfo: true,
         shippingInfo: true,
-        orderItems: true,
-      },
+        orderItems: true
+      }
     });
-
+    
     // สร้างข้อมูลการชำระเงิน
     await prisma.paymentInfo.create({
       data: {
         orderId: order.id,
-        paymentMethod: paymentMethod,
+        paymentMethod: paymentMethod === 'PROMPTPAY' ? 'PROMPTPAY' : 'CREDIT_CARD',
         transactionId: pendingPayment.charge_id,
         amount: finalAmount,
-        status: "CONFIRMED",
-        paymentDate: new Date(),
+        status: 'CONFIRMED',
+        paymentDate: getBangkokDateTime(),
         // เก็บข้อมูลเพิ่มเติมจาก metadata ถ้ามี
-        bankName:
-          paymentMethod === "PROMPTPAY"
-            ? "พร้อมเพย์"
-            : metadata.payment_details?.bank ||
-              metadata.payment_details?.card_brand ||
-              "บัตรเครดิต/เดบิต",
+        bankName: paymentMethod === 'PROMPTPAY' ? 'พร้อมเพย์' : 
+                 (metadata.payment_details?.bank || metadata.payment_details?.card_brand || 'บัตรเครดิต/เดบิต'),
         // ข้อมูลสำหรับบัตรเครดิต
         slipUrl: metadata.receipt_url || null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
+        createdAt: getBangkokDateTime(),
+        updatedAt: getBangkokDateTime()
+      }
     });
-
+    
     // อัพเดท pending payment ว่าได้ประมวลผลแล้ว
     await prisma.pendingPayment.update({
       where: {
-        id: pendingPayment.id,
+        id: pendingPayment.id
       },
       data: {
         processed: true,
-        processed_at: new Date(),
+        processed_at: getBangkokDateTime(),
         order_id: order.id,
-        updated_at: new Date(),
-      },
+        updated_at: getBangkokDateTime()
+      }
     });
-
-    console.log(
-      `Created order ${order.orderNumber} from pending payment ${pendingPayment.id}`,
-    );
-
+    
+    console.log(`Created order ${order.orderNumber} from pending payment ${pendingPayment.id}`);
+    
+    // ส่ง Discord notification
+    try {
+      console.log('Sending Discord notification for verified payment - DIRECT', {
+        webhookUrl: !!process.env.DISCORD_WEBHOOK_URL,
+        orderNumber: order.orderNumber
+      });
+      // เตรียมข้อมูลสำหรับ Discord
+      const orderData = {
+        ...order,
+        items: order.orderItems.map((item: any) => ({
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: parseFloat(item.unitPrice.toString())
+        })),
+        discount: parseFloat(order.discount.toString()),
+        discountCode: order.discountCode,
+        paymentMethod: order.paymentMethod
+      };
+      
+      const embed = createOrderNotificationEmbed(orderData);
+      const discordResult = await sendDiscordNotification(embed);
+      console.log('Discord notification result:', discordResult ? 'success' : 'failed');
+    } catch (discordError) {
+      console.error('Error sending Discord notification:', discordError);
+      // ไม่หยุดการทำงานหากการส่งแจ้งเตือนไม่สำเร็จ
+    }
+    
     return order;
   } catch (error) {
-    console.error("Error creating order from pending payment:", error);
+    console.error('Error creating order from pending payment:', error);
     throw error;
   }
 }
@@ -459,225 +427,306 @@ export async function GET(request: NextRequest) {
   try {
     // รับพารามิเตอร์จาก URL
     const searchParams = request.nextUrl.searchParams;
-    const sessionId = searchParams.get("session_id");
-    const orderId = searchParams.get("order_id");
-    const orderNumber = searchParams.get("order_number");
-
-    // ตรวจสอบว่ามีการส่ง session_id หรือ order_id มาหรือไม่
+    const sessionId = searchParams.get('session_id');
+    const orderId = searchParams.get('order_id');
+    const orderNumber = searchParams.get('order_number');
+    
+    // ตรวจสอบว่ามีการส่ง session_id หรือ order_id หรือ order_number มาหรือไม่
     if (!sessionId && !orderId && !orderNumber) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "กรุณาระบุ session_id หรือ order_id หรือ order_number",
-        },
-        { status: 400 },
-      );
+      return NextResponse.json({
+        success: false,
+        message: 'กรุณาระบุ session_id หรือ order_id หรือ order_number'
+      }, { status: 400 });
     }
-
+    
     // ค้นหาข้อมูลคำสั่งซื้อจากฐานข้อมูล
     let order = null;
-
+    
     if (sessionId) {
       // ค้นหาจาก session ID
       order = await prisma.order.findFirst({
         where: {
-          stripeSessionId: sessionId,
+          stripeSessionId: sessionId
         },
         include: {
           customerInfo: true,
           shippingInfo: true,
           orderItems: true,
-          paymentInfo: true,
-        },
+          paymentInfo: true
+        }
       });
     } else if (orderId) {
       // ค้นหาจาก order ID
       order = await prisma.order.findUnique({
         where: {
-          id: parseInt(orderId),
+          id: parseInt(orderId)
         },
         include: {
           customerInfo: true,
           shippingInfo: true,
           orderItems: true,
-          paymentInfo: true,
-        },
+          paymentInfo: true
+        }
       });
     } else if (orderNumber) {
       // ค้นหาจาก order number
       order = await prisma.order.findFirst({
         where: {
-          orderNumber: orderNumber,
+          orderNumber: orderNumber
         },
         include: {
           customerInfo: true,
           shippingInfo: true,
           orderItems: true,
-          paymentInfo: true,
-        },
+          paymentInfo: true
+        }
       });
     }
 
-    if (!order) {
-      console.log(
-        `API: No order found for session ID: ${sessionId}, checking pending_payments...`,
-      );
+    if (order) {
+      console.log(`API: Found order: ${order.orderNumber}, status: ${order.paymentStatus}`);
 
-      // ถ้าไม่พบข้อมูลใน orders ให้ค้นหาในตาราง pending_payments
+      // ตรวจสอบสถานะการชำระเงิน
+      const isPaymentConfirmed = 
+        (order.paymentStatus === 'CONFIRMED') || 
+        (order.paymentInfo && Array.isArray(order.paymentInfo) ? order.paymentInfo.some((info: any) => info.status === 'CONFIRMED') : order.paymentInfo?.status === 'CONFIRMED');
+
+      if (isPaymentConfirmed) {
+        console.log(`API: Payment confirmed for order: ${order.orderNumber}`);
+        return NextResponse.json({
+          success: true,
+          orderNumber: order.orderNumber,
+          transactionId: sessionId || order.stripeSessionId,
+          paymentStatus: 'CONFIRMED',
+          order: {
+            id: order.id,
+            orderNumber: order.orderNumber,
+            totalAmount: order.totalAmount,
+            finalAmount: order.finalAmount
+          }
+        });
+      } else {
+        // หากยังไม่มีการยืนยันการชำระเงิน แต่มี Order แล้ว
+        // ให้ตรวจสอบสถานะการชำระเงินจาก Stripe
+        try {
+          if (order.stripeSessionId) {
+            const session = await stripe.checkout.sessions.retrieve(order.stripeSessionId);
+            
+            if (session.payment_status === 'paid') {
+              // อัพเดตสถานะการชำระเงินในฐานข้อมูล
+              await prisma.order.update({
+                where: { id: order.id },
+                data: {
+                  paymentStatus: 'CONFIRMED',
+                  status: 'PAID',
+                  updatedAt: getBangkokDateTime()
+                }
+              });
+              
+              // ส่ง Discord notification
+              try {
+                console.log('Sending Discord notification for verified payment - DIRECT', {
+                  webhookUrl: !!process.env.DISCORD_WEBHOOK_URL,
+                  orderNumber: order.orderNumber
+                });
+                // เตรียมข้อมูลสำหรับ Discord
+                const orderWithItems = await prisma.order.findUnique({
+                  where: { id: order.id },
+                  include: {
+                    customerInfo: true,
+                    shippingInfo: true,
+                    orderItems: true
+                  }
+                });
+                
+                if (orderWithItems) {
+                  const orderData = {
+                    ...orderWithItems,
+                    items: orderWithItems.orderItems.map((item: any) => ({
+                      productId: item.productId,
+                      productName: item.productName,
+                      quantity: item.quantity,
+                      unitPrice: parseFloat(item.unitPrice.toString())
+                    })),
+                    discount: parseFloat(orderWithItems.discount.toString()),
+                    discountCode: orderWithItems.discountCode,
+                    paymentMethod: orderWithItems.paymentMethod
+                  };
+                  
+                  const embed = createOrderNotificationEmbed(orderData);
+                  const discordResult = await sendDiscordNotification(embed);
+                  console.log('Discord notification result:', discordResult ? 'success' : 'failed');
+                }
+              } catch (discordError) {
+                console.error('Error sending Discord notification:', discordError);
+                // ไม่ต้องหยุดการทำงานหากการส่งแจ้งเตือนไม่สำเร็จ
+              }
+              
+              // ส่งข้อมูลกลับไปยังผู้ใช้
+              return NextResponse.json({
+                success: true,
+                orderNumber: order.orderNumber,
+                transactionId: order.stripeSessionId,
+                paymentStatus: 'CONFIRMED',
+                order: {
+                  id: order.id,
+                  orderNumber: order.orderNumber,
+                  totalAmount: order.totalAmount,
+                  finalAmount: order.finalAmount
+                }
+              });
+            }
+          }
+        } catch (stripeError) {
+          console.error('Error checking payment status with Stripe:', stripeError);
+        }
+        
+        // ถ้ายังไม่ได้รับการยืนยันการชำระเงิน
+        console.log(`API: Payment pending for order: ${order.orderNumber}`);
+        return NextResponse.json({
+          success: true, 
+          message: 'รอการยืนยันการชำระเงินจาก Stripe webhook',
+          orderNumber: order.orderNumber,
+          paymentStatus: order.paymentStatus,
+          order: {
+            id: order.id,
+            orderNumber: order.orderNumber,
+            totalAmount: order.totalAmount,
+            finalAmount: order.finalAmount
+          }
+        });
+      }
+    }
+
+    // ถ้าไม่พบข้อมูลใน orders ให้ค้นหาในตาราง pending_payments
+    console.log(`API: No order found for session ID: ${sessionId}, checking pending_payments...`);
+    
+    // ค้นหาเฉพาะเมื่อมี sessionId
+    if (sessionId) {
       const pendingPayment = await prisma.pendingPayment.findFirst({
         where: {
           charge_id: sessionId,
-          processed: false, // ค้นหาเฉพาะรายการที่ยังไม่ได้ประมวลผล
-        },
+          processed: false // ค้นหาเฉพาะรายการที่ยังไม่ได้ประมวลผล
+        }
       });
-
+      
       if (pendingPayment) {
-        console.log(
-          `API: Found pending payment for session ID: ${sessionId}, status: ${pendingPayment.status}`,
-        );
-
+        console.log(`API: Found pending payment for session ID: ${sessionId}, status: ${pendingPayment.status}`);
+        
         // ถ้าสถานะเป็น CONFIRMED และยังไม่ได้ประมวลผล ให้สร้าง order
-        if (
-          pendingPayment.status === "CONFIRMED" &&
-          !pendingPayment.processed
-        ) {
+        if (pendingPayment.status === 'CONFIRMED' && !pendingPayment.processed) {
           try {
-            console.log(
-              `API: Creating order from pending payment ${pendingPayment.id}`,
-            );
-            const createdOrder =
-              await createOrderFromPendingPayment(pendingPayment);
-
+            console.log(`API: Creating order from pending payment ${pendingPayment.id}`);
+            const createdOrder = await createOrderFromPendingPayment(pendingPayment);
+            
             return NextResponse.json({
               success: true,
               orderNumber: createdOrder.orderNumber,
               transactionId: sessionId,
-              paymentStatus: "CONFIRMED",
+              paymentStatus: 'CONFIRMED',
               order: {
                 id: createdOrder.id,
-                orderNumber: createdOrder.orderNumber,
-              },
+                orderNumber: createdOrder.orderNumber
+              }
             });
           } catch (createOrderError) {
-            console.error(
-              "API: Error creating order from pending payment:",
-              createOrderError,
-            );
-
+            console.error('API: Error creating order from pending payment:', createOrderError);
+            
             // ตรวจสอบว่าเป็น error เกี่ยวกับ amphureName หรือไม่
-            const errorMessage =
-              createOrderError instanceof Error
-                ? createOrderError.message
-                : "Unknown error";
-            const isAmphureNameError = errorMessage.includes("amphureName");
-
+            const errorMessage = createOrderError instanceof Error ? createOrderError.message : 'Unknown error';
+            const isAmphureNameError = errorMessage.includes('amphureName');
+            
             // ลองอัพเดทข้อมูล pending_payment เพื่อแก้ไขข้อผิดพลาด
             if (isAmphureNameError) {
-              console.log(
-                "API: Trying to update pending payment with default amphureName",
-              );
+              console.log('API: Trying to update pending payment with default amphureName');
               try {
                 // อัพเดต metadata เพื่อให้มี amphureName
-                const metadata = pendingPayment.metadata || {};
-                if (metadata.shipping && metadata.shipping.address) {
-                  metadata.shipping.address.state = "จัดส่งให้ผู้รับโดยตรง";
-                } else if (metadata.shipping) {
-                  metadata.shipping.address = {
-                    state: "จัดส่งให้ผู้รับโดยตรง",
-                  };
+                const metadata = pendingPayment.metadata || {} as Record<string, any>;
+                if ((metadata as any).shipping && (metadata as any).shipping.address) {
+                  (metadata as any).shipping.address.state = 'จัดส่งให้ผู้รับโดยตรง';
+                } else if ((metadata as any).shipping) {
+                  (metadata as any).shipping.address = { state: 'จัดส่งให้ผู้รับโดยตรง' };
                 } else {
-                  metadata.shipping = {
-                    address: { state: "จัดส่งให้ผู้รับโดยตรง" },
-                  };
+                  (metadata as any).shipping = { address: { state: 'จัดส่งให้ผู้รับโดยตรง' } };
                 }
-
+                
                 // อัพเดทข้อมูล
                 await prisma.pendingPayment.update({
                   where: { id: pendingPayment.id },
-                  data: { metadata },
+                  data: { metadata }
                 });
-
+                
                 // ลองสร้าง order อีกครั้ง
-                const updatedPendingPayment =
-                  await prisma.pendingPayment.findUnique({
-                    where: { id: pendingPayment.id },
-                  });
-
+                const updatedPendingPayment = await prisma.pendingPayment.findUnique({
+                  where: { id: pendingPayment.id }
+                });
+                
                 if (updatedPendingPayment) {
-                  const createdOrder = await createOrderFromPendingPayment(
-                    updatedPendingPayment,
-                  );
+                  const createdOrder = await createOrderFromPendingPayment(updatedPendingPayment);
                   return NextResponse.json({
                     success: true,
                     orderNumber: createdOrder.orderNumber,
                     transactionId: sessionId,
-                    paymentStatus: "CONFIRMED",
+                    paymentStatus: 'CONFIRMED',
                     order: {
                       id: createdOrder.id,
-                      orderNumber: createdOrder.orderNumber,
-                    },
+                      orderNumber: createdOrder.orderNumber
+                    }
                   });
                 }
               } catch (updateError) {
-                console.error(
-                  "API: Error updating pending payment:",
-                  updateError,
-                );
+                console.error('API: Error updating pending payment:', updateError);
               }
             }
-
+            
             // ส่งข้อมูล pending payment กลับไปเพื่อให้แสดงผลที่เหมาะสม
             return NextResponse.json({
               success: true,
               orderNumber: "PENDING", // ยังไม่มีเลขที่คำสั่งซื้อ
               transactionId: sessionId,
-              paymentStatus:
-                pendingPayment.status === "CONFIRMED" ? "CONFIRMED" : "PENDING",
+              paymentStatus: pendingPayment.status === 'CONFIRMED' ? 'CONFIRMED' : 'PENDING',
               pendingPayment: {
                 id: pendingPayment.id,
                 amount: pendingPayment.amount,
                 status: pendingPayment.status,
-                paymentMethod: pendingPayment.payment_method,
+                paymentMethod: pendingPayment.payment_method
               },
-              errorCreatingOrder: true,
+              errorCreatingOrder: true
             });
           }
         }
-
+        
         // กรณีที่ยังไม่ได้ยืนยันการชำระเงินหรือมีการประมวลผลไปแล้ว
         return NextResponse.json({
           success: true,
           orderNumber: "PENDING", // ยังไม่มีเลขที่คำสั่งซื้อ
           transactionId: sessionId,
-          paymentStatus:
-            pendingPayment.status === "CONFIRMED" ? "CONFIRMED" : "PENDING",
+          paymentStatus: pendingPayment.status === 'CONFIRMED' ? 'CONFIRMED' : 'PENDING',
           pendingPayment: {
             id: pendingPayment.id,
             amount: pendingPayment.amount,
             status: pendingPayment.status,
-            paymentMethod: pendingPayment.payment_method,
-          },
+            paymentMethod: pendingPayment.payment_method
+          }
         });
       }
-
+      
       // ลองหา pending payment ที่ถูกประมวลผลแล้ว
       const processedPayment = await prisma.pendingPayment.findFirst({
         where: {
           charge_id: sessionId,
-          processed: true,
-        },
+          processed: true
+        }
       });
-
+      
       if (processedPayment && processedPayment.order_id) {
-        console.log(
-          `API: Found processed payment with order ID: ${processedPayment.order_id}`,
-        );
-
+        console.log(`API: Found processed payment with order ID: ${processedPayment.order_id}`);
+        
         // ค้นหา order ที่เกี่ยวข้อง
         const relatedOrder = await prisma.order.findUnique({
-          where: { id: processedPayment.order_id },
+          where: { id: processedPayment.order_id }
         });
-
+        
         if (relatedOrder) {
           return NextResponse.json({
             success: true,
@@ -687,56 +736,27 @@ export async function GET(request: NextRequest) {
             order: {
               id: relatedOrder.id,
               orderNumber: relatedOrder.orderNumber,
-            },
+              totalAmount: relatedOrder.totalAmount,
+              finalAmount: relatedOrder.finalAmount
+            }
           });
         }
       }
-
-      // ถ้าไม่พบทั้งในตาราง orders และ pending_payments
-      return NextResponse.json(
-        { success: false, message: "ไม่พบข้อมูลคำสั่งซื้อสำหรับ session นี้" },
-        { status: 404 },
-      );
     }
-
-    console.log(
-      `API: Found order: ${order.orderNumber}, status: ${order.paymentStatus}`,
-    );
-
-    // ตรวจสอบสถานะการชำระเงิน
-    const isPaymentConfirmed =
-      order.paymentStatus === "CONFIRMED" ||
-      (order.paymentInfo && order.paymentInfo.status === "CONFIRMED");
-
-    if (isPaymentConfirmed) {
-      console.log(`API: Payment confirmed for order: ${order.orderNumber}`);
-      return NextResponse.json({
-        success: true,
-        orderNumber: order.orderNumber,
-        transactionId: sessionId,
-        paymentStatus: "CONFIRMED",
-      });
-    } else {
-      console.log(`API: Payment pending for order: ${order.orderNumber}`);
-      // ถ้ายังไม่ได้รับการยืนยันการชำระเงิน
-      return NextResponse.json({
-        success: false,
-        message: "รอการยืนยันการชำระเงินจาก Stripe webhook",
-        orderNumber: order.orderNumber,
-        paymentStatus: order.paymentStatus,
-      });
-    }
-  } catch (error) {
-    console.error("Error verifying Stripe payment:", error);
+    
+    // ถ้าไม่พบทั้งในตาราง orders และ pending_payments
     return NextResponse.json(
-      {
-        success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : "เกิดข้อผิดพลาดในการตรวจสอบการชำระเงิน",
+      { success: false, message: 'ไม่พบข้อมูลคำสั่งซื้อสำหรับ session นี้' },
+      { status: 404 }
+    );
+  } catch (error) {
+    console.error('Error verifying Stripe payment:', error);
+    return NextResponse.json(
+      { 
+        success: false, 
+        message: error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการตรวจสอบการชำระเงิน' 
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
-}
+} 

@@ -407,6 +407,32 @@ export default function Checkout() {
     if (shippingTab !== newValue) {
       setShippingTab(newValue);
       setShippingOption(newValue === 0 ? 'self' : 'other');
+      
+      // เพิ่มการล้างค่าข้อมูลในแท็บเมื่อเปลี่ยนแท็บ
+      if (newValue === 0) {
+        // เมื่อเปลี่ยนไปเป็นแท็บจัดส่งให้ตัวเอง ล้างข้อมูลของแท็บจัดส่งให้ผู้อื่น
+        setReceiverInfo({
+          firstName: '',
+          lastName: '',
+          phone: '',
+          address: ''
+        });
+      } else {
+        // เมื่อเปลี่ยนไปเป็นแท็บจัดส่งให้ผู้อื่น ล้างข้อมูลที่อยู่จัดส่งของตัวเอง
+        setShippingInfo({
+          receiverName: '',
+          receiverLastname: '',
+          provinceId: 0,
+          provinceName: '',
+          amphureId: 0,
+          amphureName: '',
+          tambonId: 0,
+          tambonName: '',
+          zipCode: '',
+          addressLine: '',
+          addressLine2: ''
+        });
+      }
     }
   };
   
@@ -536,7 +562,7 @@ export default function Checkout() {
                       tambonId: shippingInfo.tambonId || 0,
                       tambonName: shippingInfo.tambonName || "",
                       zipCode: shippingInfo.zipCode || "",
-                      deliveryDate: deliveryDate && isClient ? format(new Date(deliveryDate), 'yyyy-MM-dd') : "",
+                      deliveryDate: deliveryDate && isClient ? format(new Date(deliveryDate), 'yyyy-MM-dd') : null,
                       deliveryTime: deliveryTime && isClient ? format(deliveryTime, 'HH:mm') : "",
                       cardMessage: cardMessage || "",
                       additionalNote: additionalMessage || ""
@@ -555,7 +581,7 @@ export default function Checkout() {
                       tambonId: 100101, // ใช้ ID ตำบลที่มีอยู่จริง
                       tambonName: "จัดส่งให้ผู้รับโดยตรง",
                       zipCode: "10200",
-                      deliveryDate: deliveryDate && isClient ? format(new Date(deliveryDate), 'yyyy-MM-dd') : "",
+                      deliveryDate: deliveryDate && isClient ? format(new Date(deliveryDate), 'yyyy-MM-dd') : null,
                       deliveryTime: deliveryTime && isClient ? format(deliveryTime, 'HH:mm') : "",
                       cardMessage: cardMessage || "",
                       additionalNote: additionalMessage || ""
@@ -1041,7 +1067,7 @@ export default function Checkout() {
               tambonId: shippingInfo.tambonId || 0,
               tambonName: shippingInfo.tambonName || "",
               zipCode: shippingInfo.zipCode || "",
-              deliveryDate: deliveryDate && isClient ? format(new Date(deliveryDate), 'yyyy-MM-dd') : "",
+              deliveryDate: deliveryDate && isClient ? format(new Date(deliveryDate), 'yyyy-MM-dd') : null,
               deliveryTime: deliveryTime && isClient ? format(deliveryTime, 'HH:mm') : "",
               cardMessage: cardMessage || "",
               additionalNote: additionalMessage || ""
@@ -1055,12 +1081,12 @@ export default function Checkout() {
               // สำหรับจัดส่งให้ผู้อื่น ใช้ค่า ID ที่มีอยู่จริงใน database (กรุงเทพฯ)
               provinceId: 1, // ใช้ ID จังหวัดกรุงเทพมหานครที่มีอยู่จริง
               provinceName: "จัดส่งให้ผู้รับโดยตรง",
-              amphureId: 1, // ใช้ ID อำเภอที่มีอยู่จริง
+              amphureId: 1001, // ใช้ ID อำเภอที่มีอยู่จริง
               amphureName: "จัดส่งให้ผู้รับโดยตรง",
-              tambonId: 1, // ใช้ ID ตำบลที่มีอยู่จริง
+              tambonId: 100101, // ใช้ ID ตำบลที่มีอยู่จริง
               tambonName: "จัดส่งให้ผู้รับโดยตรง",
               zipCode: "10200",
-              deliveryDate: deliveryDate && isClient ? format(new Date(deliveryDate), 'yyyy-MM-dd') : "",
+              deliveryDate: deliveryDate && isClient ? format(new Date(deliveryDate), 'yyyy-MM-dd') : null,
               deliveryTime: deliveryTime && isClient ? format(deliveryTime, 'HH:mm') : "",
               cardMessage: cardMessage || "",
               additionalNote: additionalMessage || ""

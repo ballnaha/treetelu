@@ -146,8 +146,8 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
       setPaymentStatus(order.paymentStatus);
       
       // Debug: แสดงค่า order.adminComment ก่อนกำหนดค่า
-      console.log('Order in OrderDialog:', order);
-      console.log('adminComment before setting:', order.adminComment, typeof order.adminComment);
+      //console.log('Order in OrderDialog:', order);
+      //console.log('adminComment before setting:', order.adminComment, typeof order.adminComment);
       
       // กำหนดค่า adminComment ตรวจสอบทั้ง null และ undefined
       const commentValue = order.adminComment !== undefined && order.adminComment !== null 
@@ -156,7 +156,7 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
       setAdminComment(commentValue);
       
       // Debug: แสดงค่าหลังกำหนด
-      console.log('adminComment after setting:', commentValue);
+      //console.log('adminComment after setting:', commentValue);
       
       // หารูปหลักฐานการชำระเงิน
       const slipUrl = order.paymentInfo?.slipUrl || 
@@ -182,7 +182,7 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
   const handleUpdateStatus = () => {
     if (order) {
       // แสดงค่า adminComment ก่อนส่งไปอัพเดต
-      console.log('Sending adminComment to update:', adminComment);
+      //console.log('Sending adminComment to update:', adminComment);
       
       // ส่ง adminComment ให้ API โดยใช้ค่าจาก state โดยตรง
       // แม้เป็นค่าว่างก็จะส่งไป เพื่อให้ API รู้ว่าต้องการอัพเดตค่านี้
@@ -508,6 +508,31 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
                       <Typography variant="caption" color="text.secondary">รหัสไปรษณีย์</Typography>
                       <Typography variant="body2">{order.shippingInfo.zipCode || ''}</Typography>
                     </Box>
+                    
+                    {/* แสดงวันที่และเวลาจัดส่ง แยกแสดงชัดเจน */}
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">วันที่จัดส่ง</Typography>
+                      <Typography variant="body2">
+                        {order.shippingInfo.deliveryDate && 
+                          (typeof order.shippingInfo.deliveryDate === 'object') ? 
+                            formatThaiDate(new Date(order.shippingInfo.deliveryDate as any)) : 
+                            (typeof order.shippingInfo.deliveryDate === 'string' && 
+                             order.shippingInfo.deliveryDate.trim() !== '' &&
+                             JSON.stringify(order.shippingInfo.deliveryDate) !== '{}' &&
+                             !isNaN(new Date(order.shippingInfo.deliveryDate).getTime()) ? 
+                              formatThaiDate(new Date(order.shippingInfo.deliveryDate)) : 
+                              'ไม่ระบุ')
+                        }
+                      </Typography>
+                    </Box>
+                    
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">ช่วงเวลาจัดส่ง</Typography>
+                      <Typography variant="body2">
+                        {order.shippingInfo.deliveryTime || 'ไม่ระบุ'}
+                      </Typography>
+                    </Box>
+                    
                     {/* แสดงข้อความในบัตรอวยพร (ถ้ามี) */}
                     {order.shippingInfo.cardMessage && (
                       <Box>
@@ -529,36 +554,7 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
                         </Paper>
                       </Box>
                     )}
-                    {/* แสดงหมายเหตุเพิ่มเติม (ถ้ามี) */}
-                    {order.shippingInfo.additionalNote && (
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">หมายเหตุเพิ่มเติม</Typography>
-                        <Paper 
-                          elevation={0} 
-                          sx={{ 
-                            p: 1.5, 
-                            mt: 0.5,
-                            bgcolor: 'warning.lighter',
-                            border: '1px dashed',
-                            borderColor: 'warning.main',
-                            borderRadius: 1
-                          }}
-                        >
-                          <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
-                            {order.shippingInfo.additionalNote}
-                          </Typography>
-                        </Paper>
-                      </Box>
-                    )}
-                    {order.shippingInfo.deliveryDate && typeof order.shippingInfo.deliveryDate === 'string' && !isNaN(new Date(order.shippingInfo.deliveryDate).getTime()) && (
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">วันที่จัดส่ง</Typography>
-                        <Typography variant="body2">
-                          {formatThaiDate(new Date(order.shippingInfo.deliveryDate))}
-                          {order.shippingInfo.deliveryTime && ` ${order.shippingInfo.deliveryTime}`}
-                        </Typography>
-                      </Box>
-                    )}
+                    
                   </>
                 )}
               </Stack>

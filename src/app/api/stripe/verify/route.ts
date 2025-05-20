@@ -131,15 +131,26 @@ async function createOrderFromPendingPayment(pendingPayment: any) {
     const defaultAmphureId = 1001;  // เขตพระนคร
     const defaultTambonId = 100101;   // แขวงพระบรมมหาราชวัง
     
+    // เพิ่มส่วนนี้
+    // ค่าพิเศษสำหรับกรณีจัดส่งให้ผู้อื่น
+    const directDeliveryProvinceId = 1;  // ค่าพิเศษสำหรับจัดส่งให้ผู้อื่น
+    const directDeliveryAmphureId = 1001;   // ค่าพิเศษสำหรับจัดส่งให้ผู้อื่น
+    const directDeliveryTambonId = 100101;    // ค่าพิเศษสำหรับจัดส่งให้ผู้อื่น
+    
     // ตรวจสอบว่าเป็นการจัดส่งให้ผู้อื่นหรือไม่
     const isShippingToOther = 
       metadata.shippingInfo?.provinceName === 'จัดส่งให้ผู้รับโดยตรง' || 
+      metadata.shippingInfo?.provinceName === 'จัดส่งตรงถึงผู้รับ' ||
       metadata.shippingInfo?.amphureName === 'จัดส่งให้ผู้รับโดยตรง' ||
-      (shippingAddress.city === 'จัดส่งให้ผู้รับโดยตรง' || shippingAddress.state === 'จัดส่งให้ผู้รับโดยตรง') ||
+      metadata.shippingInfo?.amphureName === 'จัดส่งตรงถึงผู้รับ' ||
+      metadata.shippingInfo?.provinceId === -1 ||
+      metadata.shippingInfo?.provinceId === 0 ||
+      (shippingAddress.city === 'จัดส่งให้ผู้รับโดยตรง' || shippingAddress.city === 'จัดส่งตรงถึงผู้รับ') || 
+      (shippingAddress.state === 'จัดส่งให้ผู้รับโดยตรง' || shippingAddress.state === 'จัดส่งตรงถึงผู้รับ') ||
       metadata.shipping_to_other === "true" ||
       metadata.shipping_tab === "1" ||
-      (deliveryDate && deliveryTime && cardMessage) || // ถ้ามีข้อมูลวันที่ส่ง เวลาส่ง และข้อความในการ์ด น่าจะเป็นการส่งให้ผู้อื่น
-      (receiverName !== firstName && receiverLastname !== lastName); // ชื่อผู้รับไม่ตรงกับชื่อผู้สั่ง
+      (deliveryDate && deliveryTime && cardMessage) || 
+      (receiverName !== firstName && receiverLastname !== lastName);
     
     // ข้อมูลการจัดส่ง
     // - กรณีจัดส่งให้ผู้อื่น: ใช้ข้อมูลเดียวกันกับการจัดส่งให้ตัวเอง แต่ปรับชื่อผู้รับและข้อมูลการติดต่อ
@@ -152,12 +163,12 @@ async function createOrderFromPendingPayment(pendingPayment: any) {
       addressLine: receiverAddress,
       addressLine2: '',
       // ใช้ข้อมูลจังหวัด/อำเภอ/ตำบลเช่นเดียวกับการจัดส่งให้ตัวเอง
-      provinceId: metadata.shippingInfo?.provinceId || defaultProvinceId,
-      provinceName: metadata.shippingInfo?.provinceName || 'จัดส่งให้ผู้รับโดยตรง',
-      amphureId: metadata.shippingInfo?.amphureId || defaultAmphureId,
-      amphureName: metadata.shippingInfo?.amphureName || 'จัดส่งให้ผู้รับโดยตรง',
-      tambonId: metadata.shippingInfo?.tambonId || defaultTambonId,
-      tambonName: metadata.shippingInfo?.tambonName || 'จัดส่งให้ผู้รับโดยตรง',
+      provinceId: metadata.shippingInfo?.provinceId || directDeliveryProvinceId,
+      provinceName: metadata.shippingInfo?.provinceName || 'จัดส่งตรงถึงผู้รับ',
+      amphureId: metadata.shippingInfo?.amphureId || directDeliveryAmphureId,
+      amphureName: metadata.shippingInfo?.amphureName || 'จัดส่งตรงถึงผู้รับ',
+      tambonId: metadata.shippingInfo?.tambonId || directDeliveryTambonId,
+      tambonName: metadata.shippingInfo?.tambonName || 'จัดส่งตรงถึงผู้รับ',
       zipCode: metadata.shippingInfo?.zipCode || shippingAddress.postal_code || '10200',
       // เพิ่มข้อมูลวันที่จัดส่ง เวลาที่จัดส่ง ข้อความในการ์ด และหมายเหตุ
       deliveryDate: deliveryDate ? convertToBangkokTime(new Date(deliveryDate)) : null,
@@ -643,11 +654,11 @@ export async function GET(request: NextRequest) {
                 // อัพเดต metadata เพื่อให้มี amphureName
                 const metadata = pendingPayment.metadata || {} as Record<string, any>;
                 if ((metadata as any).shipping && (metadata as any).shipping.address) {
-                  (metadata as any).shipping.address.state = 'จัดส่งให้ผู้รับโดยตรง';
+                  (metadata as any).shipping.address.state = 'จัดส่งตรงถึงผู้รับ';
                 } else if ((metadata as any).shipping) {
-                  (metadata as any).shipping.address = { state: 'จัดส่งให้ผู้รับโดยตรง' };
+                  (metadata as any).shipping.address = { state: 'จัดส่งตรงถึงผู้รับ' };
                 } else {
-                  (metadata as any).shipping = { address: { state: 'จัดส่งให้ผู้รับโดยตรง' } };
+                  (metadata as any).shipping = { address: { state: 'จัดส่งตรงถึงผู้รับ' } };
                 }
                 
                 // อัพเดทข้อมูล
@@ -760,3 +771,4 @@ export async function GET(request: NextRequest) {
     );
   }
 } 
+

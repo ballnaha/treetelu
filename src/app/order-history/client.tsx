@@ -64,7 +64,22 @@ interface CustomerInfo {
   note?: string;
 }
 
-interface ShippingInfo {  receiverName: string;  receiverLastname: string;  receiverPhone: string;  addressLine: string;  addressLine2?: string;  provinceName: string;  amphureName: string;  tambonName: string;  zipCode: string;  note?: string;  cardMessage?: string;  additionalNote?: string;}
+interface ShippingInfo {
+  receiverName: string;
+  receiverLastname: string;
+  receiverPhone: string;
+  addressLine: string;
+  addressLine2?: string;
+  provinceName: string;
+  amphureName: string;
+  tambonName: string;
+  zipCode: string;
+  note?: string;
+  cardMessage?: string;
+  additionalNote?: string;
+  deliveryDate?: string;
+  deliveryTime?: string;
+}
 
 interface Order {
   id: string;
@@ -872,6 +887,53 @@ export default function OrderHistoryClient() {
                               {selectedOrder.shippingInfo.zipCode}
                             </Typography>
                           </Box>
+                          
+                          {/* เพิ่มแสดงวันที่และเวลาจัดส่ง */}
+                          <Box>
+                            <Typography variant="caption" color="text.secondary">วันที่จัดส่ง</Typography>
+                            <Typography variant="body2">
+                              {(() => {
+                                // ตรวจสอบค่า deliveryDate และแสดงในรูปแบบที่เหมาะสม
+                                if (!selectedOrder.shippingInfo.deliveryDate) return 'ไม่ระบุ';
+                                
+                                try {
+                                  // สำหรับกรณีที่เป็น string ที่สมบูรณ์
+                                  if (typeof selectedOrder.shippingInfo.deliveryDate === 'string' && 
+                                      selectedOrder.shippingInfo.deliveryDate.trim() !== '' &&
+                                      JSON.stringify(selectedOrder.shippingInfo.deliveryDate) !== '{}') {
+                                    const date = new Date(selectedOrder.shippingInfo.deliveryDate);
+                                    if (!isNaN(date.getTime())) {
+                                      return formatThaiDate(date);
+                                    }
+                                  }
+                                  
+                                  // สำหรับกรณีที่เป็น object
+                                  if (typeof selectedOrder.shippingInfo.deliveryDate === 'object') {
+                                    const date = new Date(selectedOrder.shippingInfo.deliveryDate as any);
+                                    if (!isNaN(date.getTime())) {
+                                      return formatThaiDate(date);
+                                    }
+                                  }
+                                  
+                                  // ถ้าไม่ตรงกับกรณีใดเลย
+                                  return 'ไม่ระบุ';
+                                } catch (error) {
+                                  console.error('Error formatting delivery date:', error);
+                                  return 'ไม่ระบุ';
+                                }
+                              })()}
+                            </Typography>
+                          </Box>
+                          
+                          {selectedOrder.shippingInfo.deliveryTime && (
+                            <Box>
+                              <Typography variant="caption" color="text.secondary">ช่วงเวลาจัดส่ง</Typography>
+                              <Typography variant="body2">
+                                {selectedOrder.shippingInfo.deliveryTime || 'ไม่ระบุ'}
+                              </Typography>
+                            </Box>
+                          )}
+                          
                           {/* แสดงข้อความในบัตรอวยพร (ถ้ามี) */}
                           {selectedOrder.shippingInfo.cardMessage && (
                             <Box>
@@ -893,27 +955,7 @@ export default function OrderHistoryClient() {
                               </Paper>
                             </Box>
                           )}
-                          {/* แสดงหมายเหตุเพิ่มเติม (ถ้ามี) */}
-                          {selectedOrder.shippingInfo.additionalNote && (
-                            <Box>
-                              <Typography variant="caption" color="text.secondary">หมายเหตุเพิ่มเติม</Typography>
-                              <Paper 
-                                elevation={0} 
-                                sx={{ 
-                                  p: 1.5, 
-                                  mt: 0.5,
-                                  bgcolor: 'warning.lighter',
-                                  border: '1px dashed',
-                                  borderColor: 'warning.main',
-                                  borderRadius: 1
-                                }}
-                              >
-                                <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
-                                  {selectedOrder.shippingInfo.additionalNote}
-                                </Typography>
-                              </Paper>
-                            </Box>
-                          )}
+                          
                           {/* แสดงหมายเหตุการจัดส่ง (ถ้ามี) */}
                           {selectedOrder.shippingInfo.note && (
                             <Box>

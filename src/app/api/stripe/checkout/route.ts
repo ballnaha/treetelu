@@ -176,7 +176,9 @@ export async function POST(request: NextRequest) {
       shipping_amphure: validatedData.shippingInfo.amphureName,
       shipping_tambon: validatedData.shippingInfo.tambonName,
       shipping_zipcode: validatedData.shippingInfo.zipCode,
-      delivery_date: validatedData.shippingInfo.deliveryDate || '',
+      delivery_date: validatedData.shippingInfo.deliveryDate && validatedData.shippingInfo.deliveryDate.trim() !== '' 
+        ? validatedData.shippingInfo.deliveryDate
+        : '',
       delivery_time: validatedData.shippingInfo.deliveryTime || '',
       card_message: validatedData.shippingInfo.cardMessage || '',
       note: validatedData.customerInfo.note || '',
@@ -184,7 +186,7 @@ export async function POST(request: NextRequest) {
       user_id: validatedData.userId ? String(validatedData.userId) : '',
       order_number: orderNumber, // เพิ่ม orderNumber ลงใน metadata
       // เพิ่มข้อมูลสำหรับกรณีจัดส่งให้ผู้อื่น ด้วยคีย์ที่ชัดเจน
-      deliveryDate: validatedData.shippingInfo.deliveryDate 
+      deliveryDate: validatedData.shippingInfo.deliveryDate && validatedData.shippingInfo.deliveryDate.trim() !== '' 
         ? validatedData.shippingInfo.deliveryDate
         : '',
       deliveryTime: validatedData.shippingInfo.deliveryTime || '',
@@ -287,7 +289,9 @@ export async function POST(request: NextRequest) {
               tambonId: validTambonId, // ใช้ค่าที่ตรวจสอบแล้ว
               tambonName: validatedData.shippingInfo.tambonName,
               zipCode: validatedData.shippingInfo.zipCode,
-              deliveryDate: validatedData.shippingInfo.deliveryDate ? convertToBangkokTime(new Date(validatedData.shippingInfo.deliveryDate)) : null,
+              deliveryDate: validatedData.shippingInfo.deliveryDate && validatedData.shippingInfo.deliveryDate.trim() !== ''
+                ? convertToBangkokTime(new Date(validatedData.shippingInfo.deliveryDate)) 
+                : null,
               deliveryTime: validatedData.shippingInfo.deliveryTime || null,
               cardMessage: validatedData.shippingInfo.cardMessage || '',
               additionalNote: validatedData.shippingInfo.additionalNote || '',

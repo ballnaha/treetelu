@@ -179,7 +179,7 @@ model ShippingInfo {
   tambonId         Int
   tambonName       String        @db.VarChar(100)
   zipCode          String        @db.VarChar(10)
-  deliveryDate     DateTime?     @db.Date
+  deliveryDate     DateTime?     @db.DateTime(0)
   deliveryTime     String?       @db.VarChar(50)
   cardMessage      String?       @db.Text
   additionalNote   String?       @db.Text
