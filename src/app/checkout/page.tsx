@@ -2409,102 +2409,136 @@ export default function Checkout() {
                         }}
                       >
                         <Image
-                          src={item.image || '/images/product-placeholder.png'}
-                          alt={item.name || 'สินค้า'}
+                          src={
+                            // ถ้าเป็น URL จากภายนอก ให้ใช้โดยตรง
+                            (item.productImg && typeof item.productImg === 'string' && item.productImg.startsWith('http'))
+                              ? item.productImg
+                              // ถ้าเป็น URL จากภายนอก (จาก field image) ให้ใช้โดยตรง
+                              : (item.image && typeof item.image === 'string' && item.image.startsWith('http'))
+                                ? item.image
+                                // ถ้าเป็นชื่อไฟล์ภายใน ให้อ้างอิงจาก path
+                                : (item.productImg && typeof item.productImg === 'string')
+                                  ? `/images/product/${item.productImg}`
+                                  // ถ้าเป็นชื่อไฟล์ภายใน (จาก field image) ให้อ้างอิงจาก path
+                                  : (item.image && typeof item.image === 'string')
+                                    ? `/images/product/${item.image}`
+                                    // ใช้รูปภาพ placeholder เมื่อไม่มีรูปภาพที่ระบุ
+                                    : '/images/product/placeholder.jpg'
+                          }
+                          alt={item.productName || item.name || 'สินค้า'}
                           fill
+                          sizes="90px"
                           style={{ objectFit: 'cover' }}
+                          onError={(e) => {
+                            // เมื่อโหลดภาพล้มเหลว ให้ใช้รูปภาพ placeholder แทน
+                            const target = e.target as HTMLImageElement;
+                            target.onerror = null; // ป้องกันการเกิด loop
+                            target.src = '/images/product/placeholder.jpg';
+                          }}
                         />
                       </Link>
                     </ProductImageWrapper>
                     
                     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                      <Typography variant="subtitle2" fontWeight={500} gutterBottom>
-                        {item.name}
+                      <Typography
+                        component={Link}
+                        href={`/products/${item.slug || item.id}`}
+                        variant="subtitle2"
+                        fontWeight={500}
+                        sx={{
+                          mb: 0.5,
+                          color: 'text.primary',
+                          textDecoration: 'none',
+                          '&:hover': {
+                            color: 'primary.main',
+                            textDecoration: 'underline'
+                          },
+                          display: 'block'
+                        }}
+                      >
+                        {item.productName || item.name}
                       </Typography>
                       
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        ฿{parseFloat(String(item.salesPrice || '0')).toLocaleString()} × {item.quantity}
-                      </Typography>
-
-                      <Typography variant="body2" fontWeight={600} color="primary.main">
-                        ฿{(parseFloat(String(item.salesPrice || '0')) * item.quantity).toLocaleString()}
-                      </Typography>
-                      
-                      <Box sx={{ display: 'flex', alignItems: 'center', mt: 2, justifyContent: 'space-between', width: '100%' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <IconButton 
-                            size="small" 
-                            onClick={() => handleUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                            disabled={item.quantity <= 1}
-                            sx={{ 
-                              p: 0.5, 
-                              width: 32, 
-                              height: 32,
-                              border: '1px solid',
-                              borderColor: 'divider',
-                              borderRadius: '50%'
-                            }}
-                          >
-                            <RemoveIcon fontSize="small" sx={{ fontSize: 16 }} />
-                          </IconButton>
-                          
-                          <Box 
-                            sx={{ 
-                              width: '48px', 
-                              height: '32px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              border: '1px solid',
-                              borderColor: 'divider',
-                              borderRadius: '4px',
-                              mx: 1
-                            }}
-                          >
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              {item.quantity}
-                            </Typography>
-                          </Box>
-                          
-                          <IconButton 
-                            size="small" 
-                            onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                            sx={{ 
-                              p: 0.5, 
-                              width: 32, 
-                              height: 32,
-                              border: '1px solid',
-                              borderColor: 'divider',
-                              borderRadius: '50%'
-                            }}
-                          >
-                            <AddIcon fontSize="small" sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        </Box>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          ราคา: <Typography component="span" fontWeight={500}>฿{parseFloat(String(item.salesPrice || '0')).toLocaleString()}</Typography> / ชิ้น
+                        </Typography>
+                        
+                        {item.sku && (
+                          <Typography variant="body2" color="text.secondary">
+                            รหัสสินค้า: {item.sku}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  </Box>
+                  
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    mt: 2, 
+                    pt: 2, 
+                    borderTop: '1px solid rgba(0, 0, 0, 0.08)', 
+                    backgroundColor: 'rgba(0, 0, 0, 0.01)',
+                    p: 1,
+                    borderRadius: 1
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        border: '1px solid', 
+                        borderColor: 'divider', 
+                        borderRadius: 1,
+                        bgcolor: 'background.paper'
+                      }}>
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleUpdateQuantity(item.id, Math.max(1, item.quantity - 1))} 
+                          disabled={item.quantity <= 1}
+                          sx={{ p: 0.5, width: 32, height: 32 }}
+                        >
+                          <RemoveIcon fontSize="small" sx={{ fontSize: 16 }} />
+                        </IconButton>
+                        
+                        <Typography variant="body2" sx={{ px: 1.5, minWidth: '30px', textAlign: 'center', fontWeight: 500 }}>
+                          {item.quantity}
+                        </Typography>
                         
                         <IconButton 
                           size="small" 
-                          onClick={() => handleRemoveItem(item.id)}
-                          sx={{ 
-                            color: 'error.main', 
-                            p: 0.5,
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            bgcolor: 'rgba(211, 47, 47, 0.08)',
-                            '&:hover': {
-                              bgcolor: 'rgba(211, 47, 47, 0.15)'
-                            },
-                            ml: 'auto'
-                          }}
-                          aria-label="ลบสินค้า"
+                          onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                          sx={{ p: 0.5, width: 32, height: 32 }}
                         >
-                          <DeleteOutlineIcon fontSize="small" sx={{ fontSize: 18 }} />
+                          <AddIcon fontSize="small" sx={{ fontSize: 16 }} />
                         </IconButton>
                       </Box>
+                      
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handleRemoveItem(item.id)}
+                        sx={{ 
+                          ml: 1, 
+                          color: 'error.main', 
+                          p: 0.5,
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          bgcolor: 'rgba(211, 47, 47, 0.08)',
+                          '&:hover': {
+                            bgcolor: 'rgba(211, 47, 47, 0.15)'
+                          }
+                        }}
+                        aria-label="ลบสินค้า"
+                      >
+                        <DeleteOutlineIcon fontSize="small" sx={{ fontSize: 18 }} />
+                      </IconButton>
                     </Box>
                     
-                    
+                    <Typography variant="body2" fontWeight={600} color="primary.main">
+                      ฿{(parseFloat(String(item.salesPrice || '0')) * item.quantity).toLocaleString()}
+                    </Typography>
                   </Box>
                 </Paper>
               ))}
@@ -3337,7 +3371,7 @@ export default function Checkout() {
                           display: 'block'
                         }}
                       >
-                        {item.productName}
+                        {item.productName || item.name}
                       </Typography>
                       
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -3345,9 +3379,11 @@ export default function Checkout() {
                           ราคา: <Typography component="span" fontWeight={500}>฿{parseFloat(String(item.salesPrice || '0')).toLocaleString()}</Typography> / ชิ้น
                         </Typography>
                         
-                        <Typography variant="body2" color="text.secondary">
-                          รหัสสินค้า: {item.sku || '-'}
-                        </Typography>
+                        {item.sku && (
+                          <Typography variant="body2" color="text.secondary">
+                            รหัสสินค้า: {item.sku}
+                          </Typography>
+                        )}
                       </Box>
                     </Box>
                   </Box>
