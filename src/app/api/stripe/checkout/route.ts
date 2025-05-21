@@ -37,7 +37,7 @@ const OrderSchema = z.object({
     tambonId: z.number(),
     tambonName: z.string(),
     zipCode: z.string(),
-    deliveryDate: z.string().optional(),
+    deliveryDate: z.union([z.string(), z.null()]).optional(),
     deliveryTime: z.string().optional(),
     cardMessage: z.string().optional(),
     additionalNote: z.string().optional(),
