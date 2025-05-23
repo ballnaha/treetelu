@@ -46,7 +46,8 @@ export async function GET(
       where: {
         AND: [
           { categoryId: categoryId },
-          { id: { not: productId } }
+          { id: { not: productId } },
+          { productStatus: "on" }
         ]
       }
     });
@@ -67,7 +68,8 @@ export async function GET(
       where: {
         AND: [
           { categoryId: categoryId },
-          { id: { not: productId } }
+          { id: { not: productId } },
+          { productStatus: "on" }
         ]
       },
       skip: randomSkip,
