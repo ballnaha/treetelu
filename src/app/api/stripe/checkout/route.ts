@@ -350,6 +350,10 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
     console.log('Creating Stripe session with baseUrl:', baseUrl);
     
+    // ตรวจสอบว่า baseUrl เป็น production URL หรือไม่
+    const isProduction = baseUrl.includes('https://treetelu.com');
+    console.log('Is production environment:', isProduction);
+    
     // กำหนดวิธีการชำระเงินที่จะใช้ใน Stripe ตาม paymentMethodType ที่ส่งมา
     const paymentMethodTypes: Stripe.Checkout.SessionCreateParams.PaymentMethodType[] = [];
     
@@ -382,6 +386,11 @@ export async function POST(request: NextRequest) {
         mode: 'payment',
         success_url: `${baseUrl}/orders/complete?source=stripe&session_id={CHECKOUT_SESSION_ID}&order_id=${order.id}&order_number=${orderNumber}`,
         cancel_url: validatedData.cancelUrl || `${baseUrl}/checkout`,
+        // เพิ่ม automatic_tax และ billing_address_collection สำหรับ production
+        ...(isProduction && {
+          automatic_tax: { enabled: false },
+          billing_address_collection: 'auto'
+        }),
         customer_email: validatedData.customerInfo.email,
         locale: 'th',
         payment_intent_data: {
