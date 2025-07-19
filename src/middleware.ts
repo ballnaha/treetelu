@@ -34,6 +34,31 @@ export async function middleware(request: NextRequest) {
   
   console.log('Middleware processing path:', pathname);
   
+  // ตรวจสอบว่าเป็น request จาก LINE LIFF หรือไม่
+  const userAgent = request.headers.get('user-agent') || '';
+  const referer = request.headers.get('referer') || '';
+  
+  const isFromLine = userAgent.includes('Line/') || 
+                     userAgent.includes('LINE/') ||
+                     referer.includes('line.me') ||
+                     referer.includes('liff.line.me');
+  
+  // สร้าง response
+  let response = NextResponse.next();
+  
+  // เพิ่ม header เพื่อระบุว่าเป็น LIFF request
+  if (isFromLine) {
+    response.headers.set('x-liff-request', 'true');
+    console.log('Middleware: Detected LIFF request');
+  }
+  
+  // เพิ่ม CORS headers สำหรับ LIFF
+  if (isFromLine || pathname.startsWith('/api/auth/liff')) {
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  }
+  
   // ตรวจสอบว่าเป็นการเรียกไฟล์รูปภาพสินค้าหรือไม่
   if (pathname.startsWith('/images/product/') || pathname.startsWith('/images/blog/')) {
     // เลือกประเภทรูปภาพและกำหนด path prefix
@@ -75,7 +100,14 @@ export async function middleware(request: NextRequest) {
     }
     
     // ทำการ rewrite URL พร้อม header
-    return NextResponse.rewrite(url, { headers });
+    response = NextResponse.rewrite(url, { headers });
+    
+    // เพิ่ม LIFF headers ถ้าจำเป็น
+    if (isFromLine) {
+      response.headers.set('x-liff-request', 'true');
+    }
+    
+    return response;
   }
   
   if (pathname.startsWith('/uploads/payment-slips/')) {
@@ -99,14 +131,21 @@ export async function middleware(request: NextRequest) {
     }
     
     // ทำการ rewrite URL
-    return NextResponse.rewrite(url);
+    response = NextResponse.rewrite(url);
+    
+    // เพิ่ม LIFF headers ถ้าจำเป็น
+    if (isFromLine) {
+      response.headers.set('x-liff-request', 'true');
+    }
+    
+    return response;
   }
   
   // For the login page, we'll allow access regardless of token status
   // This prevents redirect loops and allows users to log in again if needed
   if (pathname === '/login') {
     // Continue to login page without redirecting
-    return NextResponse.next();
+    return response;
   }
   
   // Check if the requested path is an admin path
@@ -130,13 +169,13 @@ export async function middleware(request: NextRequest) {
     // อนุญาตในกรณีมีการใช้ auth=token ใน URL
     if (authParam === 'token') {
       console.log('Middleware: Using token auth mode, allowing access');
-      return NextResponse.next();
+      return response;
     }
     
     // อนุญาตในกรณี debug=1
     if (debug === '1') {
       console.log('Middleware: Debug mode enabled, allowing access');
-      return NextResponse.next();
+      return response;
     }
     
     // If no token is found, redirect to login page
@@ -148,11 +187,11 @@ export async function middleware(request: NextRequest) {
     // ไม่ตรวจสอบ token ใน middleware เนื่องจากข้อจำกัดของ Edge Runtime
     // แทนที่จะตรวจสอบที่นี่ เราจะใช้ API /api/admin/check-auth ตรวจสอบในหน้า client แทน
     console.log('Middleware: Auth token found, allowing access to admin page');
-    return NextResponse.next();
+    return response;
   }
   
   // For non-admin paths, proceed normally
-  return NextResponse.next();
+  return response;
 }
 
 // กำหนด path patterns ที่จะให้ middleware นี้ทำงาน
@@ -160,8 +199,10 @@ export const config = {
   matcher: [
     '/admin/:path*',
     '/login',
+    '/liff-test',
     '/images/product/:path*',
     '/images/blog/:path*',
-    '/uploads/payment-slips/:path*'
+    '/uploads/payment-slips/:path*',
+    '/api/auth/liff-login'
   ],
 };

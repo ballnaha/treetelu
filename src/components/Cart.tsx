@@ -23,6 +23,7 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import Link from 'next/link';
+import { useShippingSettings } from '@/hooks/useShippingSettings';
 
 export interface CartItem extends Product {
   quantity: number;
@@ -102,6 +103,12 @@ const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
 
 export default function Cart({ cartItems, onUpdateQuantity, onRemoveItem, onClose, isOpen }: CartProps) {
   const subtotal = cartItems.reduce((sum, item) => sum + (parseFloat(String(item.salesPrice || item.price || 0)) * item.quantity), 0);
+  const { 
+    settings, 
+    loading: shippingLoading, 
+    isEligibleForFreeShipping, 
+    getAmountNeededForFreeShipping 
+  } = useShippingSettings();
 
   return (
     <CartDrawer anchor="right" open={isOpen} onClose={onClose}>
@@ -229,21 +236,25 @@ export default function Cart({ cartItems, onUpdateQuantity, onRemoveItem, onClos
                 <Typography variant="body1" fontWeight={500}>฿{subtotal.toLocaleString()}</Typography>
               </Box>
               
-              {subtotal < 1500 ? (
-                <Alert severity="info" sx={{ mt: 2 }} icon={false}>
-                  <Typography variant="body2">
-                    สั่งซื้อเพิ่มอีก ฿{(1500 - subtotal).toLocaleString()} เพื่อรับสิทธิ์จัดส่งฟรี!
-                  </Typography>
-                  <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
-                    (ค่าจัดส่งปกติ 100 บาท)
-                  </Typography>
-                </Alert>
-              ) : (
-                <Alert severity="success" sx={{ mt: 2 }} icon={false}>
-                  <Typography variant="body2">
-                    คุณได้รับสิทธิ์จัดส่งฟรี!
-                  </Typography>
-                </Alert>
+              {!shippingLoading && (
+                <>
+                  {!isEligibleForFreeShipping(subtotal) ? (
+                    <Alert severity="info" sx={{ mt: 2 }} icon={false}>
+                      <Typography variant="body2">
+                        สั่งซื้อเพิ่มอีก ฿{getAmountNeededForFreeShipping(subtotal).toLocaleString()} เพื่อรับสิทธิ์จัดส่งฟรี!
+                      </Typography>
+                      <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
+                        (ค่าจัดส่งปกติ {settings.standardShippingCost} บาท)
+                      </Typography>
+                    </Alert>
+                  ) : (
+                    <Alert severity="success" sx={{ mt: 2 }} icon={false}>
+                      <Typography variant="body2">
+                        🎉 คุณได้รับสิทธิ์จัดส่งฟรี!
+                      </Typography>
+                    </Alert>
+                  )}
+                </>
               )}
               
               <Button 

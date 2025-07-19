@@ -1,13 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createOrder } from '@/utils/orderUtils';
-import { z } from 'zod';
-import { revalidatePath } from 'next/cache';
-import { getBangkokDateTime } from '@/utils/dateUtils';
-import { Resend } from 'resend';
-import { format, addHours } from 'date-fns';
-import thLocale from 'date-fns/locale/th';
-import { sendDiscordNotification, createOrderNotificationEmbed } from '@/utils/discordUtils';
-import { PrismaClient } from '@prisma/client';
+import { NextRequest, NextResponse } from "next/server";
+import { createOrder } from "@/utils/orderUtils";
+import { z } from "zod";
+import { revalidatePath } from "next/cache";
+
+import { Resend } from "resend";
+import { format, addHours } from "date-fns";
+import thLocale from "date-fns/locale/th";
+import {
+  sendDiscordNotification,
+  createOrderNotificationEmbed,
+} from "@/utils/discordUtils";
+import { calculateShippingCost } from "@/utils/shippingUtils";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -17,17 +21,17 @@ const resend = new Resend(process.env.RESEND_API_KEY as string);
 // สร้าง schema สำหรับตรวจสอบข้อมูลคำสั่งซื้อ
 const orderSchema = z.object({
   customerInfo: z.object({
-    firstName: z.string().min(2, 'กรุณาระบุชื่อให้ถูกต้อง'),
-    lastName: z.string().min(2, 'กรุณาระบุนามสกุลให้ถูกต้อง'),
-    email: z.string().email('กรุณาระบุอีเมลให้ถูกต้อง'),
-    phone: z.string().min(9, 'กรุณาระบุเบอร์โทรศัพท์ให้ถูกต้อง'),
-    note: z.string().optional()
+    firstName: z.string().min(2, "กรุณาระบุชื่อให้ถูกต้อง"),
+    lastName: z.string().min(2, "กรุณาระบุนามสกุลให้ถูกต้อง"),
+    email: z.string().email("กรุณาระบุอีเมลให้ถูกต้อง"),
+    phone: z.string().min(9, "กรุณาระบุเบอร์โทรศัพท์ให้ถูกต้อง"),
+    note: z.string().optional(),
   }),
   shippingInfo: z.object({
-    receiverName: z.string().min(2, 'กรุณาระบุชื่อผู้รับให้ถูกต้อง'),
-    receiverLastname: z.string().min(2, 'กรุณาระบุนามสกุลผู้รับให้ถูกต้อง'),
-    receiverPhone: z.string().min(9, 'กรุณาระบุเบอร์โทรศัพท์ผู้รับให้ถูกต้อง'),
-    addressLine: z.string().min(1, 'กรุณาระบุที่อยู่ให้ครบถ้วน'),
+    receiverName: z.string().min(2, "กรุณาระบุชื่อผู้รับให้ถูกต้อง"),
+    receiverLastname: z.string().min(2, "กรุณาระบุนามสกุลผู้รับให้ถูกต้อง"),
+    receiverPhone: z.string().min(9, "กรุณาระบุเบอร์โทรศัพท์ผู้รับให้ถูกต้อง"),
+    addressLine: z.string().min(1, "กรุณาระบุที่อยู่ให้ครบถ้วน"),
     addressLine2: z.string().optional(),
     provinceId: z.number(),
     provinceName: z.string(),
@@ -35,58 +39,71 @@ const orderSchema = z.object({
     amphureName: z.string(),
     tambonId: z.number(),
     tambonName: z.string(),
-    zipCode: z.string().min(5, 'กรุณาระบุรหัสไปรษณีย์ให้ถูกต้อง'),
+    zipCode: z.string().min(5, "กรุณาระบุรหัสไปรษณีย์ให้ถูกต้อง"),
     deliveryDate: z.union([z.string(), z.date(), z.null()]).optional(),
     deliveryTime: z.string().optional(),
     cardMessage: z.string().optional(),
-    additionalNote: z.string().optional()
+    additionalNote: z.string().optional(),
   }),
-  items: z.array(z.object({
-    productId: z.number(),
-    productName: z.string(),
-    productImg: z.string().optional(),
-    quantity: z.number().min(1, 'จำนวนสินค้าต้องมากกว่า 0'),
-    unitPrice: z.number()
-  })).min(1, 'กรุณาเลือกสินค้าอย่างน้อย 1 รายการ'),
-  paymentMethod: z.enum(['BANK_TRANSFER', 'CREDIT_CARD', 'PROMPTPAY', 'COD']),
+  items: z
+    .array(
+      z.object({
+        productId: z.number(),
+        productName: z.string(),
+        productImg: z.string().optional(),
+        quantity: z.number().min(1, "จำนวนสินค้าต้องมากกว่า 0"),
+        unitPrice: z.number(),
+      })
+    )
+    .min(1, "กรุณาเลือกสินค้าอย่างน้อย 1 รายการ"),
+  paymentMethod: z.enum(["BANK_TRANSFER", "CREDIT_CARD", "PROMPTPAY", "COD"]),
   userId: z.union([z.number(), z.string(), z.null(), z.undefined()]).optional(),
   discount: z.number().default(0),
   discountCode: z.string().optional(),
-  paymentStatus: z.enum(['PENDING', 'CONFIRMED', 'REJECTED']).optional(),
+  paymentStatus: z.enum(["PENDING", "CONFIRMED", "REJECTED"]).optional(),
   paymentReference: z.string().optional(),
   omiseToken: z.string().optional(), // สำหรับ Omise token (card token หรือ charge id สำหรับ promptpay)
   returnUri: z.string().optional(), // สำหรับกรณี 3DS redirect
-  chargeId: z.string().optional()
+  chargeId: z.string().optional(),
 });
 
 // แทนที่ส่วนของการส่งอีเมลด้วย Resend
 const sendOrderConfirmationEmail = async (orderData: any) => {
   try {
     // Debug: ตรวจสอบข้อมูล customerInfo และ email
-    console.log('Debug - orderData.customerInfo:', JSON.stringify(orderData.customerInfo, null, 2));
-    console.log('Debug - Email value:', orderData.customerInfo.email);
-    
+    console.log(
+      "Debug - orderData.customerInfo:",
+      JSON.stringify(orderData.customerInfo, null, 2)
+    );
+    console.log("Debug - Email value:", orderData.customerInfo.email);
+
     // คำนวณราคารวมทั้งหมด
-    const subtotal = Number(orderData.items.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * Number(item.quantity)), 0));
-    
-    // คำนวณค่าจัดส่ง: ฟรีค่าจัดส่งเมื่อซื้อสินค้ามากกว่าหรือเท่ากับ 1,500 บาท
-    const shippingCost = subtotal >= 1500 ? 0 : 100;
-    
+    const subtotal = Number(
+      orderData.items.reduce(
+        (sum: number, item: any) =>
+          sum + Number(item.unitPrice) * Number(item.quantity),
+        0
+      )
+    );
+
+    // คำนวณค่าจัดส่งจากการตั้งค่าในฐานข้อมูล
+    const shippingCost = await calculateShippingCost(subtotal);
+
     // คำนวณส่วนลด (ถ้ามี)
     const discount = Number(orderData.discount || 0);
-    
+
     // คำนวณยอดรวมทั้งสิ้น (หักส่วนลดด้วย)
     const totalAmount = subtotal + shippingCost - discount;
 
     // แปลงวันที่จัดส่งเป็น UTC+7
-    const deliveryDate = orderData.shippingInfo.deliveryDate 
+    const deliveryDate = orderData.shippingInfo.deliveryDate
       ? addHours(new Date(orderData.shippingInfo.deliveryDate), 7)
       : null;
 
     const emailContent = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="text-align: center; margin-bottom: 20px;">
-            <img src="${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/images/logo.webp" alt="Treetelu Logo" style="max-width: 150px; height: auto;"/>
+            <img src="${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/images/logo.webp" alt="Treetelu Logo" style="max-width: 150px; height: auto;"/>
           </div>
           <h1 style="color: #24B493; font-size: 24px;">ขอบคุณสำหรับคำสั่งซื้อ</h1>
           
@@ -99,20 +116,22 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
           <div style="margin: 20px 0;">
             <h2>รายการสินค้า</h2>
             <table style="width: 100%; border-collapse: collapse;">
-              ${orderData.items.map((item: any) => {
-                // แปลง URL รูปภาพให้เป็น absolute URL
-                let imageUrl = 'https://via.placeholder.com/80';
-                if (item.productImg) {
-                  if (item.productImg.startsWith('http')) {
-                    imageUrl = item.productImg;
-                  } else {
-                    imageUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${item.productImg}`;
+              ${orderData.items
+                .map((item: any) => {
+                  // แปลง URL รูปภาพให้เป็น absolute URL
+                  let imageUrl = "https://via.placeholder.com/80";
+                  if (item.productImg) {
+                    if (item.productImg.startsWith("http")) {
+                      imageUrl = item.productImg;
+                    } else {
+                      imageUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}${item.productImg}`;
+                    }
                   }
-                }
-                
-                const itemTotal = Number(item.unitPrice) * Number(item.quantity);
-                
-                return `
+
+                  const itemTotal =
+                    Number(item.unitPrice) * Number(item.quantity);
+
+                  return `
                 <tr>
                   <td style="padding: 10px 0;">
                     <div style="display: flex; align-items: center; gap: 15px;">
@@ -133,21 +152,27 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
                     ฿${itemTotal.toLocaleString()}
                   </td>
                 </tr>
-              `}).join('')}
+              `;
+                })
+                .join("")}
               <tr style="border-top: 1px solid #eee;">
                 <td style="padding: 10px 0;">ยอดรวมสินค้า</td>
                 <td style="text-align: right; padding: 10px 0;">฿${subtotal.toLocaleString()}</td>
               </tr>
               <tr>
                 <td style="padding: 10px 0;">ค่าจัดส่ง</td>
-                <td style="text-align: right; padding: 10px 0;">${shippingCost === 0 ? 'ฟรี' : `฿${shippingCost.toLocaleString()}`}</td>
+                <td style="text-align: right; padding: 10px 0;">${shippingCost === 0 ? "ฟรี" : `฿${shippingCost.toLocaleString()}`}</td>
               </tr>
-              ${orderData.discount && Number(orderData.discount) > 0 ? `
+              ${
+                orderData.discount && Number(orderData.discount) > 0
+                  ? `
               <tr>
-                <td style="padding: 10px 0;">ส่วนลด ${orderData.discountCode ? `(${orderData.discountCode})` : ''}</td>
+                <td style="padding: 10px 0;">ส่วนลด ${orderData.discountCode ? `(${orderData.discountCode})` : ""}</td>
                 <td style="text-align: right; padding: 10px 0; color: #e53935;">-฿${Number(orderData.discount).toLocaleString()}</td>
               </tr>
-              ` : ''}
+              `
+                  : ""
+              }
               <tr style="border-top: 2px solid #24B493; font-weight: bold;">
                 <td style="padding: 10px 0;">รวมทั้งสิ้น</td>
                 <td style="text-align: right; padding: 10px 0;">฿${totalAmount.toLocaleString()}</td>
@@ -158,20 +183,26 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
           <div style="background: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 4px;">
             <h3 style="margin-top: 0; color: #24B493;">ข้อมูลการชำระเงิน</h3>
             <p style="margin: 0;">
-              ${orderData.paymentMethod === 'CREDIT_CARD' ? `
+              ${
+                orderData.paymentMethod === "CREDIT_CARD"
+                  ? `
               การชำระเงินด้วยบัตรเครดิต/เดบิตเรียบร้อยแล้ว<br>
-              รหัสการชำระเงิน: ${orderData.paymentReference || '-'}<br>
+              รหัสการชำระเงิน: ${orderData.paymentReference || "-"}<br>
               สถานะ: ชำระเงินแล้ว
-              ` : orderData.paymentMethod === 'PROMPTPAY' ? `
+              `
+                  : orderData.paymentMethod === "PROMPTPAY"
+                    ? `
               การชำระเงินด้วย PromptPay<br>
-              รหัสการชำระเงิน: ${orderData.paymentReference || '-'}<br>
-              สถานะ: ${orderData.paymentStatus === 'CONFIRMED' ? 'ชำระเงินแล้ว' : 'รอการชำระเงิน'}<br>
-              ${orderData.paymentStatus !== 'CONFIRMED' ? 'กรุณาสแกน QR code เพื่อชำระเงิน' : ''}
-              ` : `
+              รหัสการชำระเงิน: ${orderData.paymentReference || "-"}<br>
+              สถานะ: ${orderData.paymentStatus === "CONFIRMED" ? "ชำระเงินแล้ว" : "รอการชำระเงิน"}<br>
+              ${orderData.paymentStatus !== "CONFIRMED" ? "กรุณาสแกน QR code เพื่อชำระเงิน" : ""}
+              `
+                    : `
               ธนาคารไทยพาณิชย์ (SCB)<br>
               เลขที่บัญชี: 264-221037-2<br>
               ชื่อบัญชี: นายธัญญา รัตนาวงศ์ไชยา<br>
-              `}
+              `
+              }
             </p>
           </div>
 
@@ -188,29 +219,39 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
               <strong>ที่อยู่:</strong> ${orderData.shippingInfo.addressLine}
             </p>
             
-            ${orderData.shippingInfo.tambonName !== 'จัดส่งให้ผู้รับโดยตรง' || orderData.shippingInfo.amphureName !== 'จัดส่งให้ผู้รับโดยตรง' || orderData.shippingInfo.provinceName !== 'จัดส่งให้ผู้รับโดยตรง' ? `
+            ${
+              orderData.shippingInfo.tambonName !== "จัดส่งให้ผู้รับโดยตรง" ||
+              orderData.shippingInfo.amphureName !== "จัดส่งให้ผู้รับโดยตรง" ||
+              orderData.shippingInfo.provinceName !== "จัดส่งให้ผู้รับโดยตรง"
+                ? `
             <p style="margin: 5px 0; color: #34495e;">
-              <strong>ตำบล/แขวง:</strong> ${orderData.shippingInfo.tambonName || '-'}
+              <strong>ตำบล/แขวง:</strong> ${orderData.shippingInfo.tambonName || "-"}
             </p>
            
             <p style="margin: 5px 0; color: #34495e;">
-              <strong>อำเภอ/เขต:</strong> ${orderData.shippingInfo.amphureName || '-'}
+              <strong>อำเภอ/เขต:</strong> ${orderData.shippingInfo.amphureName || "-"}
             </p>
            
             <p style="margin: 5px 0; color: #34495e;">
-              <strong>จังหวัด:</strong> ${orderData.shippingInfo.provinceName || '-'}
+              <strong>จังหวัด:</strong> ${orderData.shippingInfo.provinceName || "-"}
             </p>
             
             <p style="margin: 5px 0; color: #34495e;">
-              <strong>รหัสไปรษณีย์:</strong> ${orderData.shippingInfo.zipCode || '-'}
+              <strong>รหัสไปรษณีย์:</strong> ${orderData.shippingInfo.zipCode || "-"}
             </p>
-            ` : ''}
+            `
+                : ""
+            }
 
-            ${deliveryDate ? `
+            ${
+              deliveryDate
+                ? `
               <p style="margin: 5px 0; color: #34495e;">
-                <strong>วันที่จัดส่ง:</strong> ${format(deliveryDate, 'dd MMMM yyyy', { locale: thLocale })}
+                <strong>วันที่จัดส่ง:</strong> ${format(deliveryDate, "dd MMMM yyyy", { locale: thLocale })}
               </p>
-            ` : ''}
+            `
+                : ""
+            }
 
           </div>
         </div>
@@ -218,9 +259,9 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
 
     // ส่งอีเมลด้วย Resend
     await resend.emails.send({
-      from: 'Treetelu - ต้นไม้ในกระถาง <no-reply@treetelu.com>',
+      from: "Treetelu - ต้นไม้ในกระถาง <no-reply@treetelu.com>",
       to: orderData.customerInfo.email,
-      subject: 'ขอบคุณสำหรับคำสั่งซื้อ',
+      subject: "ขอบคุณสำหรับคำสั่งซื้อ",
       html: emailContent,
     });
 
@@ -229,10 +270,10 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
     // await saveOrderToDatabase(orderData);
 
     // ตรวจสอบว่าส่งอีเมลได้สำเร็จหรือไม่
-    return { success: true, message: 'ส่งอีเมลสำเร็จ' };
+    return { success: true, message: "ส่งอีเมลสำเร็จ" };
   } catch (error) {
-    console.error('การส่งอีเมลล้มเหลว:', error);
-    return { success: false, message: 'การส่งอีเมลล้มเหลว' };
+    console.error("การส่งอีเมลล้มเหลว:", error);
+    return { success: false, message: "การส่งอีเมลล้มเหลว" };
   }
 };
 
@@ -240,207 +281,242 @@ export async function POST(request: NextRequest) {
   try {
     // อ่านข้อมูลจาก request body
     const body = await request.json();
-    
+
     // ตรวจสอบข้อมูลด้วย schema
     const validatedData = orderSchema.parse(body);
-    
+
     // กรณีมี chargeId (สำหรับ PromptPay ที่อาจจะมีการชำระเงินแล้ว)
-    if (validatedData.chargeId && validatedData.paymentMethod === 'PROMPTPAY') {
+    if (validatedData.chargeId && validatedData.paymentMethod === "PROMPTPAY") {
       // ตรวจสอบว่ามีข้อมูลการชำระเงินใน pending_payment หรือไม่
       const pendingPayment = await prisma.pendingPayment.findFirst({
         where: {
           charge_id: validatedData.chargeId,
-          status: 'CONFIRMED',
-          processed: false
-        }
+          status: "CONFIRMED",
+          processed: false,
+        },
       });
-      
+
       if (pendingPayment) {
-        console.log(`Found confirmed pending payment for charge: ${validatedData.chargeId}`);
+        console.log(
+          `Found confirmed pending payment for charge: ${validatedData.chargeId}`
+        );
         // ถ้าพบข้อมูลการชำระเงินที่ยืนยันแล้ว ให้กำหนดสถานะชำระเงินเป็น CONFIRMED
-        validatedData.paymentStatus = 'CONFIRMED';
+        validatedData.paymentStatus = "CONFIRMED";
       }
     }
-    
+
     // ถ้ามีการชำระเงินด้วยบัตรเครดิต/เดบิต (Omise)
-    if (validatedData.paymentMethod === 'CREDIT_CARD' && validatedData.omiseToken) {
+    if (
+      validatedData.paymentMethod === "CREDIT_CARD" &&
+      validatedData.omiseToken
+    ) {
       try {
         // คำนวณยอดเงินทั้งหมด (รวมค่าจัดส่ง หักส่วนลด)
-        const subtotal = validatedData.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
-        const shippingCost = subtotal >= 1500 ? 0 : 100; // ฟรีค่าจัดส่งเมื่อซื้อมากกว่า 1,500 บาท
+        const subtotal = validatedData.items.reduce(
+          (sum, item) => sum + item.unitPrice * item.quantity,
+          0
+        );
+        const shippingCost = await calculateShippingCost(subtotal); // ใช้การตั้งค่าจากฐานข้อมูล
         const discount = validatedData.discount || 0;
         const totalAmount = subtotal + shippingCost - discount;
-        
+
         // เรียกใช้ Omise API เพื่อทำการชำระเงิน
-        const omise = require('omise')({
+        const omise = require("omise")({
           publicKey: process.env.OMISE_PUBLIC_KEY,
           secretKey: process.env.OMISE_SECRET_KEY,
         });
-        
+
         // สร้าง charge ผ่าน Omise
         const charge = await omise.charges.create({
           amount: Math.round(totalAmount * 100), // แปลงเป็นสตางค์ (1 บาท = 100 สตางค์)
-          currency: 'thb',
+          currency: "thb",
           card: validatedData.omiseToken,
           capture: true, // จัดเก็บเงินทันที
           // สร้าง return_uri ด้วย placeholder หรือ domain เปล่าๆ ไปก่อน จะอัพเดทอีกที
-          return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/orders/complete?source=cc`,
+          return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || "https://treetelu.com"}/orders/complete?source=cc`,
           metadata: {
-            order_id: 'pending', // ยังไม่มี order ID จึงใช้ pending ไปก่อน
+            order_id: "pending", // ยังไม่มี order ID จึงใช้ pending ไปก่อน
             customer_email: validatedData.customerInfo.email,
-            customer_name: `${validatedData.customerInfo.firstName} ${validatedData.customerInfo.lastName}`
-          }
+            customer_name: `${validatedData.customerInfo.firstName} ${validatedData.customerInfo.lastName}`,
+          },
         });
-        
+
         // อัพเดท return_uri ด้วย charge.id หลังจากได้ charge แล้ว
         await omise.charges.update(charge.id, {
-          return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/orders/complete?source=cc&transactionId=${charge.id}`
+          return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || "https://treetelu.com"}/orders/complete?source=cc&transactionId=${charge.id}`,
         });
-        
-        console.log('Credit card charge created:', {
+
+        console.log("Credit card charge created:", {
           id: charge.id,
           status: charge.status,
           amount: charge.amount / 100,
           hasAuthorizeUri: !!charge.authorize_uri,
-          return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://treetelu.com'}/orders/complete?source=cc&transactionId=${charge.id}`
+          return_uri: `${process.env.NEXT_PUBLIC_BASE_URL || "https://treetelu.com"}/orders/complete?source=cc&transactionId=${charge.id}`,
         });
-        
+
         // เพิ่มข้อมูลการชำระเงินลงในข้อมูลสำหรับสร้างคำสั่งซื้อ
         validatedData.paymentReference = charge.id; // เก็บ Omise Charge ID
-        
+
         // ส่ง chargeId กลับไปยัง client เพื่อใช้ในการ redirect
         validatedData.chargeId = charge.id;
-        
+
         // ตรวจสอบสถานะการชำระเงิน
-        if (charge.status === 'successful') {
+        if (charge.status === "successful") {
           // กรณีไม่ต้องทำ 3DS - เงินถูกเก็บเรียบร้อยแล้ว
-          validatedData.paymentStatus = 'CONFIRMED';
-        } else if (charge.status === 'pending' && charge.authorize_uri) {
+          validatedData.paymentStatus = "CONFIRMED";
+        } else if (charge.status === "pending" && charge.authorize_uri) {
           // กรณีต้องทำ 3DS - ต้องรอการยืนยันตัวตน
-          validatedData.paymentStatus = 'PENDING'; // รอการยืนยันตัวตน 3DS
-          
+          validatedData.paymentStatus = "PENDING"; // รอการยืนยันตัวตน 3DS
+
           // ถ้ามีการทำ 3DS ให้เก็บ authorize_uri ไว้สำหรับ redirect ไปยังหน้ายืนยันตัวตน
           if (charge.authorize_uri) {
             // โดยค่านี้จะถูกส่งกลับไปให้ client เพื่อทำการ redirect
             validatedData.returnUri = charge.authorize_uri;
           }
-          
+
           // หมายเหตุ: ในกรณีนี้ ระบบจะต้องอาศัย webhook ในการอัพเดทสถานะการชำระเงินเป็น CONFIRMED หลังจากยืนยันตัวตนสำเร็จ
         } else {
           // กรณีการชำระเงินล้มเหลวด้วยเหตุผลอื่น
-          validatedData.paymentStatus = 'REJECTED';
+          validatedData.paymentStatus = "REJECTED";
           return NextResponse.json(
-            { success: false, message: 'การชำระเงินไม่สำเร็จ: ' + (charge.failure_message || 'กรุณาตรวจสอบข้อมูลบัตรและลองใหม่อีกครั้ง') },
+            {
+              success: false,
+              message:
+                "การชำระเงินไม่สำเร็จ: " +
+                (charge.failure_message ||
+                  "กรุณาตรวจสอบข้อมูลบัตรและลองใหม่อีกครั้ง"),
+            },
             { status: 400 }
           );
         }
       } catch (omiseError: any) {
-        console.error('Omise payment error:', omiseError);
+        console.error("Omise payment error:", omiseError);
         return NextResponse.json(
-          { success: false, message: 'เกิดข้อผิดพลาดในการชำระเงิน: ' + (omiseError.message || 'กรุณาลองใหม่อีกครั้ง') },
+          {
+            success: false,
+            message:
+              "เกิดข้อผิดพลาดในการชำระเงิน: " +
+              (omiseError.message || "กรุณาลองใหม่อีกครั้ง"),
+          },
           { status: 500 }
         );
       }
     }
     // ถ้ามีการชำระเงินด้วย PromptPay
-    else if (validatedData.paymentMethod === 'PROMPTPAY' && validatedData.omiseToken) {
+    else if (
+      validatedData.paymentMethod === "PROMPTPAY" &&
+      validatedData.omiseToken
+    ) {
       try {
         // คำนวณยอดเงินทั้งหมด (รวมค่าจัดส่ง หักส่วนลด)
-        const subtotal = validatedData.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
-        const shippingCost = subtotal >= 1500 ? 0 : 100; // ฟรีค่าจัดส่งเมื่อซื้อมากกว่า 1,500 บาท
+        const subtotal = validatedData.items.reduce(
+          (sum, item) => sum + item.unitPrice * item.quantity,
+          0
+        );
+        const shippingCost = await calculateShippingCost(subtotal); // ใช้การตั้งค่าจากฐานข้อมูล
         const discount = validatedData.discount || 0;
         const totalAmount = subtotal + shippingCost - discount;
         const expectedAmount = Math.round(totalAmount * 100); // แปลงเป็นสตางค์
-        
+
         // เรียกใช้ Omise API เพื่อเช็คสถานะ charge
-        const omise = require('omise')({
+        const omise = require("omise")({
           publicKey: process.env.OMISE_PUBLIC_KEY,
           secretKey: process.env.OMISE_SECRET_KEY,
         });
-        
+
         // ตรวจสอบ charge ที่ได้รับจาก client
         let charge: any = null;
         try {
           // ตรวจสอบ charge ที่ได้รับจาก client (validatedData.omiseToken คือ charge.id)
           charge = await omise.charges.retrieve(validatedData.omiseToken);
-          
+
           // ตรวจสอบว่า charge มีอยู่จริงและมียอดเงินตรงกัน
           if (!charge || charge.amount !== expectedAmount) {
-            console.error('PromptPay charge validation failed:', {
+            console.error("PromptPay charge validation failed:", {
               chargeId: validatedData.omiseToken,
               chargeAmount: charge ? charge.amount : null,
-              expectedAmount
+              expectedAmount,
             });
-            
+
             // ยอมรับ charge แม้ว่ายอดเงินจะไม่ตรงกัน เพื่อหลีกเลี่ยงปัญหา
-            console.log('Accepting charge despite amount mismatch for troubleshooting');
+            console.log(
+              "Accepting charge despite amount mismatch for troubleshooting"
+            );
           }
         } catch (chargeError) {
-          console.error('Error retrieving charge details:', chargeError);
+          console.error("Error retrieving charge details:", chargeError);
           // ในกรณีที่ไม่สามารถเรียกดูข้อมูล charge ได้ ให้ดำเนินการต่อไปโดยใช้ข้อมูลที่มี
           charge = {
             id: validatedData.omiseToken,
-            status: 'pending',
-            metadata: {}
+            status: "pending",
+            metadata: {},
           };
         }
-        
+
         try {
           // อัพเดท metadata ของ charge เพื่อเชื่อมกับ order ที่กำลังจะสร้าง
           await omise.charges.update(validatedData.omiseToken, {
             metadata: {
               ...(charge?.metadata || {}),
-              order_id: 'pending', // จะอัพเดทเป็น order ID จริงหลังจากสร้าง order
+              order_id: "pending", // จะอัพเดทเป็น order ID จริงหลังจากสร้าง order
               customer_email: validatedData.customerInfo.email,
-              customer_name: `${validatedData.customerInfo.firstName} ${validatedData.customerInfo.lastName}`
-            }
+              customer_name: `${validatedData.customerInfo.firstName} ${validatedData.customerInfo.lastName}`,
+            },
           });
         } catch (updateError) {
-          console.error('Error updating charge metadata:', updateError);
+          console.error("Error updating charge metadata:", updateError);
           // ไม่หยุดกระบวนการหากไม่สามารถอัพเดท metadata ได้
         }
-        
+
         // ในกรณีของ PromptPay สถานะจะเป็น pending จนกว่าลูกค้าจะสแกนจ่าย
-        validatedData.paymentStatus = 'PENDING'; // รอการชำระเงิน
+        validatedData.paymentStatus = "PENDING"; // รอการชำระเงิน
         validatedData.paymentReference = validatedData.omiseToken; // เก็บ Omise Charge ID
-        
+
         // ใช้ webhook ในการติดตามสถานะการชำระเงิน (ต้องตั้งค่า webhook ที่ Omise dashboard)
       } catch (omiseError: any) {
-        console.error('Omise PromptPay payment error:', omiseError);
+        console.error("Omise PromptPay payment error:", omiseError);
         return NextResponse.json(
-          { success: false, message: 'เกิดข้อผิดพลาดในการตรวจสอบข้อมูล PromptPay: ' + (omiseError.message || 'กรุณาลองใหม่อีกครั้ง') },
+          {
+            success: false,
+            message:
+              "เกิดข้อผิดพลาดในการตรวจสอบข้อมูล PromptPay: " +
+              (omiseError.message || "กรุณาลองใหม่อีกครั้ง"),
+          },
           { status: 500 }
         );
       }
     }
-    
+
     // สร้างคำสั่งซื้อใหม่
     const result = await createOrder(validatedData);
-    
+
     if (!result.success || !result.order) {
       return NextResponse.json(
-        { success: false, message: 'เกิดข้อผิดพลาดในการสร้างคำสั่งซื้อ' },
+        { success: false, message: "เกิดข้อผิดพลาดในการสร้างคำสั่งซื้อ" },
         { status: 500 }
       );
     }
-    
+
     // Generate order number from the order object
     const orderNumber = result.order.orderNumber as string;
-    
+
     // ส่งอีเมลยืนยันคำสั่งซื้อ
     try {
       const emailResult = await sendOrderConfirmationEmail({
         ...validatedData,
-        orderNumber
+        orderNumber,
       });
       if (!emailResult.success) {
-        console.warn('Order created but email sending failed:', emailResult.message);
+        console.warn(
+          "Order created but email sending failed:",
+          emailResult.message
+        );
       }
     } catch (emailError) {
-      console.error('Error sending order confirmation email:', emailError);
+      console.error("Error sending order confirmation email:", emailError);
       // ไม่คืนค่า error ถ้าการส่งอีเมลล้มเหลว แต่คำสั่งซื้อยังคงถูกสร้าง
     }
-    
+
     // ส่งการแจ้งเตือนไปยัง Discord (ถ้ามีการตั้งค่า)
     if (process.env.DISCORD_WEBHOOK_URL) {
       try {
@@ -449,127 +525,146 @@ export async function POST(request: NextRequest) {
           ...result.order,
           items: validatedData.items,
           customerInfo: {
-            ...result.order.customerInfo
+            ...result.order.customerInfo,
           },
           shippingInfo: {
-            ...result.order.shippingInfo
+            ...result.order.shippingInfo,
           },
           paymentMethod: validatedData.paymentMethod,
           discount: validatedData.discount || 0,
-          discountCode: validatedData.discountCode || ''
+          discountCode: validatedData.discountCode || "",
         };
-        
-        const embed = createOrderNotificationEmbed(orderDataForDiscord);
-        
-        sendDiscordNotification(embed).catch(error => {
-          console.error('Error sending Discord notification:', error);
+
+        const embed = await createOrderNotificationEmbed(orderDataForDiscord);
+
+        sendDiscordNotification(embed).catch((error) => {
+          console.error("Error sending Discord notification:", error);
         });
       } catch (error) {
-        console.error('Error creating Discord notification:', error);
+        console.error("Error creating Discord notification:", error);
         // ไม่ต้องหยุดการทำงานหากส่งแจ้งเตือน Discord ไม่สำเร็จ
       }
     }
-    
+
     // ถ้ามี chargeId และเป็นการชำระเงินด้วย PromptPay ให้อัปเดตสถานะใน pending_payment
-    if (result.success && validatedData.chargeId && validatedData.paymentMethod === 'PROMPTPAY') {
+    if (
+      result.success &&
+      validatedData.chargeId &&
+      validatedData.paymentMethod === "PROMPTPAY"
+    ) {
       try {
         // ค้นหา pending_payment ที่เกี่ยวข้อง
         const pendingPayment = await prisma.pendingPayment.findFirst({
           where: {
-            charge_id: validatedData.chargeId
-          }
+            charge_id: validatedData.chargeId,
+          },
         });
-        
+
         if (pendingPayment) {
           // อัปเดตสถานะเป็น processed และเชื่อมโยงกับ order
           await prisma.pendingPayment.update({
             where: {
-              id: pendingPayment.id
+              id: pendingPayment.id,
             },
             data: {
               processed: true,
               order_id: parseInt(result.order.id),
-              updated_at: new Date()
-            }
+              updated_at: new Date(),
+            },
           });
-          
-          console.log(`Updated pending payment ${pendingPayment.id} for order ${result.order.id}`);
-          
+
+          console.log(
+            `Updated pending payment ${pendingPayment.id} for order ${result.order.id}`
+          );
+
           // ถ้าสถานะการชำระเงินเป็น CONFIRMED ให้อัพเดตตาราง orders และ payment_info
-          if (pendingPayment.status === 'CONFIRMED') {
+          if (pendingPayment.status === "CONFIRMED") {
             // อัพเดตสถานะการชำระเงินในตาราง orders
             await prisma.order.update({
               where: { id: parseInt(result.order.id) },
-              data: { paymentStatus: 'CONFIRMED' }
+              data: { paymentStatus: "CONFIRMED" },
             });
-            
+
             // อัพเดตสถานะการชำระเงินในตาราง payment_info
             await prisma.paymentInfo.update({
               where: { orderId: parseInt(result.order.id) },
-              data: { 
-                status: 'CONFIRMED',
-                paymentDate: new Date()
-              }
+              data: {
+                status: "CONFIRMED",
+                paymentDate: new Date(),
+              },
             });
-            
-            console.log(`Updated payment status to CONFIRMED for order ${result.order.id}`);
+
+            console.log(
+              `Updated payment status to CONFIRMED for order ${result.order.id}`
+            );
           }
         }
       } catch (error) {
-        console.error('Error updating pending payment:', error);
+        console.error("Error updating pending payment:", error);
         // ไม่ต้องหยุดการทำงานหากอัปเดต pending_payment ไม่สำเร็จ
       }
     }
-    
+
     // Revalidate เส้นทางเพื่ออัปเดตข้อมูล (ใช้แค่ 1 argument คือ path)
-    revalidatePath('/admin/orders');
-    
+    revalidatePath("/admin/orders");
+
     // ถ้าเป็น Omise payment (บัตรเครดิตหรือ PromptPay) ให้อัพเดท metadata เพื่อเชื่อมกับ order
-    if ((validatedData.paymentMethod === 'CREDIT_CARD' || validatedData.paymentMethod === 'PROMPTPAY') && 
-        validatedData.paymentReference) {
+    if (
+      (validatedData.paymentMethod === "CREDIT_CARD" ||
+        validatedData.paymentMethod === "PROMPTPAY") &&
+      validatedData.paymentReference
+    ) {
       try {
-        const omise = require('omise')({
+        const omise = require("omise")({
           publicKey: process.env.OMISE_PUBLIC_KEY,
           secretKey: process.env.OMISE_SECRET_KEY,
         });
-        
+
         // อัพเดท metadata ของ charge ด้วย order ID
         await omise.charges.update(validatedData.paymentReference, {
           metadata: {
             order_id: result.order.id.toString(), // เปลี่ยนจาก 'pending' เป็น order ID จริง
-            order_number: orderNumber
-          }
+            order_number: orderNumber,
+          },
         });
-        
-        console.log(`Updated Omise charge ${validatedData.paymentReference} with order ID ${result.order.id}`);
+
+        console.log(
+          `Updated Omise charge ${validatedData.paymentReference} with order ID ${result.order.id}`
+        );
       } catch (omiseError) {
         // ถึงแม้จะไม่สามารถอัพเดท metadata ได้ แต่คำสั่งซื้อยังคงถูกสร้าง
-        console.error('Error updating Omise charge metadata:', omiseError);
+        console.error("Error updating Omise charge metadata:", omiseError);
       }
     }
-    
+
     return NextResponse.json({
       success: true,
-      message: 'สร้างคำสั่งซื้อสำเร็จ',
+      message: "สร้างคำสั่งซื้อสำเร็จ",
       orderNumber,
       orderId: result.order.id,
-      ...(validatedData.returnUri ? { returnUri: validatedData.returnUri } : {})
+      ...(validatedData.returnUri
+        ? { returnUri: validatedData.returnUri }
+        : {}),
     });
-    
   } catch (error) {
-    console.error('Order creation error:', error);
-    
+    console.error("Order creation error:", error);
+
     // ตรวจสอบว่าเป็น Zod Error หรือไม่
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ');
+      const errorMessages = error.errors
+        .map((err) => `${err.path.join(".")}: ${err.message}`)
+        .join(", ");
       return NextResponse.json(
         { success: false, message: `ข้อมูลไม่ถูกต้อง: ${errorMessages}` },
         { status: 400 }
       );
     }
-    
+
     return NextResponse.json(
-      { success: false, message: `เกิดข้อผิดพลาด: ${(error as Error).message || 'Unknown error'}` },
+      {
+        success: false,
+        message: `เกิดข้อผิดพลาด: ${(error as Error).message || "Unknown error"}`,
+      },
       { status: 500 }
     );
   }

@@ -472,6 +472,10 @@ export default function AddressForm({ onAddressChange, defaultValues, hideReceiv
               onChange={handleProvinceChange}
               label="จังหวัด"
               disabled={loadingProvinces}
+              MenuProps={{
+                disableScrollLock: true,
+                transitionDuration: 0
+              }}
             >
               <MenuItem value="" sx={{ color: 'text.secondary' }}>
                 เลือกจังหวัด
@@ -499,6 +503,10 @@ export default function AddressForm({ onAddressChange, defaultValues, hideReceiv
               value={selectedAmphure}
               onChange={handleAmphureChange}
               label="อำเภอ/เขต"
+              MenuProps={{
+                disableScrollLock: true,
+                transitionDuration: 0
+              }}
             >
               <MenuItem value="" sx={{ color: 'text.secondary' }}>
                 เลือกอำเภอ/เขต
@@ -526,6 +534,10 @@ export default function AddressForm({ onAddressChange, defaultValues, hideReceiv
               value={selectedTambon}
               onChange={handleTambonChange}
               label="ตำบล/แขวง"
+              MenuProps={{
+                disableScrollLock: true,
+                transitionDuration: 0
+              }}
             >
               <MenuItem value="" sx={{ color: 'text.secondary' }}>
                 เลือกตำบล/แขวง

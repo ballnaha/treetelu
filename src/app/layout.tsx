@@ -30,7 +30,11 @@ import ContactSupportIcon from '@mui/icons-material/ContactSupport';
 import dynamic from "next/dynamic";
 import CookieConsent from '@/components/CookieConsent';
 import UserMenu from '@/components/UserMenu';
-import { CartProvider } from '@/contexts/CartContext';
+import { CartProvider, useCart } from '@/context/CartContext';
+import CartButton from '@/components/CartButton';
+import Cart from '@/components/Cart';
+import LiffAutoLogin from '@/components/LiffAutoLogin';
+import GoogleAnalytics from '@/components/GoogleAnalytics';
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const prompt = Prompt({ 
@@ -78,13 +82,19 @@ export default function RootLayout({
         <link rel="shortcut icon" href="/images/favicon.png" type="image/png" />
         <link rel="apple-touch-icon" href="/images/favicon.png" />
         <link rel="manifest" href="/site.webmanifest" />
+        {/* Google Analytics */}
+        {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+          <GoogleAnalytics measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
+        )}
       </head>
       <body className={`${inter.variable} ${prompt.variable} font-sans`} suppressHydrationWarning>
         <CartProvider>
           <ClientOnly>
             <ClientProvider>
-              {children}
-              <CookieConsent />
+              <LiffAutoLogin liffId={process.env.NEXT_PUBLIC_LIFF_ID}>
+                {children}
+                <CookieConsent />
+              </LiffAutoLogin>
             </ClientProvider>
           </ClientOnly>
         </CartProvider>
@@ -204,9 +214,7 @@ function HeaderLayout({ isDesktop, toggleMobileMenu, isMounted }: {
   toggleMobileMenu: () => void; 
   isMounted: boolean;
 }) {
-  // นำเข้า useCart และ CartButton เพื่อใช้งานใน HeaderLayout
-  // ซึ่งจะถูกเรียกเมื่อมี ClientProvider แล้วเท่านั้น
-  const { useCart, CartButton, Cart } = require('@/context/CartContext');
+  // ใช้ useCart hook เพื่อเข้าถึงข้อมูลตะกร้าสินค้า
   const { getTotalItems, openCart: contextOpenCart, cartItems, updateQuantity, removeItem, isCartOpen, closeCart } = useCart();
   
   // ฟังก์ชันเปิดตะกร้าสินค้า

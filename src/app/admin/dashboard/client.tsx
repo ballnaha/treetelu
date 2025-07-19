@@ -1159,6 +1159,10 @@ export default function AdminDashboardClient() {
               value={selectedMonth}
               onChange={handleMonthChange}
               label="เลือกเดือน"
+              MenuProps={{
+                disableScrollLock: true,
+                transitionDuration: 0
+              }}
             >
               {ThaiMonths.map(month => (
                 <MenuItem key={month.id} value={month.id}>
@@ -1176,6 +1180,10 @@ export default function AdminDashboardClient() {
               value={selectedYear}
               onChange={handleYearChange}
               label="เลือกปี"
+              MenuProps={{
+                disableScrollLock: true,
+                transitionDuration: 0
+              }}
             >
               {availableYears.map(year => (
                 <MenuItem key={year} value={year}>
@@ -1645,6 +1653,10 @@ export default function AdminDashboardClient() {
                           onChange={(e) => setShowUnit(e.target.value)}
                           label="หน่วย"
                           sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                          MenuProps={{
+                            disableScrollLock: true,
+                            transitionDuration: 0
+                          }}
                         >
                           <MenuItem value="amount">แสดงเป็นยอดเงิน</MenuItem>
                           <MenuItem value="orders">แสดงเป็นจำนวนคำสั่งซื้อ</MenuItem>

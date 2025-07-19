@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Product } from '@/types/product';
 import { CartItem } from '@/components/Cart';
+import { useShippingSettings } from '@/hooks/useShippingSettings';
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -12,6 +13,9 @@ interface CartContextType {
   clearCart: () => void;
   getTotalItems: () => number;
   getTotalPrice: () => number;
+  getShippingCost: () => number;
+  isEligibleForFreeShipping: () => boolean;
+  getAmountNeededForFreeShipping: () => number;
   isCartOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
@@ -25,6 +29,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  
+  // ใช้ useShippingSettings เฉพาะเมื่อ component ถูก mount แล้ว
+  const shippingSettings = useShippingSettings();
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // โหลดรายการสินค้าจาก localStorage เมื่อคอมโพเนนต์ถูกโหลด
   useEffect(() => {
@@ -120,6 +132,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }, 0);
   };
 
+  const getShippingCost = () => {
+    if (!isMounted) return 0;
+    const subtotal = getTotalPrice();
+    return shippingSettings.calculateShippingCost(subtotal);
+  };
+
+  const isEligibleForFreeShipping = () => {
+    if (!isMounted) return false;
+    const subtotal = getTotalPrice();
+    return shippingSettings.isEligibleForFreeShipping(subtotal);
+  };
+
+  const getAmountNeededForFreeShipping = () => {
+    if (!isMounted) return 0;
+    const subtotal = getTotalPrice();
+    return shippingSettings.getAmountNeededForFreeShipping(subtotal);
+  };
+
   const openCart = () => setIsCartOpen(true);
   const closeCart = () => setIsCartOpen(false);
 
@@ -132,6 +162,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       clearCart,
       getTotalItems,
       getTotalPrice,
+      getShippingCost,
+      isEligibleForFreeShipping,
+      getAmountNeededForFreeShipping,
       isCartOpen,
       openCart,
       closeCart

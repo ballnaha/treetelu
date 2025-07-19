@@ -291,6 +291,10 @@ const ProductsContent = () => {
                 value={category}
                 label="หมวดหมู่"
                 onChange={handleCategoryChange}
+                MenuProps={{
+                  disableScrollLock: true,
+                  transitionDuration: 0
+                }}
               >
                 <MenuItem value="">ทั้งหมด</MenuItem>
                 {categories.map((cat) => (
@@ -310,6 +314,10 @@ const ProductsContent = () => {
                 value={sortBy}
                 label="จัดเรียงตาม"
                 onChange={handleSortChange}
+                MenuProps={{
+                  disableScrollLock: true,
+                  transitionDuration: 0
+                }}
               >
                 <MenuItem value="newest">ล่าสุด</MenuItem>
                 <MenuItem value="price_low">ราคา: ต่ำ-สูง</MenuItem>

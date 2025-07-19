@@ -46,9 +46,11 @@ import AddIcon from '@mui/icons-material/Add';
 import DownloadIcon from '@mui/icons-material/Download';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditIcon from '@mui/icons-material/Edit';
-import MoneyIcon from '@mui/icons-material/Money';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import { format, parseISO } from 'date-fns';
 import { th } from 'date-fns/locale';
+
+
 
 // Custom StatusChip component
 const StatusChipStyled = styled(Chip)({
@@ -63,19 +65,19 @@ function StatusChip({ status, ...props }: { status: string; [x: string]: any }) 
   let bgColor = theme.palette.warning.light;
   let textColor = theme.palette.warning.dark;
   
-  if (status === 'approved' || status === 'APPROVED') {
+  if (status === 'CONFIRMED') {
     bgColor = theme.palette.success.light;
     textColor = theme.palette.success.dark;
-  } else if (status === 'rejected' || status === 'REJECTED') {
+  } else if (status === 'REJECTED') {
     bgColor = theme.palette.error.light;
     textColor = theme.palette.error.dark;
   }
   
   // แปลงสถานะให้เป็นภาษาไทย
   let statusLabel = 'รอตรวจสอบ';
-  if (status === 'approved' || status === 'APPROVED') {
-    statusLabel = 'อนุมัติแล้ว';
-  } else if (status === 'rejected' || status === 'REJECTED') {
+  if (status === 'CONFIRMED') {
+    statusLabel = 'ยืนยันแล้ว';
+  } else if (status === 'REJECTED') {
     statusLabel = 'ปฏิเสธแล้ว';
   }
   
@@ -115,10 +117,13 @@ interface PaymentConfirmation {
   orderNumber: string;
   amount: number;
   slipUrl: string;
-  status: 'pending' | 'approved' | 'rejected' | 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: 'PENDING' | 'CONFIRMED' | 'REJECTED';
   createdAt: string;
   updatedAt: string;
   notes?: string;
+  // ฟิลด์เพิ่มเติมสำหรับการตรวจสอบ order
+  orderExists?: boolean;
+  statusNote?: string;
 }
 
 export default function PaymentConfirmationAdmin() {
@@ -131,16 +136,45 @@ export default function PaymentConfirmationAdmin() {
   const [selectedPayment, setSelectedPayment] = useState<PaymentConfirmation | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [openImageDialog, setOpenImageDialog] = useState(false);
-  const [openEditDialog, setOpenEditDialog] = useState(false);
-  const [openEditAmountDialog, setOpenEditAmountDialog] = useState(false);
   const [note, setNote] = useState('');
-  const [newOrderNumber, setNewOrderNumber] = useState('');
-  const [newAmount, setNewAmount] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
+  
+  // Filter states with localStorage persistence
+  const [statusFilter, setStatusFilter] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('paymentConfirmation.statusFilter') || 'ALL';
+    }
+    return 'ALL';
+  });
+  const [orderExistsFilter, setOrderExistsFilter] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('paymentConfirmation.orderExistsFilter') || 'ALL';
+    }
+    return 'ALL';
+  });
+  const [dateFromFilter, setDateFromFilter] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('paymentConfirmation.dateFromFilter') || '';
+    }
+    return '';
+  });
+  const [dateToFilter, setDateToFilter] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('paymentConfirmation.dateToFilter') || '';
+    }
+    return '';
+  });
+  const [showFilters, setShowFilters] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('paymentConfirmation.showFilters') === 'true';
+    }
+    return false;
+  });
+
 
   // โหลดข้อมูลการชำระเงิน
   const fetchPayments = async () => {
@@ -151,7 +185,49 @@ export default function PaymentConfirmationAdmin() {
         throw new Error('ไม่สามารถโหลดข้อมูลได้');
       }
       const data = await response.json();
-      setPayments(data.payments);
+      
+      // ดึงสถานะของ order แต่ละรายการเพื่อให้ตรงกับ slip
+      const paymentsWithOrderStatus = await Promise.all(
+        data.payments.map(async (payment: any) => {
+          try {
+            const orderResponse = await fetch(`/api/admin/orders/${payment.orderNumber}`);
+            if (orderResponse.ok) {
+              const orderData = await orderResponse.json();
+              if (orderData.success && orderData.order) {
+                return {
+                  ...payment,
+                  status: orderData.order.paymentStatus || payment.status,
+                  orderExists: true // ระบุว่าพบ order ที่ตรงกัน
+                };
+              } else {
+                console.warn(`Order ${payment.orderNumber} not found in orders table`);
+                return {
+                  ...payment,
+                  orderExists: false, // ระบุว่าไม่พบ order ที่ตรงกัน
+                  statusNote: 'ไม่พบคำสั่งซื้อที่ตรงกัน' // เพิ่มหมายเหตุ
+                };
+              }
+            } else if (orderResponse.status === 404) {
+              console.warn(`Order ${payment.orderNumber} not found (404)`);
+              return {
+                ...payment,
+                orderExists: false,
+                statusNote: 'ไม่พบคำสั่งซื้อที่ตรงกัน'
+              };
+            }
+          } catch (error) {
+            console.error(`ไม่สามารถดึงข้อมูล order ${payment.orderNumber}:`, error);
+            return {
+              ...payment,
+              orderExists: false,
+              statusNote: 'เกิดข้อผิดพลาดในการตรวจสอบ'
+            };
+          }
+          return payment; // ใช้ข้อมูลเดิมถ้าไม่สามารถดึงข้อมูล order ได้
+        })
+      );
+      
+      setPayments(paymentsWithOrderStatus);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -162,6 +238,37 @@ export default function PaymentConfirmationAdmin() {
   useEffect(() => {
     fetchPayments();
   }, []);
+
+  // บันทึก filter preferences ลง localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('paymentConfirmation.statusFilter', statusFilter);
+    }
+  }, [statusFilter]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('paymentConfirmation.orderExistsFilter', orderExistsFilter);
+    }
+  }, [orderExistsFilter]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('paymentConfirmation.dateFromFilter', dateFromFilter);
+    }
+  }, [dateFromFilter]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('paymentConfirmation.dateToFilter', dateToFilter);
+    }
+  }, [dateToFilter]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('paymentConfirmation.showFilters', showFilters.toString());
+    }
+  }, [showFilters]);
 
   // จัดการการเปลี่ยนหน้า
   const handleChangePage = (event: unknown, newPage: number) => {
@@ -211,19 +318,19 @@ export default function PaymentConfirmationAdmin() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          status: 'APPROVED',
+          status: 'CONFIRMED',
           notes: note,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('ไม่สามารถอนุมัติการชำระเงินได้');
+        throw new Error('ไม่สามารถยืนยันการชำระเงินได้');
       }
 
       // อัพเดทสถานะในหน้าจอ
       setPayments(payments.map(payment => 
         payment.id === selectedPayment.id 
-          ? { ...payment, status: 'APPROVED', notes: note, updatedAt: new Date().toISOString() }
+          ? { ...payment, status: 'CONFIRMED', notes: note, updatedAt: new Date().toISOString() }
           : payment
       ));
 
@@ -337,6 +444,8 @@ export default function PaymentConfirmationAdmin() {
     setSelectedPayment(null);
   };
 
+
+
   // จัดการการค้นหา
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(event.target.value);
@@ -344,10 +453,39 @@ export default function PaymentConfirmationAdmin() {
   };
 
   // กรองข้อมูลตามการค้นหา
-  const filteredPayments = payments.filter(payment =>
-    payment.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    payment.amount.toString().includes(searchQuery)
-  );
+  // ระบบ filter ที่ครบถ้วน
+  const filteredPayments = payments.filter(payment => {
+    // Filter ตาม search query
+    const matchesSearch = searchQuery === '' || 
+      payment.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      payment.amount.toString().includes(searchQuery) ||
+      (payment.notes && payment.notes.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    // Filter ตามสถานะ
+    const matchesStatus = statusFilter === 'ALL' || payment.status === statusFilter;
+    
+    // Filter ตามการมีอยู่ของ order
+    const matchesOrderExists = orderExistsFilter === 'ALL' || 
+      (orderExistsFilter === 'EXISTS' && payment.orderExists !== false) ||
+      (orderExistsFilter === 'NOT_EXISTS' && payment.orderExists === false);
+    
+    // Filter ตามวันที่
+    let matchesDateRange = true;
+    if (dateFromFilter || dateToFilter) {
+      const paymentDate = new Date(payment.createdAt);
+      if (dateFromFilter) {
+        const fromDate = new Date(dateFromFilter);
+        matchesDateRange = matchesDateRange && paymentDate >= fromDate;
+      }
+      if (dateToFilter) {
+        const toDate = new Date(dateToFilter);
+        toDate.setHours(23, 59, 59, 999); // รวมทั้งวัน
+        matchesDateRange = matchesDateRange && paymentDate <= toDate;
+      }
+    }
+    
+    return matchesSearch && matchesStatus && matchesOrderExists && matchesDateRange;
+  });
 
   // จัดการการเปิดเมนู
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, payment: PaymentConfirmation) => {
@@ -362,93 +500,7 @@ export default function PaymentConfirmationAdmin() {
     setSelectedAction(null);
   };
 
-  // จัดการการแก้ไขหมายเลขคำสั่งซื้อ
-  const handleEditOrderNumber = (payment: PaymentConfirmation) => {
-    setSelectedPayment(payment);
-    setNewOrderNumber(payment.orderNumber);
-    setOpenEditDialog(true);
-  };
 
-  const handleCloseEditDialog = () => {
-    setOpenEditDialog(false);
-    setSelectedPayment(null);
-    setNewOrderNumber('');
-  };
-
-  const handleSaveOrderNumber = async () => {
-    if (!selectedPayment || !newOrderNumber.trim()) return;
-
-    try {
-      const response = await fetch(`/api/admin/payment-confirmation/${selectedPayment.id}/update-order`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderNumber: newOrderNumber,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('ไม่สามารถอัพเดทหมายเลขคำสั่งซื้อได้');
-      }
-
-      // อัพเดทข้อมูลในหน้าจอ
-      setPayments(payments.map(payment => 
-        payment.id === selectedPayment.id 
-          ? { ...payment, orderNumber: newOrderNumber, updatedAt: new Date().toISOString() }
-          : payment
-      ));
-
-      handleCloseEditDialog();
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
-  // จัดการการแก้ไขราคา
-  const handleEditAmount = (payment: PaymentConfirmation) => {
-    setSelectedPayment(payment);
-    setNewAmount(String(payment.amount));
-    setOpenEditAmountDialog(true);
-  };
-
-  const handleCloseEditAmountDialog = () => {
-    setOpenEditAmountDialog(false);
-    setSelectedPayment(null);
-    setNewAmount('');
-  };
-
-  const handleSaveAmount = async () => {
-    if (!selectedPayment || !newAmount.trim() || isNaN(Number(newAmount)) || Number(newAmount) <= 0) return;
-
-    try {
-      const response = await fetch(`/api/admin/payment-confirmation/${selectedPayment.id}/update-amount`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: Number(newAmount),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('ไม่สามารถอัพเดทราคาได้');
-      }
-
-      // อัพเดทข้อมูลในหน้าจอ
-      setPayments(payments.map(payment => 
-        payment.id === selectedPayment.id 
-          ? { ...payment, amount: Number(newAmount), updatedAt: new Date().toISOString() }
-          : payment
-      ));
-
-      handleCloseEditAmountDialog();
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
 
   // จัดการการเลือก action จากเมนู
   const handleMenuAction = (action: string) => {
@@ -463,12 +515,6 @@ export default function PaymentConfirmationAdmin() {
         break;
       case 'image':
         handleViewImage(selectedPayment);
-        break;
-      case 'edit':
-        handleEditOrderNumber(selectedPayment);
-        break;
-      case 'edit-amount':
-        handleEditAmount(selectedPayment);
         break;
       case 'delete':
         handleConfirmDelete();
@@ -514,7 +560,7 @@ export default function PaymentConfirmationAdmin() {
           <Divider sx={{ mb: 3 }} />
         </Box>
         
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} spacing={2} sx={{ mb: 3 }}>
           <Box>
             <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
               รายการยืนยันการชำระเงินทั้งหมด
@@ -524,7 +570,7 @@ export default function PaymentConfirmationAdmin() {
             </Typography>
           </Box>
           
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ width: { xs: '100%', sm: 'auto' } }}>
             <TextField
               size="small"
               placeholder="ค้นหา..."
@@ -537,12 +583,30 @@ export default function PaymentConfirmationAdmin() {
             />
             
             <StyledButton
-              variant="contained"
+              variant={showFilters ? "contained" : "outlined"}
               color="primary"
               startIcon={<FilterListIcon />}
               size="medium"
+              sx={{ 
+                display: { xs: 'none', sm: 'flex' },
+                position: 'relative'
+              }}
+              onClick={() => setShowFilters(!showFilters)}
             >
               กรอง
+              {(statusFilter !== 'ALL' || orderExistsFilter !== 'ALL' || dateFromFilter || dateToFilter) && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -4,
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: 'error.main'
+                  }}
+                />
+              )}
             </StyledButton>
           </Stack>
         </Stack>
@@ -553,7 +617,229 @@ export default function PaymentConfirmationAdmin() {
           </Alert>
         )}
 
-        <Paper sx={{ width: '100%', overflow: 'hidden', mb: 4, borderRadius: 1 }}>
+        {/* Filter Controls */}
+        {showFilters && (
+          <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              ตัวกรอง
+            </Typography>
+            <Stack spacing={3}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                {/* Status Filter */}
+                <TextField
+                  select
+                  label="สถานะ"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  sx={{ minWidth: 150 }}
+                  size="small"
+                  SelectProps={{
+                    MenuProps: {
+                      disableScrollLock: true,
+                      transitionDuration: 0,
+                    }
+                  }}
+                >
+                  <MenuItem value="ALL">ทั้งหมด</MenuItem>
+                  <MenuItem value="PENDING">รอตรวจสอบ</MenuItem>
+                  <MenuItem value="CONFIRMED">ยืนยันแล้ว</MenuItem>
+                  <MenuItem value="REJECTED">ปฏิเสธแล้ว</MenuItem>
+                </TextField>
+
+                {/* Order Exists Filter */}
+                <TextField
+                  select
+                  label="สถานะคำสั่งซื้อ"
+                  value={orderExistsFilter}
+                  onChange={(e) => setOrderExistsFilter(e.target.value)}
+                  sx={{ minWidth: 180 }}
+                  size="small"
+                  SelectProps={{
+                    MenuProps: {
+                      disableScrollLock: true,
+                      transitionDuration: 0,
+                    }
+                  }}
+                >
+                  <MenuItem value="ALL">ทั้งหมด</MenuItem>
+                  <MenuItem value="EXISTS">พบคำสั่งซื้อ</MenuItem>
+                  <MenuItem value="NOT_EXISTS">ไม่พบคำสั่งซื้อ</MenuItem>
+                </TextField>
+              </Stack>
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                {/* Date From Filter */}
+                <TextField
+                  type="date"
+                  label="จากวันที่"
+                  value={dateFromFilter}
+                  onChange={(e) => setDateFromFilter(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  size="small"
+                  sx={{ minWidth: 150 }}
+                />
+
+                {/* Date To Filter */}
+                <TextField
+                  type="date"
+                  label="ถึงวันที่"
+                  value={dateToFilter}
+                  onChange={(e) => setDateToFilter(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  size="small"
+                  sx={{ minWidth: 150 }}
+                />
+              </Stack>
+
+              {/* Filter Actions */}
+              <Stack direction="row" spacing={2}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => {
+                    // ล้าง filter states
+                    setStatusFilter('ALL');
+                    setOrderExistsFilter('ALL');
+                    setDateFromFilter('');
+                    setDateToFilter('');
+                    setSearchQuery('');
+                    
+                    // ล้าง localStorage
+                    if (typeof window !== 'undefined') {
+                      localStorage.removeItem('paymentConfirmation.statusFilter');
+                      localStorage.removeItem('paymentConfirmation.orderExistsFilter');
+                      localStorage.removeItem('paymentConfirmation.dateFromFilter');
+                      localStorage.removeItem('paymentConfirmation.dateToFilter');
+                    }
+                  }}
+                >
+                  ล้างตัวกรอง
+                </Button>
+                <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center' }}>
+                  พบ {filteredPayments.length} รายการ จากทั้งหมด {payments.length} รายการ
+                </Typography>
+              </Stack>
+            </Stack>
+          </Paper>
+        )}
+
+        {/* Mobile Filter Button */}
+        <Box sx={{ display: { xs: 'block', sm: 'none' }, mb: 2 }}>
+          <Button
+            fullWidth
+            variant={showFilters ? "contained" : "outlined"}
+            color={(statusFilter !== 'ALL' || orderExistsFilter !== 'ALL' || dateFromFilter || dateToFilter) ? "primary" : "inherit"}
+            startIcon={<FilterListIcon />}
+            onClick={() => setShowFilters(!showFilters)}
+            sx={{ borderRadius: 2, position: 'relative' }}
+          >
+            ตัวกรอง ({filteredPayments.length}/{payments.length})
+            {(statusFilter !== 'ALL' || orderExistsFilter !== 'ALL' || dateFromFilter || dateToFilter) && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  bgcolor: 'error.main'
+                }}
+              />
+            )}
+          </Button>
+        </Box>
+
+        {/* Mobile Card Layout */}
+        <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 4 }}>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={32} color="primary" />
+            </Box>
+          ) : filteredPayments.length === 0 ? (
+            <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 2 }}>
+              <Typography variant="body1" sx={{ mb: 1 }}>
+                ไม่พบข้อมูลการชำระเงิน
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                ลองเปลี่ยนคำค้นหาหรือกลับมาภายหลัง
+              </Typography>
+            </Paper>
+          ) : (
+            <Stack spacing={2}>
+              {filteredPayments
+                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                .map((payment) => (
+                  <Paper key={payment.id} sx={{ p: 3, borderRadius: 2 }}>
+                    <Stack spacing={2}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                            {payment.orderNumber}
+                          </Typography>
+                          <Typography variant="h6" color="primary" sx={{ fontWeight: 600 }}>
+                            ฿{payment.amount.toLocaleString()}
+                          </Typography>
+                        </Box>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => handleMenuOpen(e, payment)}
+                        >
+                          <MoreVertIcon />
+                        </IconButton>
+                      </Box>
+                      
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <StatusChip status={payment.status} size="small" />
+                        <Typography variant="caption" color="text.secondary">
+                          {formatThaiDateTime(payment.createdAt)}
+                        </Typography>
+                      </Box>
+                      
+                      {payment.notes && (
+                        <Typography variant="body2" color="text.secondary" sx={{ 
+                          overflow: 'hidden', 
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical'
+                        }}>
+                          {payment.notes}
+                        </Typography>
+                      )}
+                    </Stack>
+                  </Paper>
+                ))}
+            </Stack>
+          )}
+          
+          {/* Mobile Pagination */}
+          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25]}
+              component="div"
+              count={filteredPayments.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              labelRowsPerPage="แสดง:"
+              labelDisplayedRows={({ from, to, count }) => `${from}-${to} จาก ${count}`}
+              sx={{
+                '& .MuiTablePagination-toolbar': {
+                  flexDirection: 'column',
+                  gap: 1
+                },
+                '& .MuiTablePagination-spacer': {
+                  display: 'none'
+                }
+              }}
+            />
+          </Box>
+        </Box>
+
+        {/* Desktop Table Layout */}
+        <Paper sx={{ width: '100%', overflow: 'hidden', mb: 4, borderRadius: 1, display: { xs: 'none', md: 'block' } }}>
           <TableContainer>
             <Table sx={{ minWidth: 650 }}>
               <TableHead>
@@ -562,7 +848,7 @@ export default function PaymentConfirmationAdmin() {
                   <StyledTableCell align="right">จำนวนเงิน</StyledTableCell>
                   <StyledTableCell>วันที่แจ้ง</StyledTableCell>
                   <StyledTableCell>สถานะ</StyledTableCell>
-                  <StyledTableCell>หมายเหตุ</StyledTableCell>
+                  <StyledTableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>หมายเหตุ</StyledTableCell>
                   <StyledTableCell align="center">จัดการ</StyledTableCell>
                 </TableRow>
               </TableHead>
@@ -592,24 +878,41 @@ export default function PaymentConfirmationAdmin() {
                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                     .map((payment) => (
                       <TableRow key={payment.id} hover>
-                        <TableCell sx={{ fontWeight: 500 }}>{payment.orderNumber}</TableCell>
+                        <TableCell sx={{ fontWeight: 500 }}>
+                          {payment.orderNumber}
+                        </TableCell>
                         <TableCell align="right">
-                          {payment.amount.toLocaleString('th-TH', {
-                            style: 'currency',
-                            currency: 'THB'
-                          })}
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            ฿{payment.amount.toLocaleString()}
+                          </Typography>
                         </TableCell>
                         <TableCell>
                           {formatThaiDateTime(payment.createdAt)}
                         </TableCell>
                         <TableCell>
-                          <StatusChip
-                            status={payment.status}
-                            size="small"
-                          />
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <StatusChip
+                              status={payment.status}
+                              size="small"
+                            />
+                            {payment.orderExists === false && (
+                              <Typography 
+                                variant="caption" 
+                                sx={{ 
+                                  color: 'warning.main', 
+                                  fontSize: '0.7rem',
+                                  fontWeight: 500
+                                }}
+                              >
+                                ⚠️ ไม่พบ Order
+                              </Typography>
+                            )}
+                          </Box>
                         </TableCell>
-                        <TableCell>
-                          {payment.notes || '-'}
+                        <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
+                          <Typography variant="body2" sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {payment.statusNote || payment.notes || '-'}
+                          </Typography>
                         </TableCell>
                         <TableCell align="center">
                           <Tooltip title="ตัวเลือกเพิ่มเติม">
@@ -646,6 +949,9 @@ export default function PaymentConfirmationAdmin() {
           anchorEl={anchorEl}
           open={Boolean(anchorEl)}
           onClose={handleMenuClose}
+          disableScrollLock={true}
+          disableRestoreFocus={true}
+          transitionDuration={0}
           PaperProps={{
             elevation: 1,
             sx: { minWidth: 180, borderRadius: 1 }
@@ -665,20 +971,6 @@ export default function PaymentConfirmationAdmin() {
             <ListItemText>ดูรูปสลิป</ListItemText>
           </MenuItem>
           
-          <MenuItem onClick={() => handleMenuAction('edit')}>
-            <ListItemIcon>
-              <EditIcon fontSize="small" color="primary" />
-            </ListItemIcon>
-            <ListItemText>แก้ไขหมายเลขคำสั่งซื้อ</ListItemText>
-          </MenuItem>
-
-          <MenuItem onClick={() => handleMenuAction('edit-amount')}>
-            <ListItemIcon>
-              <MoneyIcon fontSize="small" color="primary" />
-            </ListItemIcon>
-            <ListItemText>แก้ไขจำนวนเงิน</ListItemText>
-          </MenuItem>
-          
           <Divider sx={{ my: 1 }} />
           <MenuItem onClick={() => handleMenuAction('delete')} sx={{ color: 'error.main' }}>
             <ListItemIcon>
@@ -694,12 +986,17 @@ export default function PaymentConfirmationAdmin() {
           onClose={handleCloseDialog}
           maxWidth="sm"
           fullWidth
+          fullScreen={false}
           PaperProps={{
-            sx: { borderRadius: 2 }
+            sx: { 
+              borderRadius: { xs: 0, sm: 2 },
+              m: { xs: 0, sm: 2 },
+              maxHeight: { xs: '100vh', sm: 'calc(100vh - 64px)' }
+            }
           }}
         >
           <DialogTitle sx={{ pb: 1 }}>
-            {selectedAction === 'approve' ? 'อนุมัติการชำระเงิน' :
+            {selectedAction === 'approve' ? 'ยืนยันการชำระเงิน' :
              selectedAction === 'reject' ? 'ปฏิเสธการชำระเงิน' :
              'รายละเอียดการชำระเงิน'}
           </DialogTitle>
@@ -841,8 +1138,12 @@ export default function PaymentConfirmationAdmin() {
           onClose={handleCloseImageDialog}
           maxWidth="md"
           fullWidth
+          fullScreen={true}
           PaperProps={{
-            sx: { borderRadius: 2 }
+            sx: { 
+              borderRadius: { xs: 0, sm: 2 },
+              m: { xs: 0, sm: 2 }
+            }
           }}
         >
           <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -854,9 +1155,14 @@ export default function PaymentConfirmationAdmin() {
               ปิด
             </Button>
           </DialogTitle>
-          <DialogContent dividers sx={{ p: 2 }}>
+          <DialogContent dividers sx={{ p: { xs: 1, sm: 2 } }}>
             {selectedPayment && (
-              <Box sx={{ position: 'relative', width: '100%', height: '80vh' }}>
+              <Box sx={{ 
+                position: 'relative', 
+                width: '100%', 
+                height: { xs: 'calc(100vh - 120px)', sm: '80vh' },
+                minHeight: { xs: '400px', sm: '500px' }
+              }}>
                 <Image
                   src={selectedPayment.slipUrl}
                   alt="หลักฐานการชำระเงิน"
@@ -867,116 +1173,6 @@ export default function PaymentConfirmationAdmin() {
               </Box>
             )}
           </DialogContent>
-        </Dialog>
-
-        {/* Dialog สำหรับแก้ไขหมายเลขคำสั่งซื้อ */}
-        <Dialog
-          open={openEditDialog}
-          onClose={handleCloseEditDialog}
-          maxWidth="sm"
-          fullWidth
-          PaperProps={{
-            sx: { borderRadius: 2 }
-          }}
-        >
-          <DialogTitle>แก้ไขหมายเลขคำสั่งซื้อ</DialogTitle>
-          
-          <DialogContent dividers>
-            {selectedPayment && (
-              <Box sx={{ py: 1 }}>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  กรุณาระบุหมายเลขคำสั่งซื้อที่ถูกต้อง
-                </Typography>
-                <TextField
-                  fullWidth
-                  label="หมายเลขคำสั่งซื้อ"
-                  value={newOrderNumber}
-                  onChange={(e) => setNewOrderNumber(e.target.value)}
-                  placeholder="ระบุหมายเลขคำสั่งซื้อ"
-                  variant="outlined"
-                  sx={{ mt: 2 }}
-                />
-              </Box>
-            )}
-          </DialogContent>
-          
-          <DialogActions sx={{ px: 3, py: 2 }}>
-            <Button 
-              onClick={handleCloseEditDialog}
-              variant="outlined"
-              color="inherit"
-              sx={{ borderRadius: 1 }}
-            >
-              ยกเลิก
-            </Button>
-            
-            <StyledButton
-              variant="contained"
-              color="primary"
-              onClick={handleSaveOrderNumber}
-              startIcon={<EditIcon />}
-              disabled={!newOrderNumber.trim()}
-            >
-              บันทึก
-            </StyledButton>
-          </DialogActions>
-        </Dialog>
-
-        {/* Dialog สำหรับแก้ไขจำนวนเงิน */}
-        <Dialog
-          open={openEditAmountDialog}
-          onClose={handleCloseEditAmountDialog}
-          maxWidth="sm"
-          fullWidth
-          PaperProps={{
-            sx: { borderRadius: 2 }
-          }}
-        >
-          <DialogTitle>แก้ไขจำนวนเงิน</DialogTitle>
-          
-          <DialogContent dividers>
-            {selectedPayment && (
-              <Box sx={{ py: 1 }}>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  กรุณาระบุจำนวนเงินที่ถูกต้อง
-                </Typography>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="จำนวนเงิน"
-                  value={newAmount}
-                  onChange={(e) => setNewAmount(e.target.value)}
-                  placeholder="ระบุจำนวนเงิน"
-                  variant="outlined"
-                  sx={{ mt: 2 }}
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start">฿</InputAdornment>,
-                  }}
-                />
-              </Box>
-            )}
-          </DialogContent>
-          
-          <DialogActions sx={{ px: 3, py: 2 }}>
-            <Button 
-              onClick={handleCloseEditAmountDialog}
-              variant="outlined"
-              color="inherit"
-              sx={{ borderRadius: 1 }}
-            >
-              ยกเลิก
-            </Button>
-            
-            <StyledButton
-              variant="contained"
-              color="primary"
-              onClick={handleSaveAmount}
-              startIcon={<MoneyIcon />}
-              disabled={!newAmount.trim() || isNaN(Number(newAmount)) || Number(newAmount) <= 0}
-            >
-              บันทึก
-            </StyledButton>
-          </DialogActions>
         </Dialog>
 
         {/* Dialog ยืนยันการลบ */}

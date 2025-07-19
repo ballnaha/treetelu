@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 
 // สร้าง schema สำหรับตรวจสอบข้อมูล
 const updatePaymentSchema = z.object({
-  status: z.enum(['PENDING', 'APPROVED', 'REJECTED']),
+  status: z.enum(['PENDING', 'CONFIRMED', 'REJECTED']),
   notes: z.string().optional(),
 });
 

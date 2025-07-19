@@ -161,6 +161,12 @@ export default function OrderFilters({ filters, onFilterChange }: OrderFiltersPr
           size="small"
           value={localFilters.status}
           onChange={handleInputChange}
+          SelectProps={{
+            MenuProps: {
+              disableScrollLock: true,
+              transitionDuration: 0
+            }
+          }}
           InputProps={{
             endAdornment: localFilters.status ? (
               <InputAdornment position="end">
@@ -196,6 +202,12 @@ export default function OrderFilters({ filters, onFilterChange }: OrderFiltersPr
           size="small"
           value={localFilters.paymentStatus}
           onChange={handleInputChange}
+          SelectProps={{
+            MenuProps: {
+              disableScrollLock: true,
+              transitionDuration: 0
+            }
+          }}
           InputProps={{
             endAdornment: localFilters.paymentStatus ? (
               <InputAdornment position="end">
@@ -228,6 +240,12 @@ export default function OrderFilters({ filters, onFilterChange }: OrderFiltersPr
           size="small"
           value={localFilters.hasSlip}
           onChange={handleInputChange}
+          SelectProps={{
+            MenuProps: {
+              disableScrollLock: true,
+              transitionDuration: 0
+            }
+          }}
           InputProps={{
             endAdornment: localFilters.hasSlip ? (
               <InputAdornment position="end">

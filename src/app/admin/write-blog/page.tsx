@@ -350,6 +350,10 @@ export default function WriteBlogPage() {
                 value={postData.category}
                 label="หมวดหมู่"
                 onChange={handleSelectChange}
+                MenuProps={{
+                  disableScrollLock: true,
+                  transitionDuration: 0
+                }}
               >
                 {categories.map((category) => (
                   <MenuItem key={category} value={category}>

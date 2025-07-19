@@ -668,6 +668,8 @@ export default function ProductDialog({
                       }}
                       SelectProps={{
                         MenuProps: {
+                          disableScrollLock: true,
+                          transitionDuration: 0,
                           PaperProps: {
                             style: {
                               maxHeight: 300
@@ -796,6 +798,8 @@ export default function ProductDialog({
                       }}
                       SelectProps={{
                         MenuProps: {
+                          disableScrollLock: true,
+                          transitionDuration: 0,
                           PaperProps: {
                             style: {
                               maxHeight: 300

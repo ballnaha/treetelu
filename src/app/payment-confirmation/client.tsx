@@ -174,6 +174,7 @@ export default function PaymentConfirmationClient() {
   const [confirmedOrderNumber, setConfirmedOrderNumber] = useState('');
   const [openQRDialog, setOpenQRDialog] = useState(false);
   const [isValidPath, setIsValidPath] = useState(false);
+  const [isAutoFilled, setIsAutoFilled] = useState(false);
 
   // ตรวจสอบว่า path ถูกต้องหรือไม่
   useEffect(() => {
@@ -187,6 +188,14 @@ export default function PaymentConfirmationClient() {
     
     // ถ้าเป็น path ที่ถูกต้อง
     setIsValidPath(true);
+    
+    // ตรวจสอบ URL parameters สำหรับ orderNumber
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderNumberParam = urlParams.get('orderNumber');
+    if (orderNumberParam) {
+      setOrderNumber(orderNumberParam);
+      setIsAutoFilled(true);
+    }
     
     // เพิ่ม meta tag เพื่อป้องกันการ cache
     const meta = document.createElement('meta');
@@ -567,6 +576,15 @@ export default function PaymentConfirmationClient() {
                 
                 <form onSubmit={handleSubmit}>
                   <Stack spacing={3}>
+                    {/* แสดงข้อความเมื่อมีการ auto-fill orderNumber */}
+                    {isAutoFilled && (
+                      <Alert severity="info" sx={{ mb: 2 }}>
+                        <Typography variant="body2">
+                          หมายเลขคำสั่งซื้อได้ถูกกรอกอัตโนมัติจากประวัติการสั่งซื้อของคุณ
+                        </Typography>
+                      </Alert>
+                    )}
+                    
                     <TextField
                       fullWidth
                       label="หมายเลขคำสั่งซื้อ"

@@ -366,6 +366,19 @@ enum PaymentStatus {
   REJECTED
 }
 
+model ShippingSettings {
+  id                    Int      @id @default(autoincrement())
+  freeShippingMinAmount Decimal  @default(1500.00) @db.Decimal(10, 2) // ยอดขั้นต่ำสำหรับฟรีค่าจัดส่ง
+  standardShippingCost  Decimal  @default(100.00) @db.Decimal(10, 2)  // ค่าจัดส่งมาตรฐาน
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now()) @db.DateTime(0)
+  updatedAt             DateTime @updatedAt @db.DateTime(0)
+  createdBy             Int?     @db.UnsignedInt
+  updatedBy             Int?     @db.UnsignedInt
+
+  @@map("shipping_settings")
+}
+
 enum users_isAdmin {
   true
   false

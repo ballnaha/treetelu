@@ -6,6 +6,7 @@ import { sendDiscordNotification, createOrderNotificationEmbed } from '@/utils/d
 import { format, addHours } from 'date-fns';
 import thLocale from 'date-fns/locale/th';
 import { getBangkokDateTime } from '@/utils/dateUtils';
+import { calculateShippingCost } from '@/utils/shippingUtils';
 
 // ตั้งค่า Resend API Key
 const resend = new Resend(process.env.RESEND_API_KEY as string);
@@ -183,7 +184,7 @@ export async function GET(request: NextRequest) {
               console.log(`Skip sending Discord notification: Order ${order.id} was recently updated, notification was likely sent by webhook already`);
             } else {
               // ส่งการแจ้งเตือนไปยัง Discord ตามปกติ
-              const embed = createOrderNotificationEmbed({
+              const embed = await createOrderNotificationEmbed({
                 ...orderData,
                 id: order.id
               });
@@ -218,8 +219,8 @@ async function sendOrderConfirmationEmail(orderData: any) {
     // คำนวณราคารวมทั้งหมด
     const subtotal = Number(orderData.items.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * Number(item.quantity)), 0));
     
-    // คำนวณค่าจัดส่ง: ฟรีค่าจัดส่งเมื่อซื้อสินค้ามากกว่าหรือเท่ากับ 1,500 บาท
-    const shippingCost = subtotal >= 1500 ? 0 : 100;
+    // คำนวณค่าจัดส่งจากการตั้งค่าในฐานข้อมูล
+    const shippingCost = await calculateShippingCost(subtotal);
     
     // คำนวณส่วนลด (ถ้ามี)
     const discount = Number(orderData.discount || 0);

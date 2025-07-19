@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { z } from 'zod';
 import { generateOrderNumber } from '@/utils/orderUtils';
 import { getBangkokDateTime, convertToBangkokTime } from '@/utils/dateUtils';
+import { calculateShippingCost } from '@/utils/shippingUtils';
 
 // ตรวจสอบว่ามีการตั้งค่า Stripe API Key หรือไม่
 if (!process.env.STRIPE_SECRET_KEY) {
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
     
     // คำนวณยอดเงิน
     const subtotal = validatedData.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
-    const shippingCost = subtotal >= 1500 ? 0 : 100; // ฟรีค่าจัดส่งเมื่อซื้อมากกว่า 1,500 บาท
+    const shippingCost = await calculateShippingCost(subtotal); // ใช้การตั้งค่าจากฐานข้อมูล
     const discount = validatedData.discount || 0;
     const totalAmount = subtotal + shippingCost - discount;
     

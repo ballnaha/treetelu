@@ -82,6 +82,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = (userData: User, csrfToken?: string) => {
     console.log('AuthContext: login with data:', userData);
     
+    // เก็บ auth token ใน localStorage ด้วย
+    if (userData.token) {
+      localStorage.setItem('auth_token', userData.token);
+    }
+    
     // ตรวจสอบและแก้ไขข้อมูล avatar
     if (userData.avatar === undefined || userData.avatar === 'undefined' || userData.avatar === 'null') {
       console.log('Fixing undefined avatar in login data');

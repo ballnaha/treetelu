@@ -2,6 +2,7 @@
  * Utility functions สำหรับการส่งข้อความแจ้งเตือนไปยัง Discord
  */
 import { getBangkokDateTime } from './dateUtils';
+import { calculateShippingCost } from './shippingUtils';
 
 /**
  * ส่งข้อความแจ้งเตือนไปยัง Discord webhook
@@ -106,7 +107,7 @@ export async function sendDiscordNotification(
  * @param orderData ข้อมูลคำสั่งซื้อ
  * @returns Discord embed object
  */
-export function createOrderNotificationEmbed(orderData: any) {
+export async function createOrderNotificationEmbed(orderData: any) {
   console.log('Creating order notification embed with data:', JSON.stringify({
     orderNumber: orderData?.orderNumber,
     paymentMethod: orderData?.paymentMethod,
@@ -139,8 +140,8 @@ export function createOrderNotificationEmbed(orderData: any) {
     // คำนวณราคารวมทั้งหมด
     const subtotal = Number(orderData.items.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * Number(item.quantity)), 0));
     
-    // คำนวณค่าจัดส่ง: ฟรีค่าจัดส่งเมื่อซื้อสินค้ามากกว่าหรือเท่ากับ 1,500 บาท
-    const shippingCost = subtotal >= 1500 ? 0 : 100;
+    // คำนวณค่าจัดส่งจากการตั้งค่าในฐานข้อมูล
+    const shippingCost = await calculateShippingCost(subtotal);
     
     // คำนวณส่วนลด (ถ้ามี)
     const discount = Number(orderData.discount || 0);

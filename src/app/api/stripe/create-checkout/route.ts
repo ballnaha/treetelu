@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { z } from 'zod';
 import { createOrder, PaymentMethodType } from '@/utils/orderUtils';
+import { calculateShippingCost } from '@/utils/shippingUtils';
 import prisma from '@/lib/prisma';
 
 // กำหนด schema สำหรับตรวจสอบข้อมูลที่ส่งมา
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     
     // คำนวณยอดเงินทั้งหมด
     const subtotal = validatedData.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
-    const shippingCost = subtotal >= 1500 ? 0 : 100; // ฟรีค่าจัดส่งเมื่อซื้อมากกว่า 1,500 บาท
+    const shippingCost = await calculateShippingCost(subtotal); // ใช้การตั้งค่าจากฐานข้อมูล
     const discount = validatedData.discount || 0;
     const totalAmount = subtotal + shippingCost - discount;
     

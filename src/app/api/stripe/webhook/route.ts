@@ -8,6 +8,7 @@ import { createOrderNotificationEmbed, sendDiscordNotification } from '@/utils/d
 import { Resend } from 'resend';
 import { getBangkokDateTime, convertToBangkokTime } from '@/utils/dateUtils';
 import { PaymentMethod } from '@prisma/client';
+import { calculateShippingCost } from '@/utils/shippingUtils';
 
 // สร้าง Stripe instance
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
@@ -51,8 +52,8 @@ const sendOrderConfirmationEmail = async (orderData: any, paymentInfo?: any) => 
     // คำนวณราคารวมทั้งหมด
     const subtotal = Number(orderData.items.reduce((sum: number, item: OrderItem) => sum + (Number(item.unitPrice) * Number(item.quantity)), 0));
     
-    // คำนวณค่าจัดส่ง: ฟรีค่าจัดส่งเมื่อซื้อสินค้ามากกว่าหรือเท่ากับ 1,500 บาท
-    const shippingCost = subtotal >= 1500 ? 0 : 100;
+    // คำนวณค่าจัดส่งจากการตั้งค่าในฐานข้อมูล
+    const shippingCost = await calculateShippingCost(subtotal);
     
     // คำนวณส่วนลด (ถ้ามี)
     const discount = Number(orderData.discount || 0);
@@ -562,7 +563,7 @@ export async function POST(request: NextRequest) {
                 };
                 
                 // ใช้ createOrderNotificationEmbed แทนการสร้าง embed เอง
-                const paymentEmbed = createOrderNotificationEmbed(orderDataForDiscord);
+                const paymentEmbed = await createOrderNotificationEmbed(orderDataForDiscord);
                 
                 console.log('Sending Discord notification for Stripe payment - DIRECT', {
                   webhookUrl: !!process.env.DISCORD_WEBHOOK_URL,
@@ -844,7 +845,7 @@ export async function POST(request: NextRequest) {
                 };
                 
                 // ใช้ createOrderNotificationEmbed แทนการสร้าง embed เอง
-                const paymentEmbed = createOrderNotificationEmbed(orderDataForDiscord);
+                const paymentEmbed = await createOrderNotificationEmbed(orderDataForDiscord);
                 
                 console.log('Sending Discord notification for payment_intent.succeeded - DIRECT', {
                   webhookUrl: !!process.env.DISCORD_WEBHOOK_URL,

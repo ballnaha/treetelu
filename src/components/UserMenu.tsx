@@ -89,6 +89,9 @@ export default function UserMenu() {
           anchorEl={anchorEl}
           open={open}
           onClose={handleClose}
+          disableScrollLock={true}
+          disableRestoreFocus={true}
+          transitionDuration={0}
           MenuListProps={{
             'aria-labelledby': 'account-button',
           }}
@@ -133,6 +136,9 @@ export default function UserMenu() {
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
+        disableScrollLock={true}
+        disableRestoreFocus={true}
+        transitionDuration={0}
         MenuListProps={{
           'aria-labelledby': 'account-button',
         }}

@@ -2,6 +2,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import prisma from '@/lib/prisma';
 import { getBangkokDateTime, convertToBangkokTime } from './dateUtils';
+import { calculateShippingCost } from './shippingUtils';
 
 // กำหนด Prisma Client
 // const prisma = new PrismaClient(); // เอาออกเพราะใช้ singleton instance แทน
@@ -119,8 +120,8 @@ export async function createOrder(orderData: OrderDataInput) {
     // คำนวณยอดรวม
     const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
     
-    // กำหนดค่าจัดส่ง (ตามเงื่อนไขธุรกิจ)
-    const shippingCost = subtotal >= 1500 ? 0 : 100;
+    // กำหนดค่าจัดส่ง (ตามการตั้งค่าจากฐานข้อมูล)
+    const shippingCost = await calculateShippingCost(subtotal);
     
     // คำนวณราคาสุทธิหลังหักส่วนลด
     const finalAmount = subtotal + shippingCost - discount;

@@ -269,6 +269,12 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
                 size="small"
+                SelectProps={{
+                  MenuProps: {
+                    disableScrollLock: true,
+                    transitionDuration: 0
+                  }
+                }}
               >
                 <MenuItem value={OrderStatus.PENDING}>รอดำเนินการ</MenuItem>
                 <MenuItem value={OrderStatus.PROCESSING}>กำลังดำเนินการ</MenuItem>
@@ -287,6 +293,12 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
                 value={paymentStatus}
                 onChange={(e) => setPaymentStatus(e.target.value)}
                 size="small"
+                SelectProps={{
+                  MenuProps: {
+                    disableScrollLock: true,
+                    transitionDuration: 0
+                  }
+                }}
               >
                 <MenuItem value={PaymentStatus.PENDING}>รอชำระเงิน</MenuItem>
                 <MenuItem value={PaymentStatus.CONFIRMED}>ยืนยันแล้ว</MenuItem>
