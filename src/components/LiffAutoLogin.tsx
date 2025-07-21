@@ -9,6 +9,7 @@ import {
   getLiffAccessToken,
   liffLogin,
 } from "@/utils/liffUtils";
+import LiffManager from "@/utils/liffManager";
 import { Box, CircularProgress, Typography, Alert } from "@mui/material";
 
 interface LiffAutoLoginProps {
@@ -27,8 +28,8 @@ export default function LiffAutoLogin({
   const [hasInitialized, setHasInitialized] = useState(false);
 
   useEffect(() => {
-    // ป้องกันการทำงานซ้ำ
-    if (hasInitialized) {
+    // ป้องกันการทำงานซ้ำ - ตรวจสอบทั้ง state และ global flag
+    if (hasInitialized || (typeof window !== 'undefined' && window.__LIFF_INITIALIZED__)) {
       console.log("LIFF already initialized, skipping");
       return;
     }
@@ -38,11 +39,7 @@ export default function LiffAutoLogin({
         setIsInitializing(true);
         setError(null);
 
-        // โหลด LIFF SDK ก่อนเสมอ
-        if (typeof window !== "undefined" && !window.liff) {
-          console.log("Loading LIFF SDK...");
-          await loadLiffSDK();
-        }
+        // LiffManager จะจัดการการโหลด SDK เอง
 
         // ใช้ LIFF ID จาก environment variable ถ้าไม่มีการส่งมา
         const currentLiffId = liffId || process.env.NEXT_PUBLIC_LIFF_ID;
@@ -53,14 +50,12 @@ export default function LiffAutoLogin({
           return;
         }
 
-        // เริ่มต้น LIFF
-        if (window.liff && !window.liff._initialized) {
-          console.log("Initializing LIFF with ID:", currentLiffId);
-          const initialized = await initializeLiff(currentLiffId);
-          if (!initialized) {
-            throw new Error("Failed to initialize LIFF");
-          }
-          window.liff._initialized = true;
+        // ใช้ LiffManager เพื่อป้องกันการ initialize ซ้ำ
+        const liffManager = LiffManager.getInstance();
+        const initialized = await liffManager.initialize(currentLiffId);
+        
+        if (!initialized) {
+          throw new Error("Failed to initialize LIFF");
         }
 
         if (window.liff) {
@@ -91,6 +86,10 @@ export default function LiffAutoLogin({
         }
         
         setHasInitialized(true);
+        // ตั้งค่า global flag เพื่อป้องกันการ initialize ซ้ำ
+        if (typeof window !== 'undefined') {
+          window.__LIFF_INITIALIZED__ = true;
+        }
       } catch (error) {
         console.error("LIFF auto login error:", error);
         setError(
@@ -99,6 +98,10 @@ export default function LiffAutoLogin({
             : "เกิดข้อผิดพลาดในการเข้าสู่ระบบอัตโนมัติ"
         );
         setHasInitialized(true);
+        // ตั้งค่า global flag แม้เกิดข้อผิดพลาด
+        if (typeof window !== 'undefined') {
+          window.__LIFF_INITIALIZED__ = true;
+        }
       } finally {
         setIsInitializing(false);
       }
@@ -107,45 +110,7 @@ export default function LiffAutoLogin({
     checkAndAutoLogin();
   }, []); // ลบ dependencies เพื่อให้ทำงานแค่ครั้งเดียว
 
-  const loadLiffSDK = (): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      if (typeof window !== "undefined" && window.liff) {
-        console.log("LIFF SDK already loaded");
-        resolve();
-        return;
-      }
-
-      // ตรวจสอบว่ามี script tag อยู่แล้วหรือไม่
-      const existingScript = document.querySelector('script[src*="liff/edge/2/sdk.js"]');
-      if (existingScript) {
-        console.log("LIFF SDK script already exists, waiting for load...");
-        // รอให้ script โหลดเสร็จ
-        const checkLiff = () => {
-          if (window.liff) {
-            resolve();
-          } else {
-            setTimeout(checkLiff, 100);
-          }
-        };
-        checkLiff();
-        return;
-      }
-
-      console.log("Loading LIFF SDK from CDN...");
-      const script = document.createElement("script");
-      script.src = "https://static.line-scdn.net/liff/edge/2/sdk.js";
-      script.async = true;
-      script.onload = () => {
-        console.log("LIFF SDK loaded successfully");
-        resolve();
-      };
-      script.onerror = (error) => {
-        console.error("Failed to load LIFF SDK:", error);
-        reject(new Error("Failed to load LIFF SDK"));
-      };
-      document.head.appendChild(script);
-    });
-  };
+  // ฟังก์ชัน loadLiffSDK ถูกย้ายไปยัง LiffManager แล้ว
 
   const performAutoLogin = async () => {
     try {

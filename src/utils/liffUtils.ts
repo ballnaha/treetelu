@@ -5,6 +5,7 @@
 declare global {
   interface Window {
     liff: any;
+    __LIFF_INITIALIZED__: boolean;
   }
 }
 
@@ -62,8 +63,8 @@ export const initializeLiff = async (liffId: string): Promise<boolean> => {
       return false;
     }
 
-    // ตรวจสอบว่า LIFF ถูก initialize แล้วหรือยัง
-    if (window.liff.isLoggedIn !== undefined) {
+    // ตรวจสอบว่า LIFF ถูก initialize แล้วหรือยัง - ใช้หลายวิธี
+    if (window.liff.isLoggedIn !== undefined || window.__LIFF_INITIALIZED__) {
       console.log('LIFF already initialized, skipping');
       return true;
     }
