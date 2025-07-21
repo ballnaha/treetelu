@@ -49,6 +49,41 @@ const nextConfig = {
   experimental: {
     largePageDataBytes: 512 * 1000, // 512KB (default is 128KB)
   },
+  // เพิ่ม headers สำหรับ cache control
+  async headers() {
+    return [
+      {
+        source: '/login',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate, max-age=0',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'Expires',
+            value: '0',
+          },
+          {
+            key: 'X-Accel-Expires',
+            value: '0',
+          },
+        ],
+      },
+      {
+        source: '/api/auth/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig; 

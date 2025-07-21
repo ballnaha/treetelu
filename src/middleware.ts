@@ -144,7 +144,16 @@ export async function middleware(request: NextRequest) {
   // For the login page, we'll allow access regardless of token status
   // This prevents redirect loops and allows users to log in again if needed
   if (pathname === '/login') {
-    // Continue to login page without redirecting
+    // เพิ่ม cache control headers เพื่อป้องกัน cache
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate, private');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    
+    // เพิ่ม headers เพื่อป้องกัน browser cache
+    response.headers.set('X-Accel-Expires', '0');
+    response.headers.set('Surrogate-Control', 'no-store');
+    
+    console.log('Middleware: Added no-cache headers for login page');
     return response;
   }
   

@@ -217,6 +217,28 @@ export default function LoginClient() {
   useEffect(() => {
     setIsMounted(true);
     
+    // ป้องกัน cache ในหน้า login
+    if (typeof window !== 'undefined') {
+      // ป้องกัน browser cache
+      window.history.replaceState(null, '', window.location.href);
+      
+      // เพิ่ม cache control headers ผ่าน meta tags
+      const metaCache = document.createElement('meta');
+      metaCache.httpEquiv = 'Cache-Control';
+      metaCache.content = 'no-cache, no-store, must-revalidate';
+      document.head.appendChild(metaCache);
+      
+      const metaPragma = document.createElement('meta');
+      metaPragma.httpEquiv = 'Pragma';
+      metaPragma.content = 'no-cache';
+      document.head.appendChild(metaPragma);
+      
+      const metaExpires = document.createElement('meta');
+      metaExpires.httpEquiv = 'Expires';
+      metaExpires.content = '0';
+      document.head.appendChild(metaExpires);
+    }
+    
     try {
     // รับค่า LINE Login URL จาก environment variable หรือใช้ค่าเริ่มต้น
     const lineClientId = process.env.NEXT_PUBLIC_LINE_CLIENT_ID || '';
