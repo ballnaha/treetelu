@@ -202,7 +202,7 @@ export default function LiffAutoLogin({
           return;
         }
 
-        if (DEBUG) console.log("[LIFF] Starting initialization with ID:", currentLiffId);
+        //if (DEBUG) console.log("[LIFF] Starting initialization with ID:", currentLiffId);
 
         // Check if we're in a LIFF environment first
         const isFromLiff = isInLiff();
@@ -265,7 +265,7 @@ export default function LiffAutoLogin({
         if (typeof window.liff.init !== 'function') {
           if (DEBUG) console.log("[LIFF] Already initialized (init function not available)");
         } else {
-          if (DEBUG) console.log("[LIFF] Initializing with ID:", currentLiffId);
+          //if (DEBUG) console.log("[LIFF] Initializing with ID:", currentLiffId);
           try {
             await window.liff.init({ liffId: currentLiffId });
             if (DEBUG) console.log("[LIFF] Initialized successfully");
