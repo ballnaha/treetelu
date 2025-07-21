@@ -140,16 +140,33 @@ class LiffManager {
       }
 
       // ตรวจสอบว่า LIFF ถูก initialize แล้วหรือยัง
-      if (window.liff.isLoggedIn !== undefined) {
+      if (typeof window.liff.isLoggedIn === 'function') {
         console.log('LIFF already initialized by SDK');
         return true;
       }
 
-      //console.log('Initializing LIFF with ID:', liffId);
-      await window.liff.init({ liffId });
-      console.log('LIFF initialized successfully');
+      // A valid LIFF ID is required for initialization.
+      if (!liffId) {
+        // This will be caught by the try-catch block below.
+        throw new Error('A valid LIFF ID must be provided for initialization.');
+      }
       
-      return true;
+      console.log('Initializing LIFF with ID:', liffId);
+      
+      try {
+        await window.liff.init({ liffId });
+        console.log('LIFF initialized successfully');
+        // ตั้งค่า global flag เพื่อป้องกันการ initialize ซ้ำ
+        if (typeof window !== 'undefined') {
+          window.__LIFF_INITIALIZED__ = true;
+        }
+        return true;
+      } catch (initError) {
+        console.error('LIFF initialization failed:', initError);
+        // ในกรณีที่เกิด error ให้สร้าง mock functions เพื่อป้องกัน error ในการเรียกใช้ฟังก์ชัน
+        this.setupMockLiffFunctions();
+        return false;
+      }
     } catch (error) {
       console.error('LIFF initialization failed:', error);
       return false;
@@ -162,7 +179,55 @@ class LiffManager {
   public isLiffInitialized(): boolean {
     return this.isInitialized || 
            (typeof window !== 'undefined' && window.__LIFF_MANAGER_INITIALIZED__) ||
-           (typeof window !== 'undefined' && window.liff && window.liff.isLoggedIn !== undefined);
+           (typeof window !== 'undefined' && window.liff && typeof window.liff.isLoggedIn === 'function');
+  }
+
+  /**
+   * สร้าง mock functions สำหรับ LIFF เพื่อป้องกัน error ในการเรียกใช้ฟังก์ชัน
+   */
+  private setupMockLiffFunctions(): void {
+    if (typeof window === 'undefined' || !window.liff) {
+      return;
+    }
+    
+    console.warn('Setting up mock LIFF functions to prevent errors');
+    
+    // สร้าง mock functions สำหรับฟังก์ชันที่จำเป็น
+    window.liff.isLoggedIn = () => {
+      console.warn('Using mock liff.isLoggedIn() function');
+      return false;
+    };
+    
+    window.liff.getProfile = async () => {
+      console.warn('Using mock liff.getProfile() function');
+      return {
+        userId: 'mock-user-id',
+        displayName: 'Mock User',
+        pictureUrl: '',
+        statusMessage: ''
+      };
+    };
+    
+    window.liff.getAccessToken = () => {
+      console.warn('Using mock liff.getAccessToken() function');
+      return 'mock-access-token';
+    };
+    
+    window.liff.login = (options?: { redirectUri?: string }) => {
+      console.warn('Using mock liff.login() function', options);
+      // ในกรณีที่เป็น mock เราจะเปิดหน้า login ใน tab ใหม่
+      const loginUrl = options?.redirectUri || window.location.href;
+      window.open(loginUrl, '_blank');
+    };
+    
+    window.liff.logout = () => {
+      console.warn('Using mock liff.logout() function');
+    };
+    
+    window.liff.isInClient = () => {
+      console.warn('Using mock liff.isInClient() function');
+      return false;
+    };
   }
 
   /**

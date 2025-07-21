@@ -5,8 +5,8 @@
 declare global {
   interface Window {
     liff: any;
-    __LIFF_INITIALIZED__: boolean;
-    __LIFF_AUTO_LOGIN_INITIALIZED__: boolean;
+    __LIFF_INITIALIZED__?: boolean;
+    __LIFF_AUTO_LOGIN_INITIALIZED__?: boolean;
   }
 }
 
@@ -83,7 +83,7 @@ class LiffSingleton {
   }
 
   public isLiffInitialized(): boolean {
-    return this.isInitialized || (typeof window !== 'undefined' && window.__LIFF_INITIALIZED__);
+    return this.isInitialized || (typeof window !== 'undefined' && window.__LIFF_INITIALIZED__ === true);
   }
 
   public reset(): void {

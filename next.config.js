@@ -52,6 +52,35 @@ const nextConfig = {
   // เพิ่ม headers สำหรับ cache control
   async headers() {
     return [
+      // บังคับให้มีการ revalidate เสมอสำหรับหน้า HTML ทั้งหมด
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'Expires',
+            value: '0',
+          },
+        ],
+      },
+      // Cache control สำหรับไฟล์ static ที่มีการ hash (จาก Next.js build)
+      {
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      // Login page ไม่มีการ cache เลย
       {
         source: '/login',
         headers: [
@@ -73,6 +102,7 @@ const nextConfig = {
           },
         ],
       },
+      // API Authentication ไม่มีการ cache เลย
       {
         source: '/api/auth/:path*',
         headers: [

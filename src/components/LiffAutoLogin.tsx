@@ -1,20 +1,20 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
-import {
-  initializeLiff,
-  isLiffLoggedIn,
-  getLiffProfile,
-  getLiffAccessToken,
-  liffLogin,
-} from "@/utils/liffUtils";
-import LiffManager from "@/utils/liffManager";
+import { isInLiff } from "@/utils/liffUtils";
 import { Box, CircularProgress, Typography, Alert } from "@mui/material";
 
 interface LiffAutoLoginProps {
   liffId?: string;
   children: React.ReactNode;
+}
+
+declare global {
+  interface Window {
+    liff: any;
+    __LIFF_INITIALIZED__?: boolean;
+  }
 }
 
 export default function LiffAutoLogin({
@@ -25,106 +25,45 @@ export default function LiffAutoLogin({
   const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLiffEnvironment, setIsLiffEnvironment] = useState(false);
-  const [hasInitialized, setHasInitialized] = useState(false);
+  const hasInitialized = useRef(false);
+  const isProcessing = useRef(false);
 
-  useEffect(() => {
-    // ป้องกันการทำงานซ้ำ - ตรวจสอบทั้ง state และ global flag
-    if (hasInitialized || (typeof window !== 'undefined' && window.__LIFF_INITIALIZED__)) {
-      console.log("LIFF already initialized, skipping");
+  // Function to perform auto login when user is already logged in to LIFF
+  const performAutoLogin = useCallback(async () => {
+    if (isProcessing.current) {
+      console.log("Auto login already in progress");
       return;
     }
 
-    const checkAndAutoLogin = async () => {
-      try {
-        setIsInitializing(true);
-        setError(null);
-
-        // LiffManager จะจัดการการโหลด SDK เอง
-
-        // ใช้ LIFF ID จาก environment variable ถ้าไม่มีการส่งมา
-        const currentLiffId = liffId || process.env.NEXT_PUBLIC_LIFF_ID;
-
-        if (!currentLiffId) {
-          console.log("No LIFF ID provided, skipping LIFF initialization");
-          setHasInitialized(true);
-          return;
-        }
-
-        // ใช้ LiffManager เพื่อป้องกันการ initialize ซ้ำ
-        const liffManager = LiffManager.getInstance();
-        const initialized = await liffManager.initialize(currentLiffId);
-        
-        if (!initialized) {
-          throw new Error("Failed to initialize LIFF");
-        }
-
-        if (window.liff) {
-          // ตรวจสอบว่าอยู่ใน LIFF environment หรือไม่
-          const inLiff = window.liff.isInClient();
-          setIsLiffEnvironment(inLiff);
-          console.log("LIFF environment check:", inLiff);
-
-          // ถ้าผู้ใช้ล็อกอินแล้ว ไม่ต้องทำอะไร
-          if (user?.isLoggedIn) {
-            console.log("User already logged in, skipping LIFF auto login");
-            setHasInitialized(true);
-            return;
-          }
-
-          // ตรวจสอบสถานะการล็อกอินใน LIFF
-          if (isLiffLoggedIn()) {
-            console.log("User is logged in to LIFF, attempting auto login");
-            await performAutoLogin();
-          } else {
-            console.log("User not logged in to LIFF");
-            // ถ้าอยู่ใน LIFF แต่ยังไม่ล็อกอิน ให้ redirect ไปหน้า login
-            if (inLiff) {
-              console.log("In LIFF but not logged in, redirecting to login");
-              liffLogin();
-            }
-          }
-        }
-        
-        setHasInitialized(true);
-        // ตั้งค่า global flag เพื่อป้องกันการ initialize ซ้ำ
-        if (typeof window !== 'undefined') {
-          window.__LIFF_INITIALIZED__ = true;
-        }
-      } catch (error) {
-        console.error("LIFF auto login error:", error);
-        setError(
-          error instanceof Error
-            ? error.message
-            : "เกิดข้อผิดพลาดในการเข้าสู่ระบบอัตโนมัติ"
-        );
-        setHasInitialized(true);
-        // ตั้งค่า global flag แม้เกิดข้อผิดพลาด
-        if (typeof window !== 'undefined') {
-          window.__LIFF_INITIALIZED__ = true;
-        }
-      } finally {
-        setIsInitializing(false);
-      }
-    };
-
-    checkAndAutoLogin();
-  }, []); // ลบ dependencies เพื่อให้ทำงานแค่ครั้งเดียว
-
-  // ฟังก์ชัน loadLiffSDK ถูกย้ายไปยัง LiffManager แล้ว
-
-  const performAutoLogin = async () => {
     try {
-      // ดึงข้อมูลโปรไฟล์จาก LIFF
-      const profile = await getLiffProfile();
-      const accessToken = getLiffAccessToken();
+      isProcessing.current = true;
+      console.log("Starting LIFF auto login...");
 
-      if (!profile) {
+      // Check if LIFF SDK is available and initialized
+      if (typeof window === 'undefined' || !window.liff) {
+        throw new Error("LIFF SDK is not available");
+      }
+      
+      if (typeof window.liff.getProfile !== 'function' || typeof window.liff.isLoggedIn !== 'function') {
+        throw new Error("LIFF is not properly initialized");
+      }
+      
+      // Check if user is logged in to LIFF
+      if (!window.liff.isLoggedIn()) {
+        throw new Error("User is not logged in to LIFF");
+      }
+      
+      // Get profile and access token
+      const profile = await window.liff.getProfile();
+      const accessToken = window.liff.getAccessToken();
+      
+      if (!profile || !profile.userId) {
         throw new Error("Failed to get LIFF profile");
       }
 
-      console.log("LIFF Profile:", profile);
+      console.log("LIFF Profile obtained:", { userId: profile.userId, displayName: profile.displayName });
 
-      // ส่งข้อมูลไปยัง backend เพื่อสร้างหรืออัปเดตผู้ใช้
+      // Send data to backend to create or update user
       const response = await fetch("/api/auth/liff-login", {
         method: "POST",
         headers: {
@@ -143,7 +82,7 @@ export default function LiffAutoLogin({
 
       const userData = await response.json();
 
-      // อัปเดตสถานะการล็อกอินใน AuthContext
+      // Update login state in AuthContext
       login(
         {
           id: userData.id,
@@ -159,13 +98,163 @@ export default function LiffAutoLogin({
       );
 
       console.log("LIFF auto login successful");
+      
+      // Mark auto login as successful
+      sessionStorage.setItem('liff_auto_login_success', 'true');
+      localStorage.setItem('liff_last_login', Date.now().toString());
+      
     } catch (error) {
       console.error("Auto login failed:", error);
+      sessionStorage.setItem('liff_auto_login_failed', 'true');
       throw error;
+    } finally {
+      isProcessing.current = false;
     }
-  };
+  }, [login]);
 
-  // แสดง loading หรือ error ถ้าจำเป็น
+  useEffect(() => {
+    // Prevent duplicate initialization
+    if (hasInitialized.current || (typeof window !== 'undefined' && window.__LIFF_INITIALIZED__ === true)) {
+      console.log("LIFF already initialized, skipping");
+      return;
+    }
+
+    // Skip if user is already logged in
+    if (user?.isLoggedIn) {
+      console.log("User already logged in, skipping LIFF auto-login");
+      hasInitialized.current = true;
+      return;
+    }
+
+    const initializeLiff = async () => {
+      try {
+        setIsInitializing(true);
+        setError(null);
+
+        // Get LIFF ID
+        const currentLiffId = liffId || process.env.NEXT_PUBLIC_LIFF_ID;
+        if (!currentLiffId?.trim()) {
+          console.log("No LIFF ID provided, skipping LIFF initialization");
+          hasInitialized.current = true;
+          return;
+        }
+
+        console.log("Starting LIFF initialization...");
+
+        // Check if we're in a LIFF environment first
+        const isFromLiff = isInLiff();
+        setIsLiffEnvironment(isFromLiff);
+
+        if (!isFromLiff) {
+          console.log("Not in LIFF environment, skipping auto-login");
+          hasInitialized.current = true;
+          return;
+        }
+
+        // Check if auto-login was already attempted recently
+        const lastLogin = localStorage.getItem('liff_last_login');
+        const loginFailed = sessionStorage.getItem('liff_auto_login_failed');
+        const loginSuccess = sessionStorage.getItem('liff_auto_login_success');
+        
+        if (loginSuccess) {
+          console.log("Auto login already completed successfully in this session");
+          hasInitialized.current = true;
+          return;
+        }
+
+        if (loginFailed) {
+          console.log("Auto login failed in this session, skipping");
+          hasInitialized.current = true;
+          return;
+        }
+
+        // Skip if login was attempted recently (within 5 minutes)
+        if (lastLogin && (Date.now() - parseInt(lastLogin)) < 5 * 60 * 1000) {
+          console.log("Auto login attempted recently, skipping");
+          hasInitialized.current = true;
+          return;
+        }
+
+        // Load LIFF SDK
+        await loadLiffSDK();
+
+        // Initialize LIFF
+        if (!window.liff) {
+          throw new Error("LIFF SDK not loaded");
+        }
+
+        if (typeof window.liff.init !== 'function') {
+          console.log("LIFF already initialized");
+        } else {
+          await window.liff.init({ liffId: currentLiffId });
+          console.log("LIFF initialized successfully");
+        }
+
+        // Check if we're in LINE app
+        const isInLineApp = typeof window.liff.isInClient === 'function' && window.liff.isInClient();
+        console.log("Is in LINE app:", isInLineApp);
+
+        // Handle auto-login based on environment
+        if (isInLineApp) {
+          // In LINE app - check if logged in and perform auto-login
+          if (typeof window.liff.isLoggedIn === 'function' && window.liff.isLoggedIn()) {
+            console.log("User logged in to LIFF, performing auto-login");
+            await performAutoLogin();
+          } else {
+            console.log("User not logged in to LIFF, initiating login");
+            window.liff.login();
+            return;
+          }
+        } else {
+          // In external browser - check if LIFF login is available
+          if (typeof window.liff.isLoggedIn === 'function' && window.liff.isLoggedIn()) {
+            console.log("LIFF login available in external browser, performing auto-login");
+            await performAutoLogin();
+          } else {
+            console.log("LIFF login not available in external browser");
+          }
+        }
+
+        hasInitialized.current = true;
+        if (typeof window !== 'undefined') {
+          window.__LIFF_INITIALIZED__ = true;
+        }
+      } catch (error) {
+        console.error("LIFF initialization error:", error);
+        setError(
+          error instanceof Error
+            ? error.message
+            : "เกิดข้อผิดพลาดในการเข้าสู่ระบบอัตโนมัติ"
+        );
+        hasInitialized.current = true;
+        if (typeof window !== 'undefined') {
+          window.__LIFF_INITIALIZED__ = true;
+        }
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    initializeLiff();
+  }, [user?.isLoggedIn, liffId, performAutoLogin]);
+
+  // Helper function to load LIFF SDK
+  const loadLiffSDK = useCallback(async () => {
+    if (typeof window !== 'undefined' && window.liff) {
+      return; // Already loaded
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load LIFF SDK'));
+      document.head.appendChild(script);
+    });
+  }, []);
+
+  // Show loading state only when initializing in LIFF environment
   if (isLiffEnvironment && isInitializing) {
     return (
       <Box
@@ -186,6 +275,7 @@ export default function LiffAutoLogin({
     );
   }
 
+  // Show error with option to dismiss
   if (error) {
     return (
       <Box sx={{ mb: 2 }}>
