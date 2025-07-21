@@ -88,16 +88,14 @@ export default function RootLayout({
         )}
       </head>
       <body className={`${inter.variable} ${prompt.variable} font-sans`} suppressHydrationWarning>
-        <CartProvider>
-          <ClientOnly>
-            <ClientProvider>
-              <LiffAutoLogin liffId={process.env.NEXT_PUBLIC_LIFF_ID}>
-                {children}
-                <CookieConsent />
-              </LiffAutoLogin>
-            </ClientProvider>
-          </ClientOnly>
-        </CartProvider>
+        <ClientOnly>
+          <ClientProvider>
+            <LiffAutoLogin liffId={process.env.NEXT_PUBLIC_LIFF_ID}>
+              {children}
+              <CookieConsent />
+            </LiffAutoLogin>
+          </ClientProvider>
+        </ClientOnly>
       </body>
     </html>
   );

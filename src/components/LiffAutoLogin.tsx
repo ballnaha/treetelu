@@ -24,8 +24,15 @@ export default function LiffAutoLogin({
   const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLiffEnvironment, setIsLiffEnvironment] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   useEffect(() => {
+    // ป้องกันการทำงานซ้ำ
+    if (hasInitialized) {
+      console.log("LIFF already initialized, skipping");
+      return;
+    }
+
     const checkAndAutoLogin = async () => {
       try {
         setIsInitializing(true);
@@ -42,17 +49,21 @@ export default function LiffAutoLogin({
 
         if (!currentLiffId) {
           console.log("No LIFF ID provided, skipping LIFF initialization");
+          setHasInitialized(true);
           return;
         }
 
         // เริ่มต้น LIFF
-        if (window.liff) {
+        if (window.liff && !window.liff._initialized) {
           console.log("Initializing LIFF with ID:", currentLiffId);
           const initialized = await initializeLiff(currentLiffId);
           if (!initialized) {
             throw new Error("Failed to initialize LIFF");
           }
+          window.liff._initialized = true;
+        }
 
+        if (window.liff) {
           // ตรวจสอบว่าอยู่ใน LIFF environment หรือไม่
           const inLiff = window.liff.isInClient();
           setIsLiffEnvironment(inLiff);
@@ -61,6 +72,7 @@ export default function LiffAutoLogin({
           // ถ้าผู้ใช้ล็อกอินแล้ว ไม่ต้องทำอะไร
           if (user?.isLoggedIn) {
             console.log("User already logged in, skipping LIFF auto login");
+            setHasInitialized(true);
             return;
           }
 
@@ -77,6 +89,8 @@ export default function LiffAutoLogin({
             }
           }
         }
+        
+        setHasInitialized(true);
       } catch (error) {
         console.error("LIFF auto login error:", error);
         setError(
@@ -84,19 +98,36 @@ export default function LiffAutoLogin({
             ? error.message
             : "เกิดข้อผิดพลาดในการเข้าสู่ระบบอัตโนมัติ"
         );
+        setHasInitialized(true);
       } finally {
         setIsInitializing(false);
       }
     };
 
     checkAndAutoLogin();
-  }, [user?.isLoggedIn, liffId, login]);
+  }, []); // ลบ dependencies เพื่อให้ทำงานแค่ครั้งเดียว
 
   const loadLiffSDK = (): Promise<void> => {
     return new Promise((resolve, reject) => {
       if (typeof window !== "undefined" && window.liff) {
         console.log("LIFF SDK already loaded");
         resolve();
+        return;
+      }
+
+      // ตรวจสอบว่ามี script tag อยู่แล้วหรือไม่
+      const existingScript = document.querySelector('script[src*="liff/edge/2/sdk.js"]');
+      if (existingScript) {
+        console.log("LIFF SDK script already exists, waiting for load...");
+        // รอให้ script โหลดเสร็จ
+        const checkLiff = () => {
+          if (window.liff) {
+            resolve();
+          } else {
+            setTimeout(checkLiff, 100);
+          }
+        };
+        checkLiff();
         return;
       }
 

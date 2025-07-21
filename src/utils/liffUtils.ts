@@ -62,6 +62,12 @@ export const initializeLiff = async (liffId: string): Promise<boolean> => {
       return false;
     }
 
+    // ตรวจสอบว่า LIFF ถูก initialize แล้วหรือยัง
+    if (window.liff.isLoggedIn !== undefined) {
+      console.log('LIFF already initialized, skipping');
+      return true;
+    }
+
     await window.liff.init({ liffId });
     console.log('LIFF initialized successfully');
     return true;

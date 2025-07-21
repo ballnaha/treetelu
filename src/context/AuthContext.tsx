@@ -60,23 +60,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
           if (userData) {
             const parsedUser = JSON.parse(userData);
             // ตรวจสอบว่าข้อมูลเปลี่ยนแปลงจริงๆ ก่อนเรียก setUser
-            if (JSON.stringify(parsedUser) !== JSON.stringify(user)) {
             setUser(parsedUser);
-            }
           }
         } catch (error) {
           console.error('Error loading user data:', error);
         } finally {
           setIsLoading(false);
         }
+      } else {
+        setIsLoading(false);
       }
     };
 
     getUserFromStorage();
-    
-    // ไม่ต้องให้ getUserFromStorage ทำงานทุกครั้งที่ user เปลี่ยน
-    // eslint-disable-next-line react-hooks/exhaustive-deps 
-  }, []);
+  }, []); // ทำงานแค่ครั้งเดียวเมื่อ component mount
 
   // ฟังก์ชันสำหรับการเข้าสู่ระบบ
   const login = (userData: User, csrfToken?: string) => {

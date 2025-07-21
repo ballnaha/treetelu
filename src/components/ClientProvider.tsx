@@ -33,8 +33,12 @@ interface ClientProviderProps {
 
 export default function ClientProvider({ children }: ClientProviderProps) {
   const [isClient, setIsClient] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
   
   useEffect(() => {
+    // ป้องกันการทำงานซ้ำ
+    if (hasInitialized) return;
+    
     // หลังการโหลดหน้าเว็บเสร็จสิ้น ให้ล้าง global styles ที่ซ้ำซ้อน
     const handleComplete = () => {
       // ล้าง duplicate emotion styles
@@ -55,15 +59,12 @@ export default function ClientProvider({ children }: ClientProviderProps) {
       }
       
       setIsClient(true);
+      setHasInitialized(true);
     };
 
     // เรียกใช้ทันที
     handleComplete();
-    
-    return () => {
-      // Cleanup ถ้าจำเป็น
-    };
-  }, []);
+  }, []); // ทำงานแค่ครั้งเดียว
 
   return (
     <CacheProvider value={clientSideEmotionCache}>
