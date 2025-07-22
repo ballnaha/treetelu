@@ -40,6 +40,7 @@ const orderSchema = z.object({
     tambonId: z.number(),
     tambonName: z.string(),
     zipCode: z.string().min(5, "กรุณาระบุรหัสไปรษณีย์ให้ถูกต้อง"),
+    shippingType: z.enum(['SELF', 'OTHER']).optional(), // เพิ่มฟิลด์ shippingType
     deliveryDate: z.union([z.string(), z.date(), z.null()]).optional(),
     deliveryTime: z.string().optional(),
     cardMessage: z.string().optional(),
@@ -103,7 +104,7 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
     const emailContent = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="text-align: center; margin-bottom: 20px;">
-            <img src="${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/images/logo.webp" alt="Treetelu Logo" style="max-width: 150px; height: auto;"/>
+            <img src="${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/images/logo-white.png" alt="Treetelu Logo" style="max-width: 150px; height: auto;"/>
           </div>
           <h1 style="color: #24B493; font-size: 24px;">ขอบคุณสำหรับคำสั่งซื้อ</h1>
           
@@ -220,9 +221,7 @@ const sendOrderConfirmationEmail = async (orderData: any) => {
             </p>
             
             ${
-              orderData.shippingInfo.tambonName !== "จัดส่งให้ผู้รับโดยตรง" ||
-              orderData.shippingInfo.amphureName !== "จัดส่งให้ผู้รับโดยตรง" ||
-              orderData.shippingInfo.provinceName !== "จัดส่งให้ผู้รับโดยตรง"
+              orderData.shippingInfo.shippingType !== "OTHER"
                 ? `
             <p style="margin: 5px 0; color: #34495e;">
               <strong>ตำบล/แขวง:</strong> ${orderData.shippingInfo.tambonName || "-"}

@@ -81,6 +81,7 @@ type OrderDataInput = {
     tambonId: number;
     tambonName: string;
     zipCode: string;
+    shippingType?: 'SELF' | 'OTHER'; // เพิ่มฟิลด์ shippingType
     deliveryDate?: Date | string | null;
     deliveryTime?: string;
     cardMessage?: string;
@@ -129,8 +130,8 @@ export async function createOrder(orderData: OrderDataInput) {
     // สร้างเลขที่คำสั่งซื้อ
     const orderNumber = await generateOrderNumber();
     
-    // ตรวจสอบว่าเป็นการจัดส่งให้ผู้อื่นหรือไม่ (รองรับทั้ง provinceId = 0, -1 และ provinceName = จัดส่งตรงถึงผู้รับ)
-    const isGiftShipping = shippingInfo.provinceId === 0 || shippingInfo.provinceId === -1 || shippingInfo.provinceName === 'จัดส่งตรงถึงผู้รับ';
+    // ตรวจสอบว่าเป็นการจัดส่งให้ผู้อื่นหรือไม่ โดยใช้ shippingType ที่ส่งมาจากหน้า checkout
+    const isGiftShipping = shippingInfo.shippingType === 'OTHER' || shippingInfo.provinceId === 0 || shippingInfo.provinceId === -1 || shippingInfo.provinceName === 'จัดส่งตรงถึงผู้รับ';
 
     try {
       console.log('Creating order with data:', JSON.stringify({
@@ -142,6 +143,7 @@ export async function createOrder(orderData: OrderDataInput) {
         discountCode,
         finalAmount,
         isGiftShipping,
+        shippingType: shippingInfo.shippingType,
         customerEmail: customerInfo.email,
         shippingReceiver: shippingInfo.receiverName,
         itemCount: items.length,
@@ -263,6 +265,7 @@ export async function createOrder(orderData: OrderDataInput) {
             tambonId: tambonId,
             tambonName: tambonName,
             zipCode: shippingInfo.zipCode,
+            shippingType: shippingInfo.shippingType || (isGiftShipping ? 'OTHER' : 'SELF'), // บันทึก shippingType ลงฐานข้อมูล
             deliveryDate: shippingInfo.deliveryDate ? 
               (typeof shippingInfo.deliveryDate === 'string' ? 
                convertToBangkokTime(new Date(shippingInfo.deliveryDate)) : 

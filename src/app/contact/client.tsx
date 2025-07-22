@@ -348,65 +348,6 @@ export default function ContactPage() {
           </Box>
         </Box>
         
-        {/* CTA Section */}
-        <Box sx={{ 
-          mt: 10, 
-          textAlign: 'center',
-          p: { xs: 4, md: 6 },
-          borderRadius: 0,
-          bgcolor: '#e8f0eb',
-          color: '#2e5d4b',
-          maxWidth: '1200px',
-          mx: 'auto'
-        }} 
-        >
-          <Typography 
-            variant="h4" 
-            component="h2" 
-            sx={{ 
-              mb: 3,
-              fontWeight: 300,
-              letterSpacing: '0.02em',
-              fontSize: { xs: '1.75rem', md: '2rem' }
-            }}
-          >
-            พร้อมให้บริการคุณ
-          </Typography>
-          <Typography 
-            variant="body1" 
-            sx={{ 
-              mb: 5,
-              fontSize: { xs: '1rem', md: '1.1rem' },
-              fontWeight: 300,
-              color: '#555',
-              maxWidth: '700px',
-              mx: 'auto',
-              lineHeight: 1.7
-            }}
-          >
-            หากคุณมีคำถามหรือต้องการข้อมูลเพิ่มเติม กรุณาติดต่อทีมงานของเรา
-          </Typography>
-          <Button
-            component={Link}
-            href="mailto:info@treetelu.com"
-            variant="outlined"
-            size="large"
-            sx={{
-              px: 4,
-              py: 1.5,
-              border: '1px solid #6a9a8b',
-              color: '#2e5d4b',
-              fontWeight: 400,
-              borderRadius: 0,
-              '&:hover': {
-                bgcolor: '#e8f0eb',
-                borderColor: '#518c7b'
-              }
-            }}
-          >
-            ส่งอีเมลถึงเรา
-          </Button>
-        </Box>
       </Container>
     </Box>
   );

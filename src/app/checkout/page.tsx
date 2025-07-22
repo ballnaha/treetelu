@@ -642,6 +642,7 @@ export default function Checkout() {
           shippingInfo:
             shippingTab === 0
               ? {
+                  shippingType: "SELF", // ระบุประเภทการจัดส่งอย่างชัดเจน
                   receiverName: customerInfo.firstName || "",
                   receiverLastname: customerInfo.lastName || "",
                   receiverPhone: customerInfo.phone || "",
@@ -666,19 +667,20 @@ export default function Checkout() {
                   additionalNote: additionalMessage || "",
                 }
               : {
+                  shippingType: "OTHER", // ระบุประเภทการจัดส่งอย่างชัดเจน
                   receiverName: receiverInfo.firstName || "",
                   receiverLastname: receiverInfo.lastName || "",
                   receiverPhone: receiverInfo.phone || "",
                   addressLine: receiverInfo.address || "",
                   addressLine2: "",
-                  // สำหรับจัดส่งให้ผู้อื่น ใช้ค่า ID ที่มีอยู่จริงใน database (กรุงเทพฯ)
-                  provinceId: 1, // ใช้ ID จังหวัดกรุงเทพมหานครที่มีอยู่จริง
-                  provinceName: "จัดส่งให้ผู้รับโดยตรง",
-                  amphureId: 1001, // ใช้ ID อำเภอที่มีอยู่จริง
-                  amphureName: "จัดส่งให้ผู้รับโดยตรง",
-                  tambonId: 100101, // ใช้ ID ตำบลที่มีอยู่จริง
-                  tambonName: "จัดส่งให้ผู้รับโดยตรง",
-                  zipCode: "10200",
+                  // สำหรับจัดส่งให้ผู้อื่น ใช้ค่า default เพื่อป้องกัน error
+                  provinceId: 1, // ค่า default
+                  provinceName: "ไม่ระบุ",
+                  amphureId: 1, // ค่า default
+                  amphureName: "ไม่ระบุ",
+                  tambonId: 1, // ค่า default
+                  tambonName: "ไม่ระบุ",
+                  zipCode: "00000",
                   deliveryDate:
                     deliveryDate && isClient
                       ? format(new Date(deliveryDate), "yyyy-MM-dd")
@@ -1202,6 +1204,10 @@ export default function Checkout() {
         return;
       }
 
+      // Debug: ตรวจสอบค่า shippingTab และ shippingType
+      console.log("Debug - shippingTab:", shippingTab);
+      console.log("Debug - shippingOption:", shippingOption);
+
       // เตรียมข้อมูลสำหรับส่งไปยัง API
       const orderData = {
         customerInfo: {
@@ -1214,6 +1220,7 @@ export default function Checkout() {
         shippingInfo:
           shippingTab === 0
             ? {
+                shippingType: "SELF", // ระบุประเภทการจัดส่งอย่างชัดเจน
                 receiverName: customerInfo.firstName || "",
                 receiverLastname: customerInfo.lastName || "",
                 receiverPhone: customerInfo.phone || "",
@@ -1241,14 +1248,15 @@ export default function Checkout() {
                 receiverPhone: receiverInfo.phone || "",
                 addressLine: receiverInfo.address || "",
                 addressLine2: "",
-                // สำหรับจัดส่งให้ผู้อื่น ใช้ค่า ID ที่มีอยู่จริงใน database (กรุงเทพฯ)
-                provinceId: 1, // ใช้ ID จังหวัดกรุงเทพมหานครที่มีอยู่จริง
-                provinceName: "จัดส่งให้ผู้รับโดยตรง",
-                amphureId: 1001, // ใช้ ID อำเภอที่มีอยู่จริง
-                amphureName: "จัดส่งให้ผู้รับโดยตรง",
-                tambonId: 100101, // ใช้ ID ตำบลที่มีอยู่จริง
-                tambonName: "จัดส่งให้ผู้รับโดยตรง",
-                zipCode: "10200",
+                // สำหรับจัดส่งให้ผู้อื่น ใช้ค่า default เพื่อป้องกัน error
+                shippingType: "OTHER", // บันทึกประเภทการจัดส่งอย่างชัดเจน
+                provinceId: 1, // ค่า default
+                provinceName: "ไม่ระบุ",
+                amphureId: 1, // ค่า default
+                amphureName: "ไม่ระบุ",
+                tambonId: 1, // ค่า default
+                tambonName: "ไม่ระบุ",
+                zipCode: "00000",
                 deliveryDate:
                   deliveryDate && isClient
                     ? format(new Date(deliveryDate), "yyyy-MM-dd")
@@ -1274,6 +1282,12 @@ export default function Checkout() {
         discountCode: discountCode || "",
         paymentStatus: "PENDING",
       };
+
+      // Debug: ตรวจสอบ shippingType ใน orderData
+      console.log(
+        "Debug - orderData.shippingInfo.shippingType:",
+        orderData.shippingInfo.shippingType
+      );
 
       // ถ้ามีการใช้รหัสส่วนลด ให้เรียกใช้ API สำหรับเพิ่มจำนวนการใช้งาน
       if (discountAmount > 0 && discountCode) {

@@ -82,6 +82,27 @@ export default function RootLayout({
         <link rel="shortcut icon" href="/images/favicon.png" type="image/png" />
         <link rel="apple-touch-icon" href="/images/favicon.png" />
         <link rel="manifest" href="/site.webmanifest" />
+        
+        {/* Rich Results Structured Data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              "name": "Treetelu",
+              "alternateName": "ทรีเตลู", 
+              "url": "https://treetelu.com",
+              "logo": "https://treetelu.com/images/logo.webp",
+              "description": "ทรีเตลู ต้นไม้ในกระถาง ของชำร่วย ต้นไม้ของขวัญ ตะกร้าผลไม้ของขวัญ ไม้ฟอกอากาศ ไม้อวบน้ำ สำหรับสายมู",
+              "sameAs": [
+                "https://www.facebook.com/treetelu",
+                "https://www.instagram.com/treetelu", 
+                "https://line.me/ti/p/@treetelu"
+              ]
+            })
+          }}
+        />
         {/* Google Analytics */}
         {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
           <GoogleAnalytics

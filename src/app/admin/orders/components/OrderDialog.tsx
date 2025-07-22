@@ -34,6 +34,7 @@ export interface ShippingInfo {
   deliveryTime?: string;
   cardMessage?: string;
   additionalNote?: string;
+  shippingType?: string;
 }
 
 export interface Order {
@@ -504,22 +505,27 @@ export default function OrderDialog({ open, order, onClose, onUpdateStatus, onDe
                         {order.shippingInfo.addressLine2 && `, ${order.shippingInfo.addressLine2}`}
                       </Typography>
                     </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">ตำบล/แขวง</Typography>
-                      <Typography variant="body2">{order.shippingInfo.tambonName || ''}</Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">อำเภอ/เขต</Typography>
-                      <Typography variant="body2">{order.shippingInfo.amphureName || ''}</Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">จังหวัด</Typography>
-                      <Typography variant="body2">{order.shippingInfo.provinceName || ''}</Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">รหัสไปรษณีย์</Typography>
-                      <Typography variant="body2">{order.shippingInfo.zipCode || ''}</Typography>
-                    </Box>
+                    {/* แสดงข้อมูลที่อยู่เฉพาะกรณีที่ไม่ใช่การจัดส่งให้ผู้อื่น */}
+                    {order.shippingInfo.shippingType !== 'OTHER' && (
+                      <>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">ตำบล/แขวง</Typography>
+                          <Typography variant="body2">{order.shippingInfo.tambonName || ''}</Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">อำเภอ/เขต</Typography>
+                          <Typography variant="body2">{order.shippingInfo.amphureName || ''}</Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">จังหวัด</Typography>
+                          <Typography variant="body2">{order.shippingInfo.provinceName || ''}</Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">รหัสไปรษณีย์</Typography>
+                          <Typography variant="body2">{order.shippingInfo.zipCode || ''}</Typography>
+                        </Box>
+                      </>
+                    )}
                     
                     {/* แสดงวันที่และเวลาจัดส่ง แยกแสดงชัดเจน */}
                     <Box>

@@ -179,6 +179,7 @@ model ShippingInfo {
   tambonId         Int
   tambonName       String        @db.VarChar(100)
   zipCode          String        @db.VarChar(10)
+  shippingType     ShippingType  @default(SELF) // เพิ่มฟิลด์นี้
   deliveryDate     DateTime?     @db.DateTime(0)
   deliveryTime     String?       @db.VarChar(50)
   cardMessage      String?       @db.Text
@@ -377,6 +378,11 @@ model ShippingSettings {
   updatedBy             Int?     @db.UnsignedInt
 
   @@map("shipping_settings")
+}
+
+enum ShippingType {
+  SELF   // จัดส่งให้ตัวเอง
+  OTHER  // จัดส่งให้ผู้อื่น
 }
 
 enum users_isAdmin {

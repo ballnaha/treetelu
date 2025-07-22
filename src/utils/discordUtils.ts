@@ -164,7 +164,18 @@ export async function createOrderNotificationEmbed(orderData: any) {
     const amphureName = shippingInfo.amphureName || '';
     const provinceName = shippingInfo.provinceName || '';
     const zipCode = shippingInfo.zipCode || '';
-    const fullAddress = `${addressLine} ${tambonName} ${amphureName} ${provinceName} ${zipCode}`.trim() || 'ไม่ระบุ';
+    
+    // ตรวจสอบว่าเป็นการจัดส่งให้ผู้อื่นหรือไม่
+    const isShippingToOthers = shippingInfo.shippingType === 'OTHER';
+    
+    let fullAddress = '';
+    if (isShippingToOthers) {
+      // กรณีจัดส่งให้ผู้อื่น แสดงเฉพาะที่อยู่ที่กรอกมา
+      fullAddress = addressLine || 'ไม่ระบุ';
+    } else {
+      // กรณีจัดส่งให้ตัวเอง แสดงที่อยู่เต็ม
+      fullAddress = `${addressLine} ${tambonName} ${amphureName} ${provinceName} ${zipCode}`.trim() || 'ไม่ระบุ';
+    }
 
     // สร้างรายการสินค้า
     let itemsField = '';

@@ -79,6 +79,7 @@ interface ShippingInfo {
   additionalNote?: string;
   deliveryDate?: string;
   deliveryTime?: string;
+  shippingType?: string;
 }
 
 interface Order {
@@ -297,6 +298,10 @@ export default function OrderHistoryClient() {
 
   // ฟังก์ชันสำหรับเลือกคำสั่งซื้อที่ต้องการดูรายละเอียด
   const handleOrderSelect = (order: Order) => {
+    console.log("=== ORDER MODAL DEBUG - 10:55 AM ===");
+    console.log("Debug - Selected Order:", order);
+    console.log("Debug - shippingType:", order.shippingInfo?.shippingType);
+    alert(`shippingType: ${order.shippingInfo?.shippingType}`);
     setSelectedOrder(order);
 
     // ค้นหารูปหลักฐานการชำระเงิน
@@ -1076,16 +1081,38 @@ export default function OrderHistoryClient() {
                               variant="caption"
                               color="text.secondary"
                             >
-                              ที่อยู่
+                              ที่อยู่ (shippingType:{" "}
+                              {selectedOrder.shippingInfo.shippingType})
                             </Typography>
                             <Typography variant="body2">
                               {selectedOrder.shippingInfo.addressLine || ""}
                               {selectedOrder.shippingInfo.addressLine2 &&
                                 `, ${selectedOrder.shippingInfo.addressLine2}`}
-                              , ต.{selectedOrder.shippingInfo.tambonName}, อ.
-                              {selectedOrder.shippingInfo.amphureName}, จ.
-                              {selectedOrder.shippingInfo.provinceName},
-                              {selectedOrder.shippingInfo.zipCode}
+                              {/* แสดงข้อมูลที่อยู่เต็มเฉพาะกรณีที่ไม่ใช่การจัดส่งให้ผู้อื่น */}
+                              {(() => {
+                                const shippingType =
+                                  selectedOrder.shippingInfo.shippingType;
+                                console.log(
+                                  "Debug - shippingType:",
+                                  shippingType
+                                );
+                                const shouldShowAddress =
+                                  shippingType !== "OTHER" &&
+                                  shippingType !== "other";
+                                console.log(
+                                  "Debug - shouldShowAddress:",
+                                  shouldShowAddress
+                                );
+                                return shouldShowAddress;
+                              })() && (
+                                <>
+                                  , ต.{selectedOrder.shippingInfo.tambonName},
+                                  อ.
+                                  {selectedOrder.shippingInfo.amphureName}, จ.
+                                  {selectedOrder.shippingInfo.provinceName},
+                                  {selectedOrder.shippingInfo.zipCode}
+                                </>
+                              )}
                             </Typography>
                           </Box>
 

@@ -38,6 +38,7 @@ const OrderSchema = z.object({
     tambonId: z.number(),
     tambonName: z.string(),
     zipCode: z.string(),
+    shippingType: z.enum(['SELF', 'OTHER']).optional(), // เพิ่มฟิลด์ shippingType
     deliveryDate: z.union([z.string(), z.null()]).optional(),
     deliveryTime: z.string().optional(),
     cardMessage: z.string().optional(),
@@ -290,6 +291,7 @@ export async function POST(request: NextRequest) {
               tambonId: validTambonId, // ใช้ค่าที่ตรวจสอบแล้ว
               tambonName: validatedData.shippingInfo.tambonName,
               zipCode: validatedData.shippingInfo.zipCode,
+              shippingType: validatedData.shippingInfo.shippingType || 'SELF', // บันทึก shippingType ลงฐานข้อมูล
               deliveryDate: validatedData.shippingInfo.deliveryDate && validatedData.shippingInfo.deliveryDate.trim() !== ''
                 ? convertToBangkokTime(new Date(validatedData.shippingInfo.deliveryDate)) 
                 : null,
