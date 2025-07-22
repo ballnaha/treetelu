@@ -298,10 +298,7 @@ export default function OrderHistoryClient() {
 
   // ฟังก์ชันสำหรับเลือกคำสั่งซื้อที่ต้องการดูรายละเอียด
   const handleOrderSelect = (order: Order) => {
-    console.log("=== ORDER MODAL DEBUG - 10:55 AM ===");
-    console.log("Debug - Selected Order:", order);
-    console.log("Debug - shippingType:", order.shippingInfo?.shippingType);
-    alert(`shippingType: ${order.shippingInfo?.shippingType}`);
+    
     setSelectedOrder(order);
 
     // ค้นหารูปหลักฐานการชำระเงิน
@@ -1081,7 +1078,7 @@ export default function OrderHistoryClient() {
                               variant="caption"
                               color="text.secondary"
                             >
-                              ที่อยู่ (shippingType:{" "}
+                              ที่อยู่
                               {selectedOrder.shippingInfo.shippingType})
                             </Typography>
                             <Typography variant="body2">
