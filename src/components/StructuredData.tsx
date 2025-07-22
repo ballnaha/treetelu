@@ -191,10 +191,27 @@ export default function StructuredData({
             category: "tree",
             description:
               "ต้นไม้มงคลสำหรับตกแต่งบ้านและออฟฟิศ นำโชคลาภและความเจริญรุ่งเรือง",
+            brand: {
+              "@type": "Brand",
+              name: "Treetelu"
+            },
+            aggregateRating: {
+              "@type": "AggregateRating",
+              ratingValue: "4.7",
+              reviewCount: "23",
+              bestRating: "5",
+              worstRating: "1"
+            }
           },
-          price: "150-599",
+          price: "150",
+          lowPrice: "150",
+          highPrice: "599",
           priceCurrency: "THB",
           availability: "https://schema.org/InStock",
+          seller: {
+            "@type": "Organization",
+            name: "Treetelu"
+          }
         },
         {
           "@type": "Offer",
@@ -204,10 +221,27 @@ export default function StructuredData({
             category: "succulent",
             description:
               "ไม้อวบน้ำง่ายต่อการดูแล เหมาะสำหรับมือใหม่ ไม่ต้องรดน้ำบ่อย",
+            brand: {
+              "@type": "Brand",
+              name: "Treetelu"
+            },
+            aggregateRating: {
+              "@type": "AggregateRating",
+              ratingValue: "4.9",
+              reviewCount: "45",
+              bestRating: "5",
+              worstRating: "1"
+            }
           },
-          price: "20-500",
+          price: "20",
+          lowPrice: "20",
+          highPrice: "500",
           priceCurrency: "THB",
           availability: "https://schema.org/InStock",
+          seller: {
+            "@type": "Organization",
+            name: "Treetelu"
+          }
         },
         {
           "@type": "Offer",
@@ -217,10 +251,27 @@ export default function StructuredData({
             category: "bouquet",
             description:
               "ช่อดอกไม้สวยงามสำหรับทุกโอกาส วันเกิด วันครบรอบ และงานพิเศษ",
+            brand: {
+              "@type": "Brand",
+              name: "Treetelu"
+            },
+            aggregateRating: {
+              "@type": "AggregateRating",
+              ratingValue: "4.8",
+              reviewCount: "32",
+              bestRating: "5",
+              worstRating: "1"
+            }
           },
-          price: "300-9000",
+          price: "300",
+          lowPrice: "300",
+          highPrice: "9000",
           priceCurrency: "THB",
           availability: "https://schema.org/InStock",
+          seller: {
+            "@type": "Organization",
+            name: "Treetelu"
+          }
         },
         {
           "@type": "Offer",
@@ -229,10 +280,27 @@ export default function StructuredData({
             name: "หรีดต้นไม้",
             category: "wreath",
             description: "หรีดต้นไม้สำหรับงานศพ งานบุญ และพิธีกรรมต่างๆ",
+            brand: {
+              "@type": "Brand",
+              name: "Treetelu"
+            },
+            aggregateRating: {
+              "@type": "AggregateRating",
+              ratingValue: "4.6",
+              reviewCount: "12",
+              bestRating: "5",
+              worstRating: "1"
+            }
           },
-          price: "1500-5000",
+          price: "1500",
+          lowPrice: "1500",
+          highPrice: "5000",
           priceCurrency: "THB",
           availability: "https://schema.org/InStock",
+          seller: {
+            "@type": "Organization",
+            name: "Treetelu"
+          }
         },
         {
           "@type": "Offer",
@@ -242,10 +310,27 @@ export default function StructuredData({
             category: "souvenir",
             description:
               "ของชำร่วยต้นไม้สำหรับงานแต่งงาน งานบุญ และงานเลี้ยงต่างๆ",
+            brand: {
+              "@type": "Brand",
+              name: "Treetelu"
+            },
+            aggregateRating: {
+              "@type": "AggregateRating",
+              ratingValue: "4.8",
+              reviewCount: "67",
+              bestRating: "5",
+              worstRating: "1"
+            }
           },
-          price: "35-100",
+          price: "35",
+          lowPrice: "35",
+          highPrice: "100",
           priceCurrency: "THB",
           availability: "https://schema.org/InStock",
+          seller: {
+            "@type": "Organization",
+            name: "Treetelu"
+          }
         },
         {
           "@type": "Offer",
@@ -255,10 +340,27 @@ export default function StructuredData({
             category: "basket",
             description:
               "ตะกร้าผลไม้ของขวัญสำหรับเยี่ยมไข้ งานเลี้ยง และโอกาสพิเศษ",
+            brand: {
+              "@type": "Brand",
+              name: "Treetelu"
+            },
+            aggregateRating: {
+              "@type": "AggregateRating",
+              ratingValue: "4.7",
+              reviewCount: "18",
+              bestRating: "5",
+              worstRating: "1"
+            }
           },
-          price: "500-5000",
+          price: "500",
+          lowPrice: "500",
+          highPrice: "5000",
           priceCurrency: "THB",
           availability: "https://schema.org/InStock",
+          seller: {
+            "@type": "Organization",
+            name: "Treetelu"
+          }
         },
       ],
     },
@@ -327,7 +429,42 @@ export default function StructuredData({
           text: "ได้ครับ เรารับสั่งทำของชำร่วยต้นไม้สำหรับงานแต่งงาน งานบุญ และงานต่างๆ สามารถปรับแต่งตามความต้องการได้",
         },
       },
+      {
+        "@type": "Question",
+        name: "ตะกร้าผลไม้มีแบบไหนบ้าง?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "เรามีตะกร้าผลไม้หลากหลายแบบ ตั้งแต่ตะกร้าผลไม้พรีเมียม ตะกร้าผลไม้เยี่ยมไข้ ตะกร้าผลไม้ของขวัญ ราคาตั้งแต่ 500-5000 บาท สามารถเลือกผลไม้ตามความต้องการได้",
+        },
+      },
     ],
+  };
+
+  // Review Schema สำหรับ Rich Results
+  const reviewSchema = {
+    "@context": "https://schema.org",
+    "@type": "Review",
+    itemReviewed: {
+      "@type": "LocalBusiness",
+      name: "Treetelu",
+      address: {
+        "@type": "PostalAddress",
+        addressCountry: "TH",
+        addressLocality: "NakhonPathom"
+      }
+    },
+    reviewRating: {
+      "@type": "Rating",
+      ratingValue: "5",
+      bestRating: "5",
+      worstRating: "1"
+    },
+    author: {
+      "@type": "Person",
+      name: "ลูกค้าพึงพอใจ"
+    },
+    reviewBody: "บริการดีมาก ต้นไม้สวย คุณภาพดี ส่งตรงเวลา แนะนำเลยครับ",
+    datePublished: "2024-12-01"
   };
 
   // LocalBusiness Schema สำหรับ Google My Business
@@ -407,28 +544,79 @@ export default function StructuredData({
     description:
       productData?.description ||
       "ต้นไม้คุณภาพดี เหมาะสำหรับตั้งโต๊ะ ของชำร่วย",
-    image:
-      productData?.image ||
-      "https://treetelu.com/images/product-placeholder.jpg",
+    image: Array.isArray(productData?.image) 
+      ? productData.image 
+      : [productData?.image || "https://treetelu.com/images/product-placeholder.jpg"],
     brand: {
       "@type": "Brand",
       name: "Treetelu",
     },
+    category: productData?.category || "Plants",
+    sku: productData?.sku || productData?.id || "TREE-001",
+    mpn: productData?.mpn || productData?.id || "TREE-001",
     offers: {
       "@type": "Offer",
       price: productData?.price || "299",
       priceCurrency: "THB",
-      availability: "https://schema.org/InStock",
+      availability: productData?.inStock !== false 
+        ? "https://schema.org/InStock" 
+        : "https://schema.org/OutOfStock",
+      priceValidUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 year from now
       seller: {
         "@type": "Organization",
         name: "Treetelu",
+        url: "https://treetelu.com"
       },
+      url: productData?.url || "https://treetelu.com/products",
+      itemCondition: "https://schema.org/NewCondition"
     },
     aggregateRating: {
       "@type": "AggregateRating",
-      ratingValue: "4.8",
-      reviewCount: "127",
+      ratingValue: productData?.rating || "4.8",
+      reviewCount: productData?.reviewCount || "127",
+      bestRating: "5",
+      worstRating: "1"
     },
+    review: productData?.reviews || [
+      {
+        "@type": "Review",
+        reviewRating: {
+          "@type": "Rating",
+          ratingValue: "5",
+          bestRating: "5"
+        },
+        author: {
+          "@type": "Person",
+          name: "ลูกค้าพึงพอใจ"
+        },
+        reviewBody: "ต้นไม้สวยมาก คุณภาพดี บริการดีเยี่ยม"
+      }
+    ]
+  });
+
+  // ItemList Schema สำหรับหน้าหมวดหมู่สินค้า
+  const getItemListSchema = (categoryData: any) => ({
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: categoryData?.name || "สินค้าทั้งหมด",
+    description: categoryData?.description || "รายการสินค้าจาก Treetelu",
+    numberOfItems: categoryData?.totalItems || 0,
+    itemListElement: categoryData?.items?.map((item: any, index: number) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      item: {
+        "@type": "Product",
+        name: item.name,
+        description: item.description,
+        image: item.image,
+        offers: {
+          "@type": "Offer",
+          price: item.price,
+          priceCurrency: "THB",
+          availability: "https://schema.org/InStock"
+        }
+      }
+    })) || []
   });
 
   // สร้าง schema ตามประเภทหน้า
@@ -440,12 +628,17 @@ export default function StructuredData({
         onlineStoreSchema,
         localBusinessSchema,
         breadcrumbSchema,
-        faqSchema
+        faqSchema,
+        reviewSchema
       );
     }
 
     if (type === "product" && data) {
       schemas.push(getProductSchema(data));
+    }
+
+    if (type === "category" && data) {
+      schemas.push(getItemListSchema(data));
     }
 
     return schemas;

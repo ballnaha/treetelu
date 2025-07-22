@@ -425,7 +425,7 @@ const ProductsContent = () => {
             {products.map((product) => (
               <Box key={product.id} sx={{ 
                 width: { 
-                  xs: '100%', 
+                  xs: '50%', 
                   sm: '50%',
                   md: '33.33%',
                   lg: '25%'
