@@ -37,6 +37,7 @@ import ContactSupportIcon from '@mui/icons-material/ContactSupport';
 import PaymentIcon from '@mui/icons-material/Payment';
 import ArticleIcon from '@mui/icons-material/Article';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { useRouter } from 'next/navigation';
 
 // สร้าง styled component สำหรับ navigation
@@ -77,6 +78,7 @@ const menuItems = [
   { text: 'หน้าแรก', href: '/', icon: <HomeIcon /> },
   { text: 'สินค้า', href: '/products', icon: <CategoryOutlinedIcon /> },
   { text: 'บทความ', href: '/blog', icon: <ArticleIcon /> },
+  { text: 'คำถามที่พบบ่อย', href: '/faq', icon: <HelpOutlineIcon /> },
   { text: 'แจ้งชำระเงิน', href: '/payment-confirmation', icon: <PaymentIcon /> },
   { text: 'ติดต่อเรา', href: '/contact', icon: <ContactSupportIcon /> },
 ];
