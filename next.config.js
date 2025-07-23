@@ -49,6 +49,7 @@ const nextConfig = {
   experimental: {
     largePageDataBytes: 512 * 1000, // 512KB (default is 128KB)
   },
+
   // เพิ่ม headers สำหรับ cache control
   async headers() {
     return [
@@ -112,6 +113,9 @@ const nextConfig = {
           },
         ],
       },
+
+
+
     ];
   },
 };

@@ -9,6 +9,7 @@ import Cart from '@/components/Cart';
 import CartButton from '@/components/CartButton';
 import Footer from '@/components/Footer';
 import UserMenu from '@/components/UserMenu';
+import MobileFooter from '@/components/MobileFooter';
 import {
   Container,
   Box,
@@ -303,12 +304,14 @@ export default function LayoutProvider({ children }: { children: ReactNode }) {
       )}
       
       {/* เนื้อหาหลัก */}
-      <Box sx={{ pt: { xs: 7, sm: 8 }, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ pt: { xs: 7, sm: 8 }, pb: { xs: 10, md: 0 }, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ flex: 1 }}>
           {children}
         </Box>
         {/* Footer */}
         <Footer />
+        {/* Mobile Footer */}
+        <MobileFooter />
       </Box>
     </>
   );

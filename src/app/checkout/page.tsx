@@ -1728,7 +1728,63 @@ export default function Checkout() {
     !paymentPolling &&
     !showCreditCardWaitingOverlay
   ) {
-    return null; // ไม่แสดงข้อความใดๆ เมื่อตะกร้าว่างเปล่าและไม่ได้กำลังรอการชำระเงิน
+    return (
+      <Container maxWidth="md" sx={{ py: 4 }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "60vh",
+            textAlign: "center",
+          }}
+        >
+          <ShoppingCartIcon
+            sx={{
+              fontSize: 120,
+              color: "text.secondary",
+              mb: 3,
+              opacity: 0.5,
+            }}
+          />
+          <Typography
+            variant="h4"
+            sx={{
+              mb: 2,
+              fontWeight: 600,
+              color: "text.primary",
+            }}
+          >
+            ตะกร้าว่างเปล่า
+          </Typography>
+          <Typography
+            variant="body1"
+            sx={{
+              mb: 4,
+              color: "text.secondary",
+              maxWidth: 400,
+            }}
+          >
+            คุณยังไม่มีสินค้าในตะกร้า เริ่มเลือกซื้อสินค้าที่คุณชื่นชอบได้เลย
+          </Typography>
+          <Button
+            variant="contained"
+            size="large"
+            onClick={() => router.push("/products")}
+            sx={{
+              px: 4,
+              py: 1.5,
+              borderRadius: 2,
+              textTransform: "none",
+              fontSize: "1.1rem",
+            }}
+          >
+            เลือกซื้อสินค้า
+          </Button>
+        </Box>
+      </Container>
+    );
   }
 
   // ฟังก์ชันสำหรับสร้าง PromptPay QR code ใหม่
